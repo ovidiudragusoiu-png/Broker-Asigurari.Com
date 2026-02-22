@@ -9,12 +9,12 @@ import LocalitySelect from "@/components/rca/LocalitySelect";
 import CategorySelect from "@/components/rca/CategorySelect";
 import VinLookup from "@/components/rca/VinLookup";
 import OwnerIdentification from "@/components/rca/OwnerIdentification";
+import CompanyDataStep from "@/components/rca/CompanyDataStep";
 import DntChoice from "@/components/rca/DntChoice";
 import OfferTabs from "@/components/rca/OfferTabs";
 import PolicyDetailsForm from "@/components/rca/PolicyDetailsForm";
 import AdditionalDriverForm from "@/components/rca/AdditionalDriverForm";
 import ReviewSummary from "@/components/rca/ReviewSummary";
-import PaymentConfirmation from "@/components/rca/PaymentConfirmation";
 import { api, ApiError } from "@/lib/api/client";
 import {
   isPostOfferDetailsPFValid,
@@ -23,7 +23,8 @@ import {
 import {
   rcaFlowReducer,
   emptyRcaFlowState,
-  buildMinimalPersonForOrder,
+  buildFullPersonFromFlowState,
+  toDriverFromAdditional,
   getPlateCountyPrefix,
   findCountyIdForPlate,
   normalizeRcaOffer,
@@ -34,6 +35,7 @@ import {
 } from "@/lib/utils/rcaHelpers";
 import type { RcaFlowState, SelectedOfferState } from "@/types/rcaFlow";
 import type { RcaOfferApi } from "@/lib/utils/rcaHelpers";
+import { btn } from "@/lib/ui/tokens";
 
 // ============================================================
 // Page wrapper (Suspense boundary for useSearchParams)
@@ -41,7 +43,7 @@ import type { RcaOfferApi } from "@/lib/utils/rcaHelpers";
 
 export default function RcaPage() {
   return (
-    <Suspense fallback={<div className="py-16 text-center text-gray-500">Se incarca...</div>}>
+    <Suspense fallback={<div className="py-16 text-center text-gray-500">Se încarcă...</div>}>
       <RcaPageInner />
     </Suspense>
   );
@@ -69,14 +71,15 @@ function RcaPageInner() {
     }
   }, []);
 
-  // ----- Session storage persist -----
+  // ----- Session storage persist (exclude sensitive payment/order fields) -----
   useEffect(() => {
-    const serializable = { ...state };
-    sessionStorage.setItem("rcaWizardState", JSON.stringify(serializable));
+    const { orderHash, orderId, ...safeState } = state;
+    void orderHash; void orderId; // intentionally excluded from persistence
+    sessionStorage.setItem("rcaWizardState", JSON.stringify(safeState));
   }, [state]);
 
   // ============================================================
-  // Step 3: Create order + generate offers
+  // Step 5: Create order + generate offers (NOW with real data)
   // ============================================================
 
   const handleCreateOrderAndOffers = useCallback(async () => {
@@ -86,15 +89,9 @@ function RcaPageInner() {
     dispatch({ type: "SET_ERROR", error: null });
 
     try {
-      // 1. Build person with plate-derived location (resolved during plate entry)
-      const minimalPerson = buildMinimalPersonForOrder(
-        state.ownerType,
-        state.cnpOrCui,
-        state.email,
-        state.plateCountyId,
-        state.plateCityId,
-        state.platePostalCode
-      );
+      // Build person with REAL data (collected in steps 3-4)
+      const fullPerson = buildFullPersonFromFlowState(state);
+      const normalizedPerson = normalizePersonForRca(fullPerson);
 
       // Check consent status and submit if needed
       let consentSigned = false;
@@ -105,7 +102,6 @@ function RcaPageInner() {
         consentSigned = consentStatus.signedDocuments;
       } catch {
         // Status check failed - assume not signed, proceed to submit
-        console.warn("Consent status check failed, will attempt to submit consent");
       }
 
       if (!consentSigned) {
@@ -131,7 +127,7 @@ function RcaPageInner() {
         }
 
         await api.post("/online/client/documents/submit-answers", {
-          personBaseRequest: normalizePersonForRca(minimalPerson),
+          personBaseRequest: normalizedPerson,
           communicationChannelEmail: true,
           communicationChannelPhoneNo: false,
           communicationChannelAddress: false,
@@ -146,7 +142,7 @@ function RcaPageInner() {
             `/online/client/documents/status?legalType=${state.ownerType}&cif=${state.cnpOrCui}&vendorProductType=RCA`
           );
           if (!verifyStatus.signedDocuments) {
-            console.warn("Consent submitted but status still shows unsigned");
+            // Consent submitted but verification still shows unsigned - continue anyway
           }
         } catch {
           // Verification failed - continue anyway, order creation will be the real test
@@ -158,21 +154,6 @@ function RcaPageInner() {
         { id: string | number; productName: string; vendorDetails?: { commercialName?: string; [key: string]: unknown } }[]
       >("/online/products/rca");
 
-      // Log all products for debugging
-      console.log("All RCA Products:", allRcaProducts.map(p => ({
-        id: p.id,
-        name: p.productName,
-        vendor: p.vendorDetails?.commercialName,
-      })));
-
-      // Log full details for unknown "Anytime" product
-      const anytimeProducts = allRcaProducts.filter(p =>
-        (p.vendorDetails?.commercialName || "").toLowerCase().includes("anytime")
-      );
-      if (anytimeProducts.length > 0) {
-        console.log("Anytime product FULL details:", JSON.stringify(anytimeProducts, null, 2));
-      }
-
       // Filter: keep only "Hellas Next Ins", exclude plain "Hellas"
       const rcaProducts = allRcaProducts.filter(p => {
         const vendor = (p.vendorDetails?.commercialName || "").toLowerCase();
@@ -180,14 +161,26 @@ function RcaPageInner() {
         return true;
       });
 
-      console.log(`Products: ${allRcaProducts.length} total → ${rcaProducts.length} after filtering`);
+      // Build driver details with REAL data
+      const driversDetails = state.ownerType === "PF"
+        ? [{
+            firstName: state.ownerFirstName,
+            lastName: state.ownerLastName,
+            cnp: state.cnpOrCui,
+            idType: state.idType || "CI" as const,
+            idSeries: state.idSeries || "XX",
+            idNumber: state.idNumber || "000000",
+            phoneNumber: state.phoneNumber || "0700000000",
+            driverLicenceDate: "2010-02-01T00:00:00",
+          }]
+        : [];
 
-      // 3. Create order with minimal/placeholder person data (reuse minimalPerson from above)
+      // 3. Create order with REAL person data
       const order = await api.post<{ id: number; productType: string; hash: string }>(
         "/online/offers/rca/order/v3",
         {
-          rcaOwnerDetails: normalizePersonForRca(minimalPerson),
-          rcaUserDetails: normalizePersonForRca(minimalPerson),
+          rcaOwnerDetails: normalizedPerson,
+          rcaUserDetails: normalizedPerson,
           vehicleDetails: {
             vin: state.vehicle.vin,
             plateNo: state.vehicle.licensePlate,
@@ -203,8 +196,8 @@ function RcaPageInner() {
             maxWeight: state.vehicle.totalWeight,
             seatsNumber: state.vehicle.seats,
             registrationTypeId: state.vehicle.registrationTypeId,
-            civ: "S123456",
-            registrationCertificateNumber: "S123456",
+            civ: state.registrationCertSeries,
+            registrationCertificateNumber: state.registrationCertSeries,
             rafCode: "RAJ506943",
             mileage: 50000,
             km: 50000,
@@ -212,20 +205,7 @@ function RcaPageInner() {
         }
       );
 
-      console.log("Order created:", JSON.stringify(order, null, 2));
       dispatch({ type: "SET_ORDER", orderId: order.id, orderHash: order.hash });
-
-      // 3. Build placeholder driver for offer requests
-      const driver = {
-        firstName: state.ownerType === "PF" ? "Test" : "",
-        lastName: state.ownerType === "PF" ? "Test" : "",
-        cnp: state.cnpOrCui,
-        idType: "CI" as const,
-        idSeries: "XX",
-        idNumber: "000000",
-        phoneNumber: "0700000000",
-        driverLicenceDate: "2010-02-01T00:00:00",
-      };
 
       // 4. Request offers in batches of 3 to avoid API timeouts
       const BATCH_SIZE = 3;
@@ -237,29 +217,21 @@ function RcaPageInner() {
         const batchResults = await Promise.all(
           batch.map(async (product) => {
             try {
-              const vendorName = (product.vendorDetails?.commercialName || "").toLowerCase();
-
-              // Per-insurer RAF code: Omniasig needs MGB_M_RAJ506945
-              const rafCode = vendorName.includes("omniasig") ? "MGB_M_RAJ506945" : "RAJ506943";
-
-              // Per-insurer mileage: Grawe - try value 0
-              const isGrawe = vendorName.includes("grawe");
-              const mileageFields = isGrawe
-                ? { mileage: 0, km: 0 }
-                : { mileage: 50000, km: 50000 };
+              const rafCode = "RAJ506943";
+              const mileageFields = { mileage: 50000, km: 50000 };
 
               const offerPayload = {
                   orderId: order.id,
                   policyStartDate: toRcaDate(state.startDate),
                   periodMonths: ["1", "2", "3", "6", "12"],
                   isLeasing: false,
-                  driversDetails: [driver],
+                  driversDetails,
                   rcaProductRequests: [
                     {
                       productId: Number(product.id),
                       specificFields: {
-                        civ: "S123456",
-                        registrationCertificateNumber: "S123456",
+                        civ: state.registrationCertSeries,
+                        registrationCertificateNumber: state.registrationCertSeries,
                         rafCode,
                         ...mileageFields,
                         driverLicenceDate: "2010-02-01T00:00:00",
@@ -274,6 +246,7 @@ function RcaPageInner() {
                 { timeoutMs: OFFER_TIMEOUT }
               );
               const responseList = extractRcaOffers(offerResponse);
+
               return responseList.map((raw) =>
                 normalizeRcaOffer(
                   raw,
@@ -283,9 +256,8 @@ function RcaPageInner() {
                 )
               );
             } catch (offerErr) {
-              console.error(`Offer error for [${product.vendorDetails?.commercialName || product.productName}]:`, offerErr);
               let errorMessage =
-                offerErr instanceof Error ? offerErr.message : "Eroare generare oferta";
+                offerErr instanceof Error ? offerErr.message : "Eroare la generarea ofertei";
               if (offerErr instanceof ApiError && offerErr.data && typeof offerErr.data === "object") {
                 const apiData = offerErr.data as {
                   message?: string; detail?: string; title?: string;
@@ -296,6 +268,7 @@ function RcaPageInner() {
                   : null;
                 errorMessage = details || apiData.message || apiData.detail || apiData.title || errorMessage;
               }
+
               return [{
                 id: 0,
                 productId: product.id,
@@ -331,10 +304,6 @@ function RcaPageInner() {
 
       const errorOffers = flatResults.filter((o) => o.error);
       const validOffers = flatResults.filter((o) => !o.error);
-      console.log(`Offers: ${validOffers.length} valid, ${errorOffers.length} with errors`);
-      if (errorOffers.length > 0) {
-        console.log("Offer errors:", errorOffers.map((o) => `[${o.vendorName || o.productName}] ${o.error}`));
-      }
 
       if (validOffers.length === 0) {
         const errorDetails = errorOffers
@@ -343,11 +312,11 @@ function RcaPageInner() {
           .join("; ");
         dispatch({
           type: "SET_ERROR",
-          error: `Nu s-au generat oferte RCA. ${errorDetails || "Verificati datele introduse si incercati din nou."}`,
+          error: `Nu s-au putut genera oferte RCA. ${errorDetails || "Verificați datele introduse și încercați din nou."}`,
         });
       }
     } catch (err) {
-      let errorMsg = err instanceof Error ? err.message : "Eroare la crearea comenzii";
+      let errorMsg = err instanceof Error ? err.message : "Eroare la crearea comenzii.";
       if (err instanceof ApiError && err.data && typeof err.data === "object") {
         const apiData = err.data as {
           message?: string; detail?: string; title?: string;
@@ -361,17 +330,55 @@ function RcaPageInner() {
       dispatch({ type: "SET_ERROR", error: errorMsg });
       dispatch({ type: "SET_LOADING_OFFERS", loading: false });
     }
-  }, [state.offers.length, state.loadingOffers, state.ownerType, state.cnpOrCui, state.email, state.vehicle, state.startDate, state.plateCountyId, state.plateCityId, state.platePostalCode]);
+  }, [state.offers.length, state.loadingOffers, state.ownerType, state.cnpOrCui, state.email, state.vehicle, state.startDate, state.plateCountyId, state.plateCityId, state.platePostalCode, state.ownerFirstName, state.ownerLastName, state.idType, state.idSeries, state.idNumber, state.phoneNumber, state.address, state.registrationCertSeries, state.companyName, state.registrationNumber, state.caenCode, state.companyTypeId]);
 
   // ============================================================
-  // Step 6: Consent auto-submit + payment
+  // Step 7: Payment (no more order update needed — order has real data)
   // ============================================================
 
   const handleConsentAndPay = async () => {
     if (!state.selectedOffer || !state.orderId || !state.orderHash) return;
 
-    // Skip consent/document signing - handled via GDPR notice + T&C modal in UI
-    // The user already agreed through the TermsModal checkbox
+    // Build real person data
+    const fullPerson = buildFullPersonFromFlowState(state);
+    const normalizedPerson = normalizePersonForRca(fullPerson);
+
+    // Build driver details: main driver (PF) + additional driver
+    const driversDetails: Record<string, unknown>[] = [];
+    if (state.ownerType === "PF") {
+      driversDetails.push({
+        firstName: state.ownerFirstName,
+        lastName: state.ownerLastName,
+        cnp: state.cnpOrCui,
+        idType: state.idType,
+        idSeries: state.idSeries,
+        idNumber: state.idNumber,
+        phoneNumber: state.phoneNumber,
+        driverLicenceDate: "2010-02-01T00:00:00",
+      });
+    }
+    if (state.hasAdditionalDriver && state.additionalDriver) {
+      const addDriver = toDriverFromAdditional(state.additionalDriver);
+      driversDetails.push({
+        ...addDriver,
+        driverLicenceDate: state.additionalDriver.driverLicenceDate
+          ? `${state.additionalDriver.driverLicenceDate}T00:00:00`
+          : "2010-02-01T00:00:00",
+      });
+    }
+
+    // Save policy creation data to sessionStorage (needed after payment redirect)
+    const policyData = {
+      rcaOwnerDetails: normalizedPerson,
+      rcaUserDetails: normalizedPerson,
+      driversDetails,
+      vehicleDetails: {
+        civ: state.registrationCertSeries,
+        registrationCertificateNumber: state.registrationCertSeries,
+      },
+      policyStartDate: toRcaDate(state.startDate),
+    };
+    sessionStorage.setItem("rcaPolicyData", JSON.stringify(policyData));
 
     // Create payment link
     const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
@@ -383,7 +390,25 @@ function RcaPageInner() {
       { Accept: "text/plain" }
     );
 
-    // 3. Redirect to payment gateway
+    // Security: validate payment URL origin before redirect
+    const ALLOWED_PAYMENT_ORIGINS = [
+      "https://pay.insuretech.ro",
+      "https://insuretech.staging.insuretech.ro",
+      "https://secure.euplatesc.ro",
+    ];
+    try {
+      const parsed = new URL(paymentUrl as string);
+      if (!ALLOWED_PAYMENT_ORIGINS.some((o) => parsed.origin === new URL(o).origin)) {
+        throw new Error("URL plata invalid");
+      }
+    } catch (e) {
+      if (e instanceof Error && e.message === "URL plata invalid") throw e;
+      throw new Error("URL plata invalid");
+    }
+
+    // Clean wizard state but keep policy data for callback
+    sessionStorage.removeItem("rcaWizardState");
+
     window.location.href = paymentUrl as string;
   };
 
@@ -456,24 +481,64 @@ function RcaPageInner() {
   };
 
   // Step 2 sub-step handlers
-  const handleOwnerIdComplete = () => {
+  const handleOwnerIdComplete = async () => {
+    // For PJ, try CUI lookup to auto-fill company data, then show company sub-step
+    if (state.ownerType === "PJ" && state.cnpOrCui) {
+      try {
+        // POST required — the upstream API doesn't support GET for this endpoint
+        const company = await api.post<{
+          name?: string;
+          registrationNumber?: string;
+          caenCode?: string | null;
+          companyTypeId?: number | null;
+        }>(`/online/companies/utils/${state.cnpOrCui}`, {});
+        dispatch({
+          type: "SET_COMPANY_DATA",
+          companyName: company.name || "",
+          registrationNumber: company.registrationNumber || "",
+          caenCode: company.caenCode ?? null,
+          companyTypeId: company.companyTypeId ?? null,
+        });
+      } catch {
+        // Company not found in database — user will fill manually
+      }
+      // Show company data for review/correction
+      dispatch({ type: "SET_IDENTIFICATION_SUB_STEP", subStep: "company" });
+    } else {
+      dispatch({ type: "SET_IDENTIFICATION_SUB_STEP", subStep: "dnt" });
+    }
+  };
+
+  const handleCompanyDataContinue = () => {
     dispatch({ type: "SET_IDENTIFICATION_SUB_STEP", subStep: "dnt" });
   };
 
   const handleDntContinue = () => {
     dispatch({ type: "SET_SKIP_DNT", skip: true });
-    next(); // Move to step 3
-    // Trigger offer generation
-    handleCreateOrderAndOffers();
+    next(); // Move to step 3 (CIV + start date)
   };
 
-  // Step 3: offer selected
-  const handleOfferSelected = (selected: SelectedOfferState) => {
-    dispatch({ type: "SELECT_OFFER", selected });
+  // Step 3: CIV + start date complete → move to step 4 (owner details)
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
+  const civStepValid = state.registrationCertSeries.trim().length > 0 && state.startDate.length > 0 && state.startDate >= tomorrow;
+
+  const handleCivContinue = () => {
+    // Pre-fill address county/city from plate-derived location (for non-Bucharest)
+    if (!state.address.countyId && state.plateCountyId) {
+      dispatch({
+        type: "SET_ADDRESS",
+        address: {
+          ...state.address,
+          countyId: state.plateCountyId,
+          cityId: state.plateCityId,
+          postalCode: state.address.postalCode || state.platePostalCode || "",
+        },
+      });
+    }
     next(); // Move to step 4
   };
 
-  // Step 4: policy details complete
+  // Step 4: Owner details complete → move to step 5 (offers)
   const isPolicyDetailsValid = state.ownerType === "PF"
     ? isPostOfferDetailsPFValid({
         ownerFirstName: state.ownerFirstName,
@@ -495,11 +560,14 @@ function RcaPageInner() {
   };
 
   const handlePolicyDetailsContinue = () => {
-    next(); // Move to step 5
+    next(); // Move to step 5 (offers)
+    // Trigger order creation + offer generation with REAL data
+    handleCreateOrderAndOffers();
   };
 
-  // Step 5: review confirmed
-  const handleReviewConfirm = () => {
+  // Step 5: offer selected
+  const handleOfferSelected = (selected: SelectedOfferState) => {
+    dispatch({ type: "SELECT_OFFER", selected });
     next(); // Move to step 6
   };
 
@@ -553,102 +621,113 @@ function RcaPageInner() {
             onContinue={handleOwnerIdComplete}
           />
         );
+      case "company":
+        return (
+          <CompanyDataStep
+            companyName={state.companyName}
+            registrationNumber={state.registrationNumber}
+            caenCode={state.caenCode}
+            companyFound={state.companyFound}
+            onFieldChange={handlePolicyDetailsFieldChange}
+            onCaenChange={(code) => dispatch({ type: "SET_POLICY_DETAILS", details: { caenCode: code } })}
+            onContinue={handleCompanyDataContinue}
+          />
+        );
       case "dnt":
         return <DntChoice onContinueDirect={handleDntContinue} />;
     }
   })();
 
-  // Step 4: CIV + start date (matching rca.ro)
-  const selectedPeriod = state.selectedOffer?.period || "";
-  const selectedPrice = state.selectedOffer?.premium || 0;
-  const civStepValid = state.registrationCertSeries.trim().length > 0 && state.startDate.length > 0;
-
-  const step4CivContent = (
+  // Step 3: CIV + start date
+  const step3CivContent = (
     <div className="mx-auto max-w-md space-y-6 text-center">
-      {/* Offer summary */}
       <div>
         <p className="text-lg font-bold text-gray-800">
-          30 de secunde si esti asigurat!
-        </p>
-        <p className="mt-1 text-2xl font-bold text-rose-600">
-          {selectedPeriod} {Number(selectedPeriod) === 1 ? "luna" : "luni"} &ndash;{" "}
-          {new Intl.NumberFormat("ro-RO", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(selectedPrice)} lei
-        </p>
-        <p className="mt-2 text-base font-semibold text-gray-700">
-          Date pentru polita te rog:
+          Completați datele poliței
         </p>
       </div>
 
       {/* CIV */}
       <div className="text-left">
         <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
-          Serie Carte Auto (CIV)
+          Serie carte auto (CIV)
         </label>
         <input
           type="text"
-          className="w-full rounded-lg border-2 border-gray-300 px-4 py-3 text-sm uppercase focus:border-green-500 focus:outline-none"
+          className="w-full rounded-lg border-2 border-gray-300 px-4 py-3 text-sm uppercase focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-colors duration-200"
           value={state.registrationCertSeries}
           onChange={(e) => handlePolicyDetailsFieldChange("registrationCertSeries", e.target.value.toUpperCase())}
           placeholder="ex: F123123"
         />
         <p className="mt-1 text-xs text-gray-400">
-          &gt;&gt; la taloanele noi nu mai apare seria cartii auto. o gasiti in cartea vehiculului.
+          La taloanele noi, seria cărții auto nu mai apare. O găsiți în cartea vehiculului.
         </p>
       </div>
 
       {/* Start date */}
       <div className="text-left">
         <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
-          Data inceput valabilitate RCA
+          Data început valabilitate RCA
         </label>
         <input
           type="date"
-          className="w-full rounded-lg border-2 border-gray-300 px-4 py-3 text-sm focus:border-green-500 focus:outline-none"
+          className="w-full rounded-lg border-2 border-gray-300 px-4 py-3 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-colors duration-200"
           value={state.startDate}
+          min={new Date(Date.now() + 86400000).toISOString().split("T")[0]}
           onChange={(e) => handlePolicyDetailsFieldChange("startDate", e.target.value)}
         />
         <p className="mt-1 text-xs text-gray-400">
-          &gt;&gt; prima zi dupa expirarea politei.
+          Selectați prima zi după expirarea poliței curente.
         </p>
       </div>
 
       {/* Inainte button */}
       <button
         type="button"
-        onClick={() => next()}
+        onClick={handleCivContinue}
         disabled={!civStepValid}
-        className="w-full rounded-full bg-rose-500 px-8 py-3.5 text-base font-bold uppercase tracking-wide text-white transition-colors hover:bg-rose-600 disabled:opacity-50"
+        className={btn.primary}
       >
-        Inainte
+        Înainte
       </button>
     </div>
   );
 
-  // Step 5: Owner details + additional driver
-  const step5DetailsContent = (
-    <div className="space-y-8">
-      <PolicyDetailsForm
-        ownerType={state.ownerType}
-        ownerFirstName={state.ownerFirstName}
-        ownerLastName={state.ownerLastName}
-        companyName={state.companyName}
-        registrationNumber={state.registrationNumber}
-        idSeries={state.idSeries}
-        idNumber={state.idNumber}
-        address={state.address}
-        onFieldChange={handlePolicyDetailsFieldChange}
-        onAddressChange={(address) => dispatch({ type: "SET_ADDRESS", address })}
-        onContinue={() => {}}
-        isValid={true}
-      />
-      <AdditionalDriverForm
-        hasDriver={state.hasAdditionalDriver}
-        driver={state.additionalDriver}
-        onToggle={(has) => dispatch({ type: "SET_ADDITIONAL_DRIVER_TOGGLE", has })}
-        onDriverChange={(driver) => dispatch({ type: "SET_ADDITIONAL_DRIVER", driver })}
-        onContinue={handlePolicyDetailsContinue}
-      />
-    </div>
+  // Step 4: Owner details
+  const step4DetailsContent = (
+    <PolicyDetailsForm
+      ownerType={state.ownerType}
+      ownerFirstName={state.ownerFirstName}
+      ownerLastName={state.ownerLastName}
+      companyName={state.companyName}
+      registrationNumber={state.registrationNumber}
+      caenCode={state.caenCode}
+      companyFound={state.companyFound}
+      idSeries={state.idSeries}
+      idNumber={state.idNumber}
+      email={state.email}
+      phoneNumber={state.phoneNumber}
+      address={state.address}
+      isBucharest={getPlateCountyPrefix(state.licensePlate) === "B"}
+      onFieldChange={handlePolicyDetailsFieldChange}
+      onCaenChange={(code) => dispatch({ type: "SET_POLICY_DETAILS", details: { caenCode: code } })}
+      onAddressChange={(address) => dispatch({ type: "SET_ADDRESS", address })}
+      onEmailChange={(email) => dispatch({ type: "SET_EMAIL", email })}
+      onPhoneChange={(phone) => dispatch({ type: "SET_PHONE", phone })}
+      onContinue={handlePolicyDetailsContinue}
+      isValid={isPolicyDetailsValid}
+    />
+  );
+
+  // Step 6: Additional driver
+  const step6DriverContent = (
+    <AdditionalDriverForm
+      hasDriver={state.hasAdditionalDriver}
+      driver={state.additionalDriver}
+      onToggle={(has) => dispatch({ type: "SET_ADDITIONAL_DRIVER_TOGGLE", has })}
+      onDriverChange={(driver) => dispatch({ type: "SET_ADDITIONAL_DRIVER", driver })}
+      onContinue={() => next()}
+    />
   );
 
   const steps = [
@@ -661,6 +740,14 @@ function RcaPageInner() {
       content: step2Content,
     },
     {
+      title: "Date poliță",
+      content: step3CivContent,
+    },
+    {
+      title: "Detalii proprietar",
+      content: step4DetailsContent,
+    },
+    {
       title: "Oferte RCA",
       content: (
         <OfferTabs
@@ -671,28 +758,13 @@ function RcaPageInner() {
       ),
     },
     {
-      title: "Date polita",
-      content: step4CivContent,
+      title: "Șofer adițional",
+      content: step6DriverContent,
     },
     {
-      title: "Detalii proprietar",
-      content: step5DetailsContent,
-    },
-    {
-      title: "Sumar",
+      title: "Sumar & Plată",
       content: (
         <ReviewSummary
-          state={state}
-          onEmailChange={(email) => dispatch({ type: "SET_EMAIL", email })}
-          onPhoneChange={(phone) => dispatch({ type: "SET_PHONE", phone })}
-          onConfirm={handleReviewConfirm}
-        />
-      ),
-    },
-    {
-      title: "Plata",
-      content: (
-        <PaymentConfirmation
           state={state}
           onConsentAndPay={handleConsentAndPay}
         />
@@ -713,7 +785,7 @@ function RcaPageInner() {
             onClick={() => dispatch({ type: "SET_ERROR", error: null })}
             className="ml-2 font-medium underline"
           >
-            Inchide
+            Închide
           </button>
         </div>
       )}

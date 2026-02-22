@@ -1,37 +1,67 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import type { RcaFlowState } from "@/types/rcaFlow";
-import { validateEmail, validatePhoneRO } from "@/lib/utils/validation";
-import { getLocalVendorLogo, periodText } from "@/lib/utils/rcaHelpers";
+import { getLocalVendorLogo, periodText, getGreenCardExclusions } from "@/lib/utils/rcaHelpers";
+import TermsModal from "./TermsModal";
+import { btn } from "@/lib/ui/tokens";
+
+/** Mask a CNP/CUI: show first 2 and last 3 chars, rest as stars */
+function maskId(value: string): string {
+  if (value.length <= 5) return value;
+  return value.slice(0, 2) + "*".repeat(value.length - 5) + value.slice(-3);
+}
+
+/** Mask a VIN: show only last 6 chars */
+function maskVin(vin: string): string {
+  if (vin.length <= 6) return vin;
+  return "*".repeat(vin.length - 6) + vin.slice(-6);
+}
 
 interface ReviewSummaryProps {
   state: RcaFlowState;
-  onEmailChange: (email: string) => void;
-  onPhoneChange: (phone: string) => void;
-  onConfirm: () => void;
+  onConsentAndPay: () => Promise<void>;
 }
 
 export default function ReviewSummary({
   state,
-  onEmailChange,
-  onPhoneChange,
-  onConfirm,
+  onConsentAndPay,
 }: ReviewSummaryProps) {
-  const offer = state.selectedOffer;
-  const emailValid = validateEmail(state.email);
-  const phoneValid = validatePhoneRO(state.phoneNumber);
-  const isValid = emailValid && phoneValid;
+  const [showTerms, setShowTerms] = useState(false);
+  const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
+  const offer = state.selectedOffer;
   const vendorLogo = offer?.offer.vendorLogoUrl || getLocalVendorLogo(offer?.offer.vendorName ?? "");
+
+  const handlePayClick = () => {
+    setShowTerms(true);
+  };
+
+  const handleTermsAgree = async () => {
+    setShowTerms(false);
+    setProcessing(true);
+    setError(null);
+    try {
+      await onConsentAndPay();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Eroare la procesarea plății");
+      setProcessing(false);
+    }
+  };
+
+  if (!offer) {
+    return <p className="text-center text-gray-500">Selectați mai întâi o ofertă.</p>;
+  }
 
   return (
     <div className="space-y-6">
+      {/* Title */}
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-gray-900">Sumar comanda</h2>
-        <p className="mt-1 text-sm text-gray-500">
-          Verifica datele inainte de plata
-        </p>
+        <h2 className="text-2xl font-bold text-gray-800">
+          Verificați datele poliței:
+        </h2>
       </div>
 
       {/* Summary card */}
@@ -42,7 +72,7 @@ export default function ReviewSummary({
         </div>
 
         {/* Details */}
-        <div className="space-y-2 border-t border-gray-100 p-5 text-center text-sm">
+        <div className="space-y-1 border-t border-gray-100 p-5 text-center text-sm">
           {state.ownerType === "PF" ? (
             <p className="font-semibold text-gray-900">
               {state.ownerLastName.toUpperCase()} {state.ownerFirstName.toUpperCase()}
@@ -54,13 +84,13 @@ export default function ReviewSummary({
           )}
 
           <p className="text-gray-600">
-            {state.ownerType === "PF" ? "CNP" : "CUI"}: {state.cnpOrCui}
+            {state.ownerType === "PF" ? "CNP" : "CUI"}: {maskId(state.cnpOrCui)}
           </p>
 
-          {state.address.countyId && (
+          {state.address.streetName && (
             <p className="text-gray-600 uppercase">
-              {state.address.streetName && `${state.address.streetName}, `}
-              {state.address.streetNumber && `Nr. ${state.address.streetNumber}`}
+              {state.address.streetName}
+              {state.address.streetNumber ? `, Nr. ${state.address.streetNumber}` : ""}
             </p>
           )}
 
@@ -68,45 +98,44 @@ export default function ReviewSummary({
             Sasiu: {state.vehicle.vin}
           </p>
 
-          <p className="font-semibold text-rose-600">
+          <p className="font-semibold text-emerald-700">
             {state.vehicle.model ? `${state.vehicle.model}` : "Vehicul"} - {state.vehicle.licensePlate}
           </p>
 
-          {offer && (
-            <>
-              <p className="text-rose-600">
-                Polita RCA {offer.offer.vendorName}
-              </p>
-              <p className="text-rose-600">
-                {periodText(Number(offer.period))} / din {state.startDate}
-              </p>
+          <p className="text-emerald-700">
+            Poliță RCA {offer.offer.vendorName}
+          </p>
+          <p className="text-emerald-700">
+            {periodText(Number(offer.period))} / din {state.startDate}
+          </p>
+          {(() => {
+            const exclusions = getGreenCardExclusions(offer.offer.vendorName);
+            if (exclusions.length === 0) return null;
+            return (
               <p className="text-xs text-gray-400">
-                vezi excluderi carte verde:{" "}
-                <span className="cursor-help">{"\u24D8"}</span>
+                Excluderi C.V.: {exclusions.join(", ")}
               </p>
-            </>
-          )}
+            );
+          })()}
         </div>
 
-        {/* Price */}
-        {offer && (
-          <div className="border-t border-gray-100 py-3 text-center">
-            <span className="inline-block rounded-md bg-green-500 px-5 py-2 text-lg font-bold text-white">
-              {new Intl.NumberFormat("ro-RO", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              }).format(offer.premium)}{" "}
-              lei
-            </span>
-          </div>
-        )}
+        {/* Price badge */}
+        <div className="border-t border-gray-100 py-3 text-center">
+          <span className="inline-block text-2xl font-bold text-gray-900">
+            {new Intl.NumberFormat("ro-RO", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            }).format(offer.premium)}{" "}
+            lei
+          </span>
+        </div>
 
         {/* Vendor logo */}
         {vendorLogo && (
           <div className="flex justify-center pb-3">
             <Image
               src={vendorLogo}
-              alt={offer?.offer.vendorName ?? ""}
+              alt={offer.offer.vendorName}
               width={100}
               height={30}
               className="h-6 w-auto object-contain"
@@ -116,49 +145,46 @@ export default function ReviewSummary({
         )}
       </div>
 
-      {/* Contact details */}
-      <div className="mx-auto max-w-lg space-y-4">
-        <h3 className="text-sm font-semibold text-gray-700">Date de contact</h3>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Email</label>
-            <input
-              type="email"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-              value={state.email}
-              onChange={(e) => onEmailChange(e.target.value)}
-            />
-            {state.email.length > 0 && !emailValid && (
-              <p className="mt-1 text-xs text-red-600">Email invalid</p>
-            )}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Telefon</label>
-            <input
-              type="tel"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-              value={state.phoneNumber}
-              onChange={(e) => onPhoneChange(e.target.value)}
-              placeholder="07XXXXXXXX"
-            />
-            {state.phoneNumber.length > 0 && !phoneValid && (
-              <p className="mt-1 text-xs text-red-600">Numar de telefon invalid</p>
-            )}
-          </div>
-        </div>
+      {/* Declaration */}
+      <div className="mx-auto flex max-w-lg items-start gap-3 rounded-lg bg-emerald-50 p-4">
+        <span className="mt-0.5 text-emerald-600">&#10132;</span>
+        <p className="text-sm text-gray-700">
+          Prin apăsarea butonului „PLĂTESC", declar că am peste 18 ani și că datele
+          furnizate pentru încheierea poliței RCA sunt corecte și reale.
+        </p>
       </div>
 
-      {/* Continue */}
+      {/* Error */}
+      {error && (
+        <div className="mx-auto max-w-lg rounded-md bg-red-50 p-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
+      {/* Pay button */}
       <div className="text-center">
-        <button
-          type="button"
-          onClick={onConfirm}
-          disabled={!isValid}
-          className="rounded-lg bg-blue-600 px-8 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
-        >
-          Continua spre plata
-        </button>
+        {processing ? (
+          <div className="flex items-center justify-center gap-2 text-gray-500">
+            <span className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
+            <span className="text-sm">Se procesează...</span>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={handlePayClick}
+            className={`${btn.primary} px-10 py-4 text-base uppercase tracking-wide shadow-md hover:shadow-lg`}
+          >
+            Datele sunt corecte, plătesc
+          </button>
+        )}
       </div>
+
+      {/* Terms modal */}
+      <TermsModal
+        isOpen={showTerms}
+        onAgree={handleTermsAgree}
+        onClose={() => setShowTerms(false)}
+      />
     </div>
   );
 }

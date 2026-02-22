@@ -103,6 +103,17 @@ export function isMinimalOwnerValid(ownerType: "PF" | "PJ", cnpOrCui: string, em
 /**
  * Validate post-offer policy details (collected after user selects an offer).
  */
+/** Lighter address check for step 5: postal code is auto-resolved, not required */
+function isStepAddressValid(address: AddressRequest): boolean {
+  if (!address.countryId) return false;
+  if (!address.streetName?.trim() || !address.streetNumber?.trim()) return false;
+  const isForeign = address.countryId !== ROMANIA_COUNTRY_ID;
+  if (isForeign) {
+    return !!address.foreignCountyName?.trim() && !!address.foreignCityName?.trim();
+  }
+  return !!address.countyId && !!address.cityId;
+}
+
 export function isPostOfferDetailsPFValid(details: {
   ownerFirstName: string;
   ownerLastName: string;
@@ -117,7 +128,7 @@ export function isPostOfferDetailsPFValid(details: {
     !!details.idSeries?.trim() &&
     !!details.idNumber?.trim() &&
     !!details.startDate &&
-    isAddressValid(details.address)
+    isStepAddressValid(details.address)
   );
 }
 
@@ -131,7 +142,7 @@ export function isPostOfferDetailsPJValid(details: {
     !!details.companyName?.trim() &&
     !!details.registrationNumber?.trim() &&
     !!details.startDate &&
-    isAddressValid(details.address)
+    isStepAddressValid(details.address)
   );
 }
 

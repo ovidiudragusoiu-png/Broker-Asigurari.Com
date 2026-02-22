@@ -7,6 +7,7 @@ import {
   getOfferPrice,
   getLocalVendorLogo,
   pickOfferByVariant,
+  getGreenCardExclusions,
 } from "@/lib/utils/rcaHelpers";
 
 interface OfferTabsProps {
@@ -45,7 +46,7 @@ const TABS: TabConfig[] = [
   {
     key: "direct",
     label: "6 / 12 luni",
-    sublabel: "decontare directa",
+    sublabel: "decontare directă",
     columns: [
       { period: "6", label: "6 luni + dd", withDirectSettlement: true },
       { period: "12", label: "12 luni + dd", withDirectSettlement: true },
@@ -97,7 +98,7 @@ export default function OfferTabs({
       <div className="space-y-6">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900">
-            Alege cel mai mic pret RCA!
+            Alege cel mai bun preț RCA!
           </h2>
         </div>
         {/* Tabs (disabled during loading) */}
@@ -123,9 +124,9 @@ export default function OfferTabs({
           ))}
         </div>
         <div className="flex items-center justify-center gap-3 py-2">
-          <span className="h-5 w-5 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
+          <span className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
           <p className="text-sm font-medium text-gray-500">
-            Se genereaza ofertele... Aceasta poate dura cateva momente.
+            Se generează ofertele... Poate dura câteva momente.
           </p>
         </div>
       </div>
@@ -137,7 +138,7 @@ export default function OfferTabs({
     return (
       <div className="py-12 text-center">
         <p className="text-lg text-gray-500">
-          Nu exista oferte disponibile.
+          Nu există oferte disponibile.
         </p>
       </div>
     );
@@ -145,7 +146,7 @@ export default function OfferTabs({
 
   // ---- Group offers by vendor ----
   const vendors = Array.from(
-    new Set(offers.map((o) => o.vendorName || "Asigurator necunoscut"))
+    new Set(offers.map((o) => o.vendorName || "Asigurător necunoscut"))
   );
 
   // ---- Cheapest price per column ----
@@ -154,7 +155,7 @@ export default function OfferTabs({
     let min = Infinity;
     for (const vendor of vendors) {
       const vendorOffers = offers.filter(
-        (o) => (o.vendorName || "Asigurator necunoscut") === vendor
+        (o) => (o.vendorName || "Asigurător necunoscut") === vendor
       );
       const match = pickOfferByVariant(
         vendorOffers,
@@ -176,10 +177,10 @@ export default function OfferTabs({
   // ---- Sort vendors by cheapest price in the last column ----
   const vendorsSorted = [...vendors].sort((a, b) => {
     const aOffers = offers.filter(
-      (o) => (o.vendorName || "Asigurator necunoscut") === a
+      (o) => (o.vendorName || "Asigurător necunoscut") === a
     );
     const bOffers = offers.filter(
-      (o) => (o.vendorName || "Asigurator necunoscut") === b
+      (o) => (o.vendorName || "Asigurător necunoscut") === b
     );
     const col =
       currentTabConfig.columns[currentTabConfig.columns.length - 1];
@@ -205,7 +206,7 @@ export default function OfferTabs({
   // Check if any vendor has offers for this tab
   const hasAnyOffer = vendorsSorted.some((vendor) => {
     const vendorOffers = offers.filter(
-      (o) => (o.vendorName || "Asigurator necunoscut") === vendor
+      (o) => (o.vendorName || "Asigurător necunoscut") === vendor
     );
     return currentTabConfig.columns.some((col) => {
       const match = pickOfferByVariant(
@@ -244,13 +245,10 @@ export default function OfferTabs({
       <div className="flex flex-wrap justify-center gap-2">
         {TABS.map((tab) => {
           const isActive = activeTab === tab.key;
-          const isGreen = tab.key === "direct";
           let classes =
             "relative rounded-full px-6 py-3 text-sm font-semibold transition-all cursor-pointer select-none ";
           if (isActive) {
-            classes += isGreen
-              ? "bg-green-600 text-white shadow-lg shadow-green-200 scale-105"
-              : "bg-blue-600 text-white shadow-lg shadow-blue-200 scale-105";
+            classes += "bg-emerald-600 text-white shadow-lg shadow-emerald-200 scale-105";
           } else {
             classes +=
               "bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700";
@@ -282,7 +280,7 @@ export default function OfferTabs({
           {currentTabConfig.columns.map((col) => (
             <div
               key={`${col.period}-${col.withDirectSettlement}`}
-              className="w-36 text-center text-sm font-bold text-blue-700"
+              className="w-36 text-center text-sm font-bold text-emerald-700"
             >
               {col.label}
             </div>
@@ -294,14 +292,14 @@ export default function OfferTabs({
       {!hasAnyOffer ? (
         <div className="rounded-xl border border-gray-100 bg-gray-50 py-10 text-center">
           <p className="text-gray-500">
-            Nu exista oferte disponibile pentru aceasta perioada.
+            Nu există oferte disponibile pentru această perioadă.
           </p>
         </div>
       ) : (
         <div className="space-y-3">
           {vendorsSorted.map((vendor) => {
             const vendorOffers = offers.filter(
-              (o) => (o.vendorName || "Asigurator necunoscut") === vendor
+              (o) => (o.vendorName || "Asigurător necunoscut") === vendor
             );
             const logoUrl =
               vendorOffers.find((o) => o.vendorLogoUrl)?.vendorLogoUrl ||
@@ -348,18 +346,23 @@ export default function OfferTabs({
                         clasa BM: B8{" "}
                         <span
                           className="cursor-help"
-                          title="Informatii Bonus-Malus"
+                          title="Informații Bonus-Malus"
                         >
                           &#9432;
                         </span>
                       </span>
-                      <button
-                        type="button"
-                        className="text-left text-[10px] text-blue-500 hover:underline"
-                        title="Tarile excluse din acoperirea Carte Verde"
-                      >
-                        Tari excluse
-                      </button>
+                      {(() => {
+                        const exclusions = getGreenCardExclusions(vendor);
+                        if (exclusions.length === 0) return null;
+                        return (
+                          <span
+                            className="text-[10px] text-gray-400 cursor-help"
+                            title={`Țări excluse Carte Verde: ${exclusions.join(", ")}`}
+                          >
+                            Excluderi C.V.: {exclusions.join(", ")}
+                          </span>
+                        );
+                      })()}
                     </div>
                   </div>
 
@@ -402,12 +405,10 @@ export default function OfferTabs({
                           <span className="mb-1 text-[10px] text-gray-400 md:hidden">
                             {col.label}
                           </span>
-                          {/* Cheapest badge */}
-                          {isCheapest && (
-                            <span className="mb-1 rounded-full bg-rose-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-rose-600">
-                              Cel mai ieftin
-                            </span>
-                          )}
+                          {/* Cheapest badge — fixed height to prevent layout shift */}
+                          <span className={`mb-1 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ${isCheapest ? "bg-amber-100 text-amber-700" : "invisible"}`}>
+                            Cel mai bun preț
+                          </span>
                           <button
                             type="button"
                             onClick={() =>
@@ -417,11 +418,7 @@ export default function OfferTabs({
                                 col.withDirectSettlement
                               )
                             }
-                            className={`inline-flex w-full items-center justify-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-bold transition-all ${
-                              isCheapest
-                                ? "bg-gradient-to-r from-rose-500 to-rose-600 text-white shadow-md shadow-rose-200 hover:from-rose-600 hover:to-rose-700"
-                                : "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-sm hover:from-blue-600 hover:to-blue-700"
-                            }`}
+                            className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-emerald-700 hover:shadow-md"
                           >
                             <svg
                               className="h-3.5 w-3.5"
@@ -450,11 +447,11 @@ export default function OfferTabs({
       )}
 
       {/* Footer message */}
-      <div className="rounded-lg bg-blue-50 px-4 py-3 text-center">
-        <p className="text-sm text-blue-800">
-          Platesti cu cardul si{" "}
-          <span className="font-semibold text-rose-600">
-            primesti instant polita RCA pe email
+      <div className="rounded-lg bg-emerald-50 px-4 py-3 text-center">
+        <p className="text-sm text-emerald-800">
+          Plătești cu cardul și{" "}
+          <span className="font-semibold">
+            primești instant polița RCA pe email
           </span>
           !
         </p>

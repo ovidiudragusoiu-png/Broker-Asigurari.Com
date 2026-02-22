@@ -1,17 +1,40 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useState, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { api } from "@/lib/api/client";
 import Link from "next/link";
+import { btn } from "@/lib/ui/tokens";
 
 function isValidPositiveInt(value: string | null): value is string {
   return !!value && /^\d+$/.test(value) && Number(value) > 0;
 }
 
+// Shape of the policy creation API response
+interface PolicyEntry {
+  policyId: number | null;
+  offerId: number;
+  policyDetails: {
+    series: string | null;
+    number: string | null;
+    policyIssueDate: string | null;
+    policyStartDate: string | null;
+    policyEndDate: string | null;
+    error: boolean;
+    message: string | null;
+  };
+  productDetails?: {
+    vendorDetails?: { commercialName?: string };
+  };
+}
+
+interface PolicyCreateResponse {
+  orderId: number;
+  policies: PolicyEntry[];
+}
+
 function PaymentCallbackContent() {
   const params = useSearchParams();
-  // Payment gateway appends: ?status=APPROVED&message=Approved (or error messages)
   const status = params.get("status");
   const message = params.get("message");
   const offerId = params.get("offerId");
@@ -19,11 +42,11 @@ function PaymentCallbackContent() {
   const productType = (params.get("productType") || "").toUpperCase();
 
   const [policyCreated, setPolicyCreated] = useState(false);
-  const [policyData, setPolicyData] = useState<Record<string, unknown> | null>(
-    null
-  );
+  const [policyResponse, setPolicyResponse] =
+    useState<PolicyCreateResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const autoEmitAttempted = useRef(false);
 
   const normalizedStatus = (status || "").toUpperCase();
   const isSuccess = normalizedStatus === "APPROVED";
@@ -31,33 +54,78 @@ function PaymentCallbackContent() {
 
   const createPolicy = async () => {
     if (!isValidPositiveInt(offerId) || !orderHash) {
-      setError("Parametri de plata invalizi");
+      setError("Parametrii de plată sunt invalizi.");
       return;
     }
     setCreating(true);
+    setError(null);
     try {
       const endpoint =
         productType === "RCA"
           ? `/online/policies/rca/v3?orderHash=${orderHash}`
           : `/online/policies/v3?orderHash=${orderHash}`;
-      const payload =
-        productType === "RCA"
-          ? { rcaOfferId: Number(offerId), paymentMethodType: "CardOnline" }
-          : { offerId: Number(offerId), paymentMethodType: "CardOnline" };
 
-      const result = await api.post<Record<string, unknown>>(endpoint, payload);
-      setPolicyData(result);
-      setPolicyCreated(true);
+      let payload: Record<string, unknown>;
+      if (productType === "RCA") {
+        let savedData: Record<string, unknown> = {};
+        try {
+          const raw = sessionStorage.getItem("rcaPolicyData");
+          console.log("rcaPolicyData from sessionStorage:", raw ? JSON.parse(raw) : "NOT FOUND");
+          if (raw) savedData = JSON.parse(raw);
+        } catch {
+          // Proceed without saved data
+        }
+
+        payload = {
+          rcaOfferId: Number(offerId),
+          paymentMethodType: "CardOnline",
+          ...savedData,
+        };
+        console.log("Policy creation payload:", JSON.stringify(payload, null, 2));
+
+        sessionStorage.removeItem("rcaPolicyData");
+      } else {
+        payload = { offerId: Number(offerId), paymentMethodType: "CardOnline" };
+      }
+
+      const result = await api.post<PolicyCreateResponse>(
+        endpoint,
+        payload,
+        undefined,
+        { timeoutMs: 120000 }
+      );
+      console.log("Policy creation response:", JSON.stringify(result, null, 2));
+      setPolicyResponse(result);
+
+      // Check if policy was actually created (API returns 200 even on failure)
+      const policy = result.policies?.[0];
+      if (policy?.policyDetails?.error) {
+        setError(
+          policy.policyDetails.message ||
+            "Eroare la generarea poliței. Vă rugăm încercați din nou."
+        );
+      } else {
+        setPolicyCreated(true);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Eroare creare polita");
+      setError(err instanceof Error ? err.message : "Eroare la crearea poliței.");
     } finally {
       setCreating(false);
     }
   };
 
+  // Auto-emit policy when payment is approved
+  useEffect(() => {
+    if (isSuccess && hasRequiredParams && !autoEmitAttempted.current) {
+      autoEmitAttempted.current = true;
+      createPolicy();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSuccess, hasRequiredParams]);
+
   const downloadDocument = async (type: "offer" | "policy", id: number) => {
     if (!orderHash || !Number.isFinite(id) || id <= 0) {
-      setError("Parametri invalizi pentru descarcare document");
+      setError("Parametrii pentru descărcarea documentului sunt invalizi.");
       return;
     }
     const endpoint =
@@ -66,102 +134,123 @@ function PaymentCallbackContent() {
         : `/online/policies/${id}/document/v3?orderHash=${orderHash}`;
 
     try {
-      // API returns { url: string } - the URL to the document
-      const data = await api.get<{ url: string }>(endpoint);
+      const data = await api.get<{ url: string }>(endpoint, {
+        timeoutMs: 60000,
+      });
       if (data.url) {
         const safeUrl = new URL(data.url, window.location.origin);
         if (!["http:", "https:"].includes(safeUrl.protocol)) {
-          throw new Error("Link document invalid");
+          throw new Error("Linkul documentului este invalid.");
         }
         window.open(safeUrl.toString(), "_blank", "noopener,noreferrer");
       }
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Eroare descarcare document"
+        err instanceof Error ? err.message : "Eroare la descărcarea documentului."
       );
     }
   };
+
+  // Extract data from the policies array
+  const policy = policyResponse?.policies?.[0];
+  const policyId = policy?.policyId ?? null;
+  const policyNumber =
+    policy?.policyDetails?.series && policy?.policyDetails?.number
+      ? `${policy.policyDetails.series} ${policy.policyDetails.number}`
+      : policy?.policyDetails?.number || null;
+  const vendorName =
+    policy?.productDetails?.vendorDetails?.commercialName || null;
 
   return (
     <div className="mx-auto max-w-lg px-4 py-12">
       <div
         className={`rounded-lg border p-6 text-center ${
           isSuccess
-            ? "border-green-200 bg-green-50"
+            ? "border-emerald-200 bg-emerald-50"
             : "border-red-200 bg-red-50"
         }`}
       >
-        <div className="text-4xl">{isSuccess ? "✓" : "✗"}</div>
+        <div className={`mx-auto flex h-14 w-14 items-center justify-center rounded-full ${isSuccess ? "bg-emerald-100" : "bg-red-100"}`}>
+          <span className={`text-2xl font-bold ${isSuccess ? "text-emerald-600" : "text-red-600"}`}>{isSuccess ? "✓" : "✗"}</span>
+        </div>
         <h1
           className={`mt-3 text-2xl font-bold ${
-            isSuccess ? "text-green-700" : "text-red-700"
+            isSuccess ? "text-emerald-700" : "text-red-700"
           }`}
         >
-          {isSuccess ? "Plata efectuata cu succes!" : "Plata esuata"}
+          {isSuccess ? "Plata a fost efectuată cu succes!" : "Plata nu a fost procesată"}
         </h1>
         {message && <p className="mt-2 text-sm text-gray-600">{message}</p>}
       </div>
 
-      {isSuccess && !policyCreated && (
-        <div className="mt-6 text-center">
-          <button
-            onClick={createPolicy}
-            disabled={creating || !hasRequiredParams}
-            className="rounded-md bg-blue-700 px-6 py-3 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50"
-          >
-            {creating ? "Se creeaza polita..." : "Emite polita"}
-          </button>
-          {!hasRequiredParams && (
-            <p className="mt-2 text-xs text-red-600">
-              Parametri lipsa sau invalizi in callback-ul de plata.
-            </p>
-          )}
+      {/* Auto-creating policy — show spinner */}
+      {isSuccess && creating && (
+        <div className="mt-6 flex items-center justify-center gap-3 text-gray-600">
+          <span className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
+          <span className="text-sm font-medium">Se emite polița...</span>
         </div>
       )}
 
-      {policyCreated && policyData && (
-        <div className="mt-6 space-y-4 rounded-lg border border-green-200 bg-white p-6">
-          <h2 className="font-semibold text-gray-900">Polita emisa!</h2>
-          {typeof policyData.number === "string" && (
+      {/* Policy created successfully */}
+      {policyCreated && policyResponse && (
+        <div className="mt-6 space-y-4 rounded-lg border border-emerald-200 bg-white p-6">
+          <h2 className="font-semibold text-gray-900">Polița a fost emisă cu succes!</h2>
+          {policyNumber && (
             <p className="text-sm text-gray-600">
-              Numar polita: <strong>{policyData.number}</strong>
+              Număr poliță: <strong>{policyNumber}</strong>
             </p>
           )}
-          <div className="flex gap-3">
+          {vendorName && (
+            <p className="text-sm text-gray-600">
+              Asigurător: <strong>{vendorName}</strong>
+            </p>
+          )}
+          <div className="flex flex-wrap gap-3">
             {offerId && (
               <button
                 onClick={() => downloadDocument("offer", Number(offerId))}
-                className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                className={btn.secondary}
               >
-                Descarca oferta (PDF)
+                Descarcă oferta (PDF)
               </button>
             )}
-            {typeof policyData.policyId === "number" && (
+            {policyId && (
               <button
-                onClick={() =>
-                  downloadDocument("policy", policyData.policyId as number)
-                }
-                className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800"
+                onClick={() => downloadDocument("policy", policyId)}
+                className={btn.primary}
               >
-                Descarca polita (PDF)
+                Descarcă polița (PDF)
               </button>
             )}
           </div>
         </div>
       )}
 
+      {/* Error with retry */}
       {error && (
         <div className="mt-4 rounded-md bg-red-50 p-3 text-sm text-red-700">
           {error}
+          {isSuccess && !policyCreated && !creating && (
+            <button
+              onClick={() => {
+                setError(null);
+                autoEmitAttempted.current = false;
+                createPolicy();
+              }}
+              className="ml-3 font-medium text-red-800 underline hover:text-red-900"
+            >
+              Încearcă din nou
+            </button>
+          )}
         </div>
       )}
 
       <div className="mt-8 text-center">
         <Link
           href="/"
-          className="text-sm font-medium text-blue-700 hover:text-blue-800"
+          className={btn.tertiary}
         >
-          Inapoi la pagina principala
+          Înapoi la pagina principală
         </Link>
       </div>
     </div>
@@ -173,7 +262,7 @@ export default function PaymentCallbackPage() {
     <Suspense
       fallback={
         <div className="flex items-center justify-center py-12 text-gray-500">
-          Se incarca...
+          Se încarcă...
         </div>
       }
     >

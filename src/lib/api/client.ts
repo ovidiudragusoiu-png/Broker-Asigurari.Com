@@ -93,4 +93,10 @@ export const api = {
     headers?: Record<string, string>,
     options?: { timeoutMs?: number }
   ) => request<T>(path, { method: "POST", body, headers, ...options }),
+  put: <T = unknown>(
+    path: string,
+    body?: unknown,
+    headers?: Record<string, string>,
+    options?: { timeoutMs?: number }
+  ) => request<T>(path, { method: "PUT", body, headers, ...options }),
 };

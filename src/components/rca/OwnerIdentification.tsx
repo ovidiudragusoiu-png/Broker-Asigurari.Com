@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { validateCNP, validateCUI, validateEmail } from "@/lib/utils/validation";
 import type { OwnerType } from "@/types/rcaFlow";
+import { btn } from "@/lib/ui/tokens";
 
 interface OwnerIdentificationProps {
   ownerType: OwnerType;
@@ -40,47 +41,47 @@ export default function OwnerIdentification({
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-gray-900">Identificare proprietar</h2>
+        <h2 className="text-2xl font-bold text-gray-900">Identificarea proprietarului</h2>
       </div>
 
-      {/* PF/PJ toggle */}
-      <div className="flex justify-center gap-3">
+      {/* PF/PJ segmented control */}
+      <div className="mx-auto flex max-w-xs rounded-lg bg-gray-100 p-1">
         <button
           type="button"
           onClick={() => onOwnerTypeChange("PF")}
-          className={`rounded-lg px-6 py-2.5 text-sm font-semibold transition-colors ${
+          className={`flex-1 rounded-md px-6 py-2.5 text-sm font-semibold transition-all ${
             ownerType === "PF"
-              ? "bg-blue-600 text-white"
-              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              ? "bg-white text-gray-900 shadow-sm"
+              : "text-gray-500 hover:text-gray-700"
           }`}
         >
-          Persoana Fizica
+          Persoană fizică
         </button>
         <button
           type="button"
           onClick={() => onOwnerTypeChange("PJ")}
-          className={`rounded-lg px-6 py-2.5 text-sm font-semibold transition-colors ${
+          className={`flex-1 rounded-md px-6 py-2.5 text-sm font-semibold transition-all ${
             ownerType === "PJ"
-              ? "bg-blue-600 text-white"
-              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              ? "bg-white text-gray-900 shadow-sm"
+              : "text-gray-500 hover:text-gray-700"
           }`}
         >
-          Persoana Juridica
+          Persoană juridică
         </button>
       </div>
 
       {/* CNP / CUI */}
       <div className="mx-auto max-w-sm">
         <label className="mb-1 block text-sm font-medium text-gray-700">
-          {ownerType === "PF" ? "CNP (Cod Numeric Personal)" : "CUI (Cod Unic de Identificare)"}
+          {ownerType === "PF" ? "CNP (Cod numeric personal)" : "CUI (Cod unic de identificare)"}
         </label>
         <input
           type="text"
-          className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none"
+          className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-colors duration-200"
           value={cnpOrCui}
           onChange={(e) => onCnpChange(e.target.value.replace(/\D/g, ""))}
           maxLength={ownerType === "PF" ? 13 : 10}
-          placeholder={ownerType === "PF" ? "Introdu CNP-ul" : "Introdu CUI-ul"}
+          placeholder={ownerType === "PF" ? "Introduceți CNP-ul" : "Introduceți CUI-ul"}
         />
         {touched && cnpOrCui.length > 0 && !cnpValid && (
           <p className="mt-1 text-xs text-red-600">
@@ -92,11 +93,11 @@ export default function OwnerIdentification({
       {/* Email */}
       <div className="mx-auto max-w-sm">
         <label className="mb-1 block text-sm font-medium text-gray-700">
-          Adresa de email
+          Adresă de email
         </label>
         <input
           type="email"
-          className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none"
+          className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-colors duration-200"
           value={email}
           onChange={(e) => onEmailChange(e.target.value)}
           placeholder="email@exemplu.ro"
@@ -109,14 +110,14 @@ export default function OwnerIdentification({
       {/* GDPR notice */}
       <div className="mx-auto max-w-md rounded-lg bg-gray-50 p-4 text-center text-xs text-gray-600">
         <p>
-          Apasand <strong>Continua</strong>, sunteti de acord cu prelucrarea datelor personale
-          conform legislatiei europene GDPR si a legilor asigurarilor.{" "}
+          Apăsând <strong>Continuă</strong>, sunteți de acord cu prelucrarea datelor personale
+          conform legislației europene GDPR și a legilor asigurărilor.{" "}
           <button
             type="button"
             onClick={() => setShowPrivacy(!showPrivacy)}
-            className="font-semibold text-blue-600 underline hover:text-blue-800"
+            className="font-semibold text-emerald-600 underline hover:text-emerald-700"
           >
-            detalii aici
+            Detalii
           </button>
         </p>
       </div>
@@ -130,30 +131,30 @@ export default function OwnerIdentification({
             </h3>
             <div className="space-y-3 text-sm text-gray-700">
               <p>
-                In conformitate cu Regulamentul (UE) 2016/679 (GDPR), datele dumneavoastra personale
-                sunt prelucrate in scopul ofertarii si emiterii politelor de asigurare RCA.
+                În conformitate cu Regulamentul (UE) 2016/679 (GDPR), datele dumneavoastră personale
+                sunt prelucrate în scopul ofertării și emiterii polițelor de asigurare RCA.
               </p>
               <p>
-                Datele colectate (CNP/CUI, email, date vehicul) sunt transmise catre societatile
-                de asigurare partenere exclusiv in scopul generarii ofertelor si emiterii politei selectate.
+                Datele colectate (CNP/CUI, email, date vehicul) sunt transmise către societățile
+                de asigurare partenere exclusiv în scopul generării ofertelor și emiterii poliței selectate.
               </p>
               <p>
-                Aveti dreptul de acces, rectificare, stergere si portabilitate a datelor, precum si
-                dreptul de a va opune prelucrarii. Pentru exercitarea acestor drepturi, ne puteti
-                contacta la adresa de email indicata pe site.
+                Aveți dreptul de acces, rectificare, ștergere și portabilitate a datelor, precum și
+                dreptul de a vă opune prelucrării. Pentru exercitarea acestor drepturi, ne puteți
+                contacta la adresa de email indicată pe site.
               </p>
               <p>
-                Datele sunt stocate pe durata necesara indeplinirii scopului prelucrarii si conform
-                cerintelor legale aplicabile in domeniul asigurarilor.
+                Datele sunt stocate pe durata necesară îndeplinirii scopului prelucrării și conform
+                cerințelor legale aplicabile în domeniul asigurărilor.
               </p>
             </div>
             <div className="mt-4 text-center">
               <button
                 type="button"
                 onClick={() => setShowPrivacy(false)}
-                className="rounded-lg bg-blue-600 px-6 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                className="rounded-lg bg-emerald-600 px-6 py-2 text-sm font-semibold text-white hover:bg-emerald-700 transition-colors duration-200"
               >
-                Am inteles
+                Am înțeles
               </button>
             </div>
           </div>
@@ -166,9 +167,9 @@ export default function OwnerIdentification({
           type="button"
           onClick={handleSubmit}
           disabled={!isValid}
-          className="rounded-lg bg-blue-600 px-8 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+          className={btn.primary}
         >
-          Continua
+          Continuă
         </button>
       </div>
     </div>

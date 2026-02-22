@@ -154,6 +154,23 @@ export function normalizeVendorName(raw: string): string {
   return VENDOR_CANONICAL[lower] ?? raw;
 }
 
+// Green Card (Carte Verde) excluded countries per insurer
+const VENDOR_GREEN_CARD_EXCLUSIONS: Record<string, string[]> = {
+  "Omniasig": ["AL", "AZ", "BY", "IR", "MA", "MD", "MK", "RUS", "TN", "TR", "UA"],
+  "Groupama": ["BY", "IR", "RUS"],
+  "Grawe": ["AZ", "BY", "IR", "MA", "RUS", "TN"],
+  "Asirom": ["BY", "IR", "RUS"],
+  "Axeria": ["BY", "IL", "IR", "MA", "MK", "RUS", "TN"],
+  "Generali": ["AZ", "BY", "IL", "IR", "RUS"],
+  "Eazy Insure": ["AZ", "BY", "IR", "RUS", "UA"],
+  "Allianz Tiriac": ["BY", "IR", "RUS"],
+  "Hellas": ["BY", "IR", "MA", "RUS", "TN", "UA"],
+};
+
+export function getGreenCardExclusions(vendorName: string): string[] {
+  return VENDOR_GREEN_CARD_EXCLUSIONS[vendorName] ?? [];
+}
+
 export function normalizeRcaOffer(
   raw: RcaOfferApi,
   fallbackProductName: string,
@@ -382,7 +399,8 @@ export function buildMinimalPersonForOrder(
   email: string,
   countyId?: number | null,
   cityId?: number | null,
-  postalCode?: string
+  postalCode?: string,
+  companyData?: { companyName?: string; registrationNumber?: string; caenCode?: string | null; companyTypeId?: number | null }
 ): PersonRequest {
   const defaultAddress = {
     ...emptyAddress(),
@@ -412,8 +430,10 @@ export function buildMinimalPersonForOrder(
     ...emptyPersonPJ(),
     cif: Number(cnpOrCui) || 0,
     email,
-    companyName: "Test SRL",
-    registrationNumber: "J00/0000/0000",
+    companyName: companyData?.companyName || "Firma",
+    registrationNumber: companyData?.registrationNumber || "J00/0000/0000",
+    caenCode: companyData?.caenCode ?? null,
+    companyTypeId: companyData?.companyTypeId ?? null,
     phoneNumber: "0700000000",
     address: defaultAddress,
   };
@@ -443,6 +463,8 @@ export function buildFullPersonFromFlowState(state: RcaFlowState): PersonRequest
     email: state.email,
     companyName: state.companyName,
     registrationNumber: state.registrationNumber,
+    caenCode: state.caenCode,
+    companyTypeId: state.companyTypeId,
     phoneNumber: state.phoneNumber,
     address: state.address,
   });
@@ -467,18 +489,17 @@ export function toDriverFromAdditional(driver: AdditionalDriver) {
 // Category filtering
 // ============================================================
 
-const RCA_ALLOWED_CATEGORIES = [
-  { match: "autoturism", label: "Autoturism" },
-  { match: "autoutilitar", label: "Autoutilitara <3.5t" },
-  { match: "moto", label: "Moto" },
-  { match: "remorca", label: "Remorca" },
-];
+// Map API category IDs to the 4 user-facing RCA categories.
+// API names don't always contain obvious keywords, so we match by ID.
+const RCA_ALLOWED_CATEGORY_IDS = new Set([
+  1, // Autoturisme (autoturism)
+  6, // Alte autovehicule destinate transportului de marfa (autoutilitara <3.5t)
+  4, // Motocicletele, mopede, ATVuri (moto)
+  5, // Remorci si semiremorci (remorca)
+]);
 
 export function filterRcaCategories(categories: SelectOption[]): SelectOption[] {
-  return categories.filter((cat) => {
-    const normalized = cat.name.toLowerCase();
-    return RCA_ALLOWED_CATEGORIES.some((allowed) => normalized.includes(allowed.match));
-  });
+  return categories.filter((cat) => RCA_ALLOWED_CATEGORY_IDS.has(cat.id));
 }
 
 // ============================================================
@@ -554,6 +575,9 @@ export function emptyRcaFlowState(): RcaFlowState {
     ownerLastName: "",
     companyName: "",
     registrationNumber: "",
+    caenCode: null,
+    companyTypeId: null,
+    companyFound: false,
     idType: "CI",
     idSeries: "",
     idNumber: "",
@@ -604,6 +628,8 @@ export function rcaFlowReducer(state: RcaFlowState, action: import("@/types/rcaF
       return { ...state, selectedOffer: action.selected };
     case "SET_POLICY_DETAILS":
       return { ...state, ...action.details };
+    case "SET_COMPANY_DATA":
+      return { ...state, companyName: action.companyName, registrationNumber: action.registrationNumber, caenCode: action.caenCode, companyTypeId: action.companyTypeId, companyFound: true };
     case "SET_ADDRESS":
       return { ...state, address: action.address };
     case "SET_ADDITIONAL_DRIVER_TOGGLE":

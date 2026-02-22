@@ -65,7 +65,7 @@ export type OfferTab = "short" | "standard" | "direct";
 export type VehicleSubStep = "plate" | "locality" | "category" | "vin" | "details";
 
 /** Sub-steps within visual step 2 (Identificare) */
-export type IdentificationSubStep = "owner" | "dnt";
+export type IdentificationSubStep = "owner" | "company" | "dnt";
 
 export interface RcaFlowState {
   // Phase 1: Pre-offer data (steps 1-2)
@@ -98,6 +98,9 @@ export interface RcaFlowState {
   ownerLastName: string;
   companyName: string;
   registrationNumber: string;
+  caenCode: string | null;
+  companyTypeId: number | null;
+  companyFound: boolean; // true if CUI lookup returned data
   idType: "CI" | "PASSPORT";
   idSeries: string;
   idNumber: string;
@@ -131,7 +134,8 @@ export type RcaAction =
   | { type: "SET_OFFERS"; offers: RcaOffer[]; hasDirectSettlementData: boolean | null }
   | { type: "SET_LOADING_OFFERS"; loading: boolean }
   | { type: "SELECT_OFFER"; selected: SelectedOfferState }
-  | { type: "SET_POLICY_DETAILS"; details: Partial<Pick<RcaFlowState, "registrationCertSeries" | "startDate" | "ownerFirstName" | "ownerLastName" | "companyName" | "registrationNumber" | "idType" | "idSeries" | "idNumber">> }
+  | { type: "SET_POLICY_DETAILS"; details: Partial<Pick<RcaFlowState, "registrationCertSeries" | "startDate" | "ownerFirstName" | "ownerLastName" | "companyName" | "registrationNumber" | "caenCode" | "idType" | "idSeries" | "idNumber">> }
+  | { type: "SET_COMPANY_DATA"; companyName: string; registrationNumber: string; caenCode: string | null; companyTypeId: number | null }
   | { type: "SET_ADDRESS"; address: AddressRequest }
   | { type: "SET_ADDITIONAL_DRIVER_TOGGLE"; has: boolean }
   | { type: "SET_ADDITIONAL_DRIVER"; driver: AdditionalDriver }

@@ -46,11 +46,20 @@ interface CommunicationChannels {
 }
 
 function sanitizeHtml(input: string): string {
+  // Allow only safe tags: b, i, em, strong, br, p, ul, ol, li, a (href only)
   return input
+    // Remove script tags and content
     .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
-    .replace(/\son\w+="[^"]*"/gi, "")
-    .replace(/\son\w+='[^']*'/gi, "")
-    .replace(/javascript:/gi, "");
+    // Remove style tags and content
+    .replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, "")
+    // Remove all event handlers (on*)
+    .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]*)/gi, "")
+    // Remove javascript: protocol in any attribute
+    .replace(/javascript\s*:/gi, "")
+    // Remove data: protocol (can embed scripts)
+    .replace(/data\s*:[^,\s]*/gi, "")
+    // Remove iframe, object, embed, form, input tags entirely
+    .replace(/<\/?(iframe|object|embed|form|input|textarea|button|select|meta|link|base)[^>]*>/gi, "");
 }
 
 export default function ConsentFlow({

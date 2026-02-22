@@ -152,7 +152,7 @@ export async function getCompanyTypes() {
 }
 
 export async function getCaenCodes() {
-  return insuretechFetch<{ code: string; name: string }[]>("/online/caencodes");
+  return insuretechFetch<string[]>("/online/caencodes");
 }
 
 export async function lookupCompany(cui: number) {
@@ -168,8 +168,9 @@ export async function checkConsentStatus(
   cif: string,
   vendorProductType: string
 ) {
+  const params = new URLSearchParams({ legalType, cif, vendorProductType });
   return insuretechFetch<{ hasConsent: boolean; expiresAt?: string }>(
-    `/online/client/documents/status?legalType=${legalType}&cif=${cif}&vendorProductType=${vendorProductType}`
+    `/online/client/documents/status?${params}`
   );
 }
 
@@ -177,8 +178,9 @@ export async function fetchConsentQuestions(
   legalType: string,
   vendorProductType: string
 ) {
+  const params = new URLSearchParams({ legalType, vendorProductType });
   return insuretechFetch<Record<string, unknown>>(
-    `/online/client/documents/fetch-questions?legalType=${legalType}&vendorProductType=${vendorProductType}`
+    `/online/client/documents/fetch-questions?${params}`
   );
 }
 
@@ -205,7 +207,7 @@ export async function createPayment(
   orderHash: string
 ) {
   return insuretechFetch<string>(
-    `/online/offers/payment/v3?orderHash=${orderHash}`,
+    `/online/offers/payment/v3?orderHash=${encodeURIComponent(orderHash)}`,
     { method: "POST", body, accept: "text/plain" }
   );
 }
@@ -215,7 +217,7 @@ export async function checkPayment(
   orderHash: string
 ) {
   return insuretechFetch<{ status: string; message: string }>(
-    `/online/offers/payment/check/v3?orderHash=${orderHash}`,
+    `/online/offers/payment/check/v3?orderHash=${encodeURIComponent(orderHash)}`,
     { method: "POST", body }
   );
 }
@@ -225,7 +227,7 @@ export async function createPaymentLoan(
   orderHash: string
 ) {
   return insuretechFetch<string>(
-    `/online/offers/payment/loan/v3?orderHash=${orderHash}`,
+    `/online/offers/payment/loan/v3?orderHash=${encodeURIComponent(orderHash)}`,
     { method: "POST", body, accept: "text/plain" }
   );
 }

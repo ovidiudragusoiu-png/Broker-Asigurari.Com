@@ -1,86 +1,120 @@
 "use client";
 
 import { useState } from "react";
+import { btn } from "@/lib/ui/tokens";
 
 interface DntChoiceProps {
   onContinueDirect: () => void;
 }
 
-const CONSULTATION_EMAIL = "contact@broker-asigurari.com";
+const CONSULTATION_EMAIL = "bucuresti@broker-asigurari.com";
 
 export default function DntChoice({ onContinueDirect }: DntChoiceProps) {
   const [showPopup, setShowPopup] = useState(false);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-gray-900">Utilizare polita</h2>
-      </div>
-
-      {/* Usage notice */}
-      <div className="mx-auto max-w-lg rounded-lg border-2 border-amber-200 bg-amber-50 p-5">
-        <p className="text-center text-sm font-semibold text-amber-800">
-          Ofertele si contractele RCA sunt valabile doar pentru{" "}
-          <span className="uppercase">utilizarea in interes personal</span>.
+        <h2 className="text-2xl font-bold text-gray-900">Aproape gata!</h2>
+        <p className="mt-1 text-sm text-gray-500">
+          Mai ai puțin până la ofertele RCA
         </p>
       </div>
 
-      {/* DNT option */}
-      <div className="mx-auto max-w-lg space-y-4 text-center">
-        <p className="text-sm text-gray-700">
-          Daca doriti consultanta suplimentara de asigurari - DNT{" "}
-          <button
-            type="button"
-            onClick={() => setShowPopup(true)}
-            className="font-semibold text-blue-600 underline hover:text-blue-800"
-          >
-            click aici
-          </button>
-          .
-        </p>
-        <p className="text-sm text-gray-700">
-          Sau <strong>CONTINUATI DIRECT</strong> si veti primi oferte fara consultanta DNT.
-        </p>
-
+      {/* Two cards side by side */}
+      <div className="mx-auto grid max-w-2xl gap-4 sm:grid-cols-2">
+        {/* Card 1: Continue direct */}
         <button
           type="button"
           onClick={onContinueDirect}
-          className="rounded-lg bg-blue-600 px-8 py-3 text-sm font-semibold text-white hover:bg-blue-700"
+          className="group flex flex-col items-center gap-4 rounded-xl border-2 border-emerald-200 bg-emerald-50/50 p-6 text-center transition-all hover:border-emerald-400 hover:shadow-md"
         >
-          Continua direct
+          {/* Icon */}
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 transition-colors group-hover:bg-emerald-200">
+            <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-gray-900">Continuă direct</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Primești ofertele instant și alegi cea mai bună variantă
+            </p>
+          </div>
+          <span className={`${btn.primary} mt-auto`}>
+            Vezi oferte
+          </span>
+        </button>
+
+        {/* Card 2: DNT consultation */}
+        <button
+          type="button"
+          onClick={() => setShowPopup(true)}
+          className="group flex flex-col items-center gap-4 rounded-xl border-2 border-gray-200 bg-white p-6 text-center transition-all hover:border-gray-300 hover:shadow-md"
+        >
+          {/* Icon */}
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-100 text-gray-500 transition-colors group-hover:bg-gray-200">
+            <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-gray-900">Vreau consultanță</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Un consultant te va contacta pentru o analiză personalizată
+            </p>
+          </div>
+          <span className={`${btn.secondary} mt-auto`}>
+            Solicită consultant
+          </span>
         </button>
       </div>
+
+      {/* Usage notice — subtle, at the bottom */}
+      <p className="mx-auto max-w-lg text-center text-xs font-bold text-gray-900">
+        Ofertele și polițele RCA sunt disponibile exclusiv pentru uz personal.
+      </p>
 
       {/* DNT consultation popup */}
       {showPopup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="mx-4 max-w-md rounded-xl bg-white p-6 shadow-xl">
-            <h3 className="mb-3 text-lg font-bold text-gray-900">
-              Consultanta DNT
-            </h3>
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">
+                Consultanță specializată
+              </h3>
+            </div>
             <p className="text-sm text-gray-700">
-              Pentru consultanta suplimentara in domeniul asigurarilor, va rugam sa ne trimiteti
-              un email la adresa:
+              Pentru consultanță personalizată în domeniul asigurărilor, contactează-ne la:
             </p>
-            <p className="my-3 text-center">
-              <a
-                href={`mailto:${CONSULTATION_EMAIL}`}
-                className="text-lg font-semibold text-blue-600 underline"
-              >
-                {CONSULTATION_EMAIL}
-              </a>
+            <a
+              href={`mailto:${CONSULTATION_EMAIL}`}
+              className="mt-3 flex items-center justify-center gap-2 rounded-lg bg-emerald-50 px-4 py-3 text-base font-semibold text-emerald-700 transition-colors hover:bg-emerald-100"
+            >
+              {CONSULTATION_EMAIL}
+            </a>
+            <p className="mt-3 text-xs text-gray-400">
+              Un consultant te va contacta în cel mai scurt timp.
             </p>
-            <p className="text-sm text-gray-500">
-              Un consultant va va contacta in cel mai scurt timp posibil.
-            </p>
-            <div className="mt-4 text-center">
+            <div className="mt-5 flex gap-3">
               <button
                 type="button"
                 onClick={() => setShowPopup(false)}
-                className="rounded-lg bg-gray-200 px-6 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-300"
+                className={`flex-1 ${btn.secondary}`}
               >
-                Inchide
+                Închide
               </button>
+              <a
+                href={`mailto:${CONSULTATION_EMAIL}`}
+                className={`flex-1 text-center ${btn.primary}`}
+              >
+                Trimite email
+              </a>
             </div>
           </div>
         </div>

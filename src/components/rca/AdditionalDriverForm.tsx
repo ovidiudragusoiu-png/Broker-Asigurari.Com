@@ -4,6 +4,7 @@ import { validateCNP } from "@/lib/utils/validation";
 import { isAdditionalDriverValid } from "@/lib/utils/formGuards";
 import type { AdditionalDriver } from "@/types/rcaFlow";
 import { emptyAdditionalDriver } from "@/lib/utils/rcaHelpers";
+import { btn, inputClass as inputToken } from "@/lib/ui/tokens";
 
 interface AdditionalDriverFormProps {
   hasDriver: boolean;
@@ -28,116 +29,119 @@ export default function AdditionalDriverForm({
     onDriverChange({ ...d, [field]: value });
   };
 
+  const inputClass = inputToken;
+
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-2xl space-y-6">
+      {/* Title */}
       <div className="text-center">
-        <h2 className="text-xl font-bold text-gray-900">Sofer suplimentar</h2>
-        <p className="mt-1 text-sm text-gray-500">
-          Doriti sa adaugati un sofer suplimentar pe polita?
-        </p>
+        <h2 className="text-2xl font-bold text-gray-900">
+          Adăugați un șofer adițional?
+        </h2>
       </div>
 
-      {/* Toggle */}
-      <div className="flex justify-center gap-4">
+      {/* NU / DA toggle cards */}
+      <div className="mx-auto grid max-w-lg grid-cols-2 gap-4">
         <button
           type="button"
           onClick={() => onToggle(false)}
-          className={`rounded-lg px-6 py-2.5 text-sm font-semibold transition-colors ${
+          className={`flex items-center gap-3 rounded-lg border-2 px-5 py-4 text-left text-base font-bold transition-all ${
             !hasDriver
-              ? "bg-blue-600 text-white"
-              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              ? "border-emerald-500 bg-white shadow-sm"
+              : "border-gray-200 bg-white hover:border-gray-300"
           }`}
         >
-          Nu, multumesc
+          <span
+            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded ${
+              !hasDriver ? "bg-emerald-600 text-white" : "border-2 border-gray-300"
+            }`}
+          >
+            {!hasDriver && (
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            )}
+          </span>
+          NU
         </button>
         <button
           type="button"
           onClick={() => onToggle(true)}
-          className={`rounded-lg px-6 py-2.5 text-sm font-semibold transition-colors ${
+          className={`flex items-center gap-3 rounded-lg border-2 px-5 py-4 text-left text-base font-bold transition-all ${
             hasDriver
-              ? "bg-blue-600 text-white"
-              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              ? "border-emerald-500 bg-white shadow-sm"
+              : "border-gray-200 bg-white hover:border-gray-300"
           }`}
         >
-          Da, adaug sofer
+          <span
+            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded ${
+              hasDriver ? "bg-emerald-600 text-white" : "border-2 border-gray-300"
+            }`}
+          >
+            {hasDriver && (
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            )}
+          </span>
+          DA
         </button>
       </div>
 
-      {/* Driver fields */}
+      {/* Driver fields (shown when DA selected) */}
       {hasDriver && (
-        <div className="space-y-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Nume</label>
-              <input
-                type="text"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                value={d.lastName}
-                onChange={(e) => updateField("lastName", e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Prenume</label>
-              <input
-                type="text"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                value={d.firstName}
-                onChange={(e) => updateField("firstName", e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">CNP</label>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
             <input
               type="text"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-              value={d.cnp}
-              onChange={(e) => updateField("cnp", e.target.value.replace(/\D/g, ""))}
-              maxLength={13}
+              className={inputClass}
+              value={d.lastName}
+              onChange={(e) => updateField("lastName", e.target.value)}
+              placeholder="NUME SOFER"
             />
-            {cnpInvalid && <p className="mt-1 text-xs text-red-600">CNP invalid</p>}
+            <input
+              type="text"
+              className={inputClass}
+              value={d.firstName}
+              onChange={(e) => updateField("firstName", e.target.value)}
+              placeholder="PRENUME SOFER"
+            />
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Tip document</label>
-              <select
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                value={d.idType}
-                onChange={(e) => updateField("idType", e.target.value)}
-              >
-                <option value="CI">Carte de Identitate</option>
-                <option value="PASSPORT">Pasaport</option>
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Serie</label>
-              <input
-                type="text"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm uppercase"
-                value={d.idSeries}
-                onChange={(e) => updateField("idSeries", e.target.value.toUpperCase())}
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Numar</label>
-              <input
-                type="text"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                value={d.idNumber}
-                onChange={(e) => updateField("idNumber", e.target.value)}
-              />
-            </div>
+          <input
+            type="text"
+            className={inputClass}
+            value={d.cnp}
+            onChange={(e) => updateField("cnp", e.target.value.replace(/\D/g, ""))}
+            maxLength={13}
+            placeholder="CNP SOFER"
+          />
+          {cnpInvalid && <p className="mt-1 text-xs text-red-600">CNP-ul introdus nu este valid</p>}
+
+          <div className="grid grid-cols-2 gap-3">
+            <input
+              type="text"
+              className={`${inputClass} uppercase`}
+              value={d.idSeries}
+              onChange={(e) => updateField("idSeries", e.target.value.toUpperCase())}
+              placeholder="SERIE CI"
+            />
+            <input
+              type="text"
+              className={inputClass}
+              value={d.idNumber}
+              onChange={(e) => updateField("idNumber", e.target.value)}
+              placeholder="NUMAR CI"
+            />
           </div>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Data obtinere permis conducere
+          <div className="text-left">
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+              Data obținere permis de conducere
             </label>
             <input
               type="date"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              className={inputClass}
               value={d.driverLicenceDate}
               onChange={(e) => updateField("driverLicenceDate", e.target.value)}
             />
@@ -145,15 +149,15 @@ export default function AdditionalDriverForm({
         </div>
       )}
 
-      {/* Continue */}
-      <div className="text-center">
+      {/* Inainte button */}
+      <div className="pt-2 text-center">
         <button
           type="button"
           onClick={onContinue}
           disabled={!isValid}
-          className="rounded-lg bg-blue-600 px-8 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+          className={btn.primary}
         >
-          Continua
+          Înainte
         </button>
       </div>
     </div>

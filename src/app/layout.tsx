@@ -39,6 +39,9 @@ export default function RootLayout({
               <Link href="/malpraxis" className="text-sm font-semibold text-slate-600 transition-colors hover:text-emerald-600">
                 Malpraxis
               </Link>
+              <Link href="/casco" className="text-sm font-semibold text-slate-600 transition-colors hover:text-emerald-600">
+                CASCO
+              </Link>
             </div>
           </nav>
         </header>
@@ -80,6 +83,7 @@ export default function RootLayout({
                   <li><Link href="/house" className="hover:text-emerald-400 transition-colors">Asigurare Locuință</Link></li>
                   <li><Link href="/pad" className="hover:text-emerald-400 transition-colors">Asigurare PAD</Link></li>
                   <li><Link href="/malpraxis" className="hover:text-emerald-400 transition-colors">Asigurare Malpraxis</Link></li>
+                  <li><Link href="/casco" className="hover:text-emerald-400 transition-colors">Asigurare CASCO</Link></li>
                 </ul>
               </div>
 
