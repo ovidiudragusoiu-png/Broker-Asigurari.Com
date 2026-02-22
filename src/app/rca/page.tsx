@@ -53,7 +53,7 @@ export default function RcaPage() {
 
 function RcaPageInner() {
   const [state, dispatch] = useReducer(rcaFlowReducer, null, emptyRcaFlowState);
-  const { currentStep, next, goTo } = useWizardUrlSync(6);
+  const { currentStep, next, goTo } = useWizardUrlSync(7);
   const [plateCountyName, setPlateCountyName] = useState("");
 
   // ----- Session storage restore -----
@@ -558,24 +558,88 @@ function RcaPageInner() {
     }
   })();
 
-  const step4Content = (
+  // Step 4: CIV + start date (matching rca.ro)
+  const selectedPeriod = state.selectedOffer?.period || "";
+  const selectedPrice = state.selectedOffer?.premium || 0;
+  const civStepValid = state.registrationCertSeries.trim().length > 0 && state.startDate.length > 0;
+
+  const step4CivContent = (
+    <div className="mx-auto max-w-md space-y-6 text-center">
+      {/* Offer summary */}
+      <div>
+        <p className="text-lg font-bold text-gray-800">
+          30 de secunde si esti asigurat!
+        </p>
+        <p className="mt-1 text-2xl font-bold text-rose-600">
+          {selectedPeriod} {Number(selectedPeriod) === 1 ? "luna" : "luni"} &ndash;{" "}
+          {new Intl.NumberFormat("ro-RO", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(selectedPrice)} lei
+        </p>
+        <p className="mt-2 text-base font-semibold text-gray-700">
+          Date pentru polita te rog:
+        </p>
+      </div>
+
+      {/* CIV */}
+      <div className="text-left">
+        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+          Serie Carte Auto (CIV)
+        </label>
+        <input
+          type="text"
+          className="w-full rounded-lg border-2 border-gray-300 px-4 py-3 text-sm uppercase focus:border-green-500 focus:outline-none"
+          value={state.registrationCertSeries}
+          onChange={(e) => handlePolicyDetailsFieldChange("registrationCertSeries", e.target.value.toUpperCase())}
+          placeholder="ex: F123123"
+        />
+        <p className="mt-1 text-xs text-gray-400">
+          &gt;&gt; la taloanele noi nu mai apare seria cartii auto. o gasiti in cartea vehiculului.
+        </p>
+      </div>
+
+      {/* Start date */}
+      <div className="text-left">
+        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+          Data inceput valabilitate RCA
+        </label>
+        <input
+          type="date"
+          className="w-full rounded-lg border-2 border-gray-300 px-4 py-3 text-sm focus:border-green-500 focus:outline-none"
+          value={state.startDate}
+          onChange={(e) => handlePolicyDetailsFieldChange("startDate", e.target.value)}
+        />
+        <p className="mt-1 text-xs text-gray-400">
+          &gt;&gt; prima zi dupa expirarea politei.
+        </p>
+      </div>
+
+      {/* Inainte button */}
+      <button
+        type="button"
+        onClick={() => next()}
+        disabled={!civStepValid}
+        className="w-full rounded-full bg-rose-500 px-8 py-3.5 text-base font-bold uppercase tracking-wide text-white transition-colors hover:bg-rose-600 disabled:opacity-50"
+      >
+        Inainte
+      </button>
+    </div>
+  );
+
+  // Step 5: Owner details + additional driver
+  const step5DetailsContent = (
     <div className="space-y-8">
       <PolicyDetailsForm
         ownerType={state.ownerType}
-        registrationCertSeries={state.registrationCertSeries}
-        startDate={state.startDate}
         ownerFirstName={state.ownerFirstName}
         ownerLastName={state.ownerLastName}
         companyName={state.companyName}
         registrationNumber={state.registrationNumber}
-        idType={state.idType}
         idSeries={state.idSeries}
         idNumber={state.idNumber}
         address={state.address}
         onFieldChange={handlePolicyDetailsFieldChange}
         onAddressChange={(address) => dispatch({ type: "SET_ADDRESS", address })}
         onContinue={() => {}}
-        isValid={isPolicyDetailsValid}
+        isValid={true}
       />
       <AdditionalDriverForm
         hasDriver={state.hasAdditionalDriver}
@@ -607,8 +671,12 @@ function RcaPageInner() {
       ),
     },
     {
-      title: "Detalii polita",
-      content: step4Content,
+      title: "Date polita",
+      content: step4CivContent,
+    },
+    {
+      title: "Detalii proprietar",
+      content: step5DetailsContent,
     },
     {
       title: "Sumar",
