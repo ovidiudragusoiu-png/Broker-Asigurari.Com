@@ -46,6 +46,32 @@ export function formatPrice(amount: number, currency = "RON"): string {
 }
 
 /**
+ * Extract date of birth from a Romanian CNP (13 digits).
+ * Format: SAALLZZJJNNNC where S=sex/century, AA=year, LL=month, ZZ=day.
+ * Returns ISO date string (YYYY-MM-DD) or null if invalid.
+ */
+export function birthDateFromCnp(cnp: string | number): string | null {
+  const s = String(cnp).replace(/\D/g, "");
+  if (s.length !== 13) return null;
+
+  const century: Record<string, number> = {
+    "1": 1900, "2": 1900, "3": 1800, "4": 1800,
+    "5": 2000, "6": 2000, "7": 1900, "8": 1900, "9": 1900,
+  };
+  const base = century[s[0]];
+  if (!base) return null;
+
+  const year = base + Number(s.slice(1, 3));
+  const month = s.slice(3, 5);
+  const day = s.slice(5, 7);
+
+  const date = new Date(`${year}-${month}-${day}T00:00:00`);
+  if (isNaN(date.getTime())) return null;
+
+  return `${year}-${month}-${day}`;
+}
+
+/**
  * Calculate policy end date (start + 1 year - 1 day).
  */
 export function calculatePolicyEndDate(startDate: Date): Date {

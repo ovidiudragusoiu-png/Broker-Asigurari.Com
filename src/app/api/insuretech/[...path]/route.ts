@@ -23,7 +23,7 @@ const ALLOWED_PATHS: RegExp[] = [
   /^online\/offers\/rca\/order(\/v3($|\?)|\/v3\/\d+)/, // create/update RCA order
   /^online\/offers\/rca\/v3($|\?)/, // generate RCA offers
   /^online\/offers\/rca\/\d+\/details\/v3($|\?)/, // offer details
-  /^online\/offers\/order\/v3\//, // order operations
+  /^online\/offers\/order\/v3($|\?|\/)/, // order operations
   /^online\/offers\/payment\/v3($|\?)/, // create payment
   /^online\/offers\/payment\/check\/v3($|\?)/, // check payment
   /^online\/offers\/payment\/loan\/v3($|\?)/, // loan payment
@@ -129,6 +129,9 @@ async function proxyRequest(req: NextRequest, method: string) {
 
     if (isTextResponse) {
       const responseBody = await response.text();
+      if (!response.ok) {
+        console.error(`[InsureTech API] ${method} ${pathSegments} → ${response.status}`, responseBody);
+      }
       return new NextResponse(responseBody, {
         status: response.status,
         headers: responseHeaders,
