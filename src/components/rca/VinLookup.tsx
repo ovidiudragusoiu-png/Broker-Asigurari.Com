@@ -189,7 +189,7 @@ export default function VinLookup({ vehicle, onChange, onContinue }: VinLookupPr
         <div className="flex gap-2">
           <input
             type="text"
-            className="flex-1 rounded-lg border-2 border-gray-300 px-4 py-3 text-sm font-mono uppercase focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-colors duration-200"
+            className="flex-1 rounded-lg border-2 border-gray-300 px-4 py-3 text-sm font-mono uppercase focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 focus:outline-none transition-colors duration-200"
             value={vehicle.vin}
             onChange={(e) => onChange({ vin: e.target.value.toUpperCase() })}
             onKeyDown={(e) => e.key === "Enter" && lookupVIN()}
@@ -201,7 +201,7 @@ export default function VinLookup({ vehicle, onChange, onContinue }: VinLookupPr
             type="button"
             onClick={lookupVIN}
             disabled={lookingUp}
-            className="rounded-lg bg-emerald-600 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed transition-all duration-200"
+            className="rounded-lg bg-sky-600 px-5 py-3 text-sm font-semibold text-white hover:bg-sky-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed transition-all duration-200"
           >
             {lookingUp ? "Se caută..." : "Caută"}
           </button>

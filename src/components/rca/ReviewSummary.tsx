@@ -98,14 +98,14 @@ export default function ReviewSummary({
             Sasiu: {state.vehicle.vin}
           </p>
 
-          <p className="font-semibold text-emerald-700">
+          <p className="font-semibold text-sky-700">
             {state.vehicle.model ? `${state.vehicle.model}` : "Vehicul"} - {state.vehicle.licensePlate}
           </p>
 
-          <p className="text-emerald-700">
+          <p className="text-sky-700">
             Poliță RCA {offer.offer.vendorName}
           </p>
-          <p className="text-emerald-700">
+          <p className="text-sky-700">
             {periodText(Number(offer.period))} / din {state.startDate}
           </p>
           {(() => {
@@ -146,8 +146,8 @@ export default function ReviewSummary({
       </div>
 
       {/* Declaration */}
-      <div className="mx-auto flex max-w-lg items-start gap-3 rounded-lg bg-emerald-50 p-4">
-        <span className="mt-0.5 text-emerald-600">&#10132;</span>
+      <div className="mx-auto flex max-w-lg items-start gap-3 rounded-lg bg-sky-50 p-4">
+        <span className="mt-0.5 text-sky-600">&#10132;</span>
         <p className="text-sm text-gray-700">
           Prin apăsarea butonului „PLĂTESC", declar că am peste 18 ani și că datele
           furnizate pentru încheierea poliței RCA sunt corecte și reale.
@@ -165,7 +165,7 @@ export default function ReviewSummary({
       <div className="text-center">
         {processing ? (
           <div className="flex items-center justify-center gap-2 text-gray-500">
-            <span className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
+            <span className="h-5 w-5 animate-spin rounded-full border-2 border-sky-600 border-t-transparent" />
             <span className="text-sm">Se procesează...</span>
           </div>
         ) : (

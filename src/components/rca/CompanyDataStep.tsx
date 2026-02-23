@@ -119,7 +119,7 @@ export default function CompanyDataStep({
                   <li key={code}>
                     <button
                       type="button"
-                      className="w-full px-4 py-2 text-left text-sm hover:bg-emerald-50"
+                      className="w-full px-4 py-2 text-left text-sm hover:bg-sky-50"
                       onClick={() => { onCaenChange(code); setCaenFilter(""); }}
                     >
                       <span className="font-semibold">{code}</span>

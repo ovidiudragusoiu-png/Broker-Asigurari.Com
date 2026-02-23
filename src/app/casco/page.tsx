@@ -390,8 +390,8 @@ export default function CascoPage() {
   if (submitted) {
     return (
       <section className="mx-auto max-w-3xl px-4 py-16 text-center">
-        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
-          <svg className="h-8 w-8 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-sky-100">
+          <svg className="h-8 w-8 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
           </svg>
         </div>
@@ -468,7 +468,7 @@ export default function CascoPage() {
                 </button>
               </div>
               {cuiError && <p className="text-sm text-amber-600">{cuiError}</p>}
-              {cuiFound && <p className="text-sm text-emerald-600">Firma a fost identificată.</p>}
+              {cuiFound && <p className="text-sm text-sky-600">Firma a fost identificată.</p>}
               <input className={inputClass} value={form.companyName} onChange={(e) => set("companyName", e.target.value)} placeholder="Nume firmă" />
             </>
           )}
@@ -619,7 +619,7 @@ export default function CascoPage() {
                 </button>
               </div>
               {vinError && <p className="text-sm text-amber-600">{vinError}</p>}
-              {vinDone && !vinError && <p className="text-sm text-emerald-600">Datele vehiculului au fost completate automat din baza DRPCIV.</p>}
+              {vinDone && !vinError && <p className="text-sm text-sky-600">Datele vehiculului au fost completate automat din baza DRPCIV.</p>}
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -884,7 +884,7 @@ export default function CascoPage() {
               type="checkbox"
               checked={form.consent}
               onChange={(e) => set("consent", e.target.checked)}
-              className="mt-0.5 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+              className="mt-0.5 h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500"
             />
             <span className="text-sm text-gray-600">
               Sunt de acord cu prelucrarea datelor personale în vederea primirii ofertei de asigurare CASCO.

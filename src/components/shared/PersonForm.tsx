@@ -221,22 +221,6 @@ export default function PersonForm({
             </div>
           </div>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Data expirare document
-            </label>
-            <input
-              type="date"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-              value={value.idExpirationDate ?? ""}
-              onChange={(e) =>
-                updatePF({
-                  idExpirationDate: e.target.value || null,
-                })
-              }
-            />
-          </div>
-
           {showDriverLicence && (
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">

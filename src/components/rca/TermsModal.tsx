@@ -346,13 +346,13 @@ export default function TermsModal({ isOpen, onAgree, onClose }: TermsModalProps
         {/* Footer */}
         <div className="border-t px-6 py-4">
           <label className="flex items-center gap-3 text-sm">
-            <span className="text-emerald-600 font-bold">&gt;&gt;</span>
+            <span className="text-sky-600 font-bold">&gt;&gt;</span>
             <input
               type="checkbox"
               checked={agreed}
               onChange={(e) => setAgreed(e.target.checked)}
               disabled={!scrolledToBottom}
-              className="h-5 w-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 disabled:opacity-40"
+              className="h-5 w-5 rounded border-gray-300 text-sky-600 focus:ring-sky-500 disabled:opacity-40"
             />
             <span className="text-gray-700 font-medium">
               Sunt de acord cu emiterea poliței RCA în aceste condiții.

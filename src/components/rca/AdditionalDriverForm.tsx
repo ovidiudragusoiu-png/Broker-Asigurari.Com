@@ -47,13 +47,13 @@ export default function AdditionalDriverForm({
           onClick={() => onToggle(false)}
           className={`flex items-center gap-3 rounded-lg border-2 px-5 py-4 text-left text-base font-bold transition-all ${
             !hasDriver
-              ? "border-emerald-500 bg-white shadow-sm"
+              ? "border-sky-500 bg-white shadow-sm"
               : "border-gray-200 bg-white hover:border-gray-300"
           }`}
         >
           <span
             className={`flex h-6 w-6 shrink-0 items-center justify-center rounded ${
-              !hasDriver ? "bg-emerald-600 text-white" : "border-2 border-gray-300"
+              !hasDriver ? "bg-sky-600 text-white" : "border-2 border-gray-300"
             }`}
           >
             {!hasDriver && (
@@ -69,13 +69,13 @@ export default function AdditionalDriverForm({
           onClick={() => onToggle(true)}
           className={`flex items-center gap-3 rounded-lg border-2 px-5 py-4 text-left text-base font-bold transition-all ${
             hasDriver
-              ? "border-emerald-500 bg-white shadow-sm"
+              ? "border-sky-500 bg-white shadow-sm"
               : "border-gray-200 bg-white hover:border-gray-300"
           }`}
         >
           <span
             className={`flex h-6 w-6 shrink-0 items-center justify-center rounded ${
-              hasDriver ? "bg-emerald-600 text-white" : "border-2 border-gray-300"
+              hasDriver ? "bg-sky-600 text-white" : "border-2 border-gray-300"
             }`}
           >
             {hasDriver && (

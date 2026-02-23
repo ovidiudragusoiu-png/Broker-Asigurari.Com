@@ -654,7 +654,7 @@ function RcaPageInner() {
         </label>
         <input
           type="text"
-          className="w-full rounded-lg border-2 border-gray-300 px-4 py-3 text-sm uppercase focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-colors duration-200"
+          className="w-full rounded-lg border-2 border-gray-300 px-4 py-3 text-sm uppercase focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 focus:outline-none transition-colors duration-200"
           value={state.registrationCertSeries}
           onChange={(e) => handlePolicyDetailsFieldChange("registrationCertSeries", e.target.value.toUpperCase())}
           placeholder="ex: F123123"
@@ -671,7 +671,7 @@ function RcaPageInner() {
         </label>
         <input
           type="date"
-          className="w-full rounded-lg border-2 border-gray-300 px-4 py-3 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-colors duration-200"
+          className="w-full rounded-lg border-2 border-gray-300 px-4 py-3 text-sm focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 focus:outline-none transition-colors duration-200"
           value={state.startDate}
           min={new Date(Date.now() + 86400000).toISOString().split("T")[0]}
           onChange={(e) => handlePolicyDetailsFieldChange("startDate", e.target.value)}

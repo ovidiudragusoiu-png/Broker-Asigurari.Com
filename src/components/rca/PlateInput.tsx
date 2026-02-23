@@ -39,7 +39,7 @@ export default function PlateInput({ value, onChange, onContinue }: PlateInputPr
         </label>
         <input
           type="text"
-          className="w-full rounded-lg border-2 border-gray-300 px-4 py-3 text-center text-lg font-bold uppercase tracking-widest focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-colors duration-200"
+          className="w-full rounded-lg border-2 border-gray-300 px-4 py-3 text-center text-lg font-bold uppercase tracking-widest focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 focus:outline-none transition-colors duration-200"
           value={value}
           onChange={(e) => {
             onChange(e.target.value.toUpperCase().replace(/[\s\-]/g, ""));

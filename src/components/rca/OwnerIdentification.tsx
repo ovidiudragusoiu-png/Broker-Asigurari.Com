@@ -77,7 +77,7 @@ export default function OwnerIdentification({
         </label>
         <input
           type="text"
-          className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-colors duration-200"
+          className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 focus:outline-none transition-colors duration-200"
           value={cnpOrCui}
           onChange={(e) => onCnpChange(e.target.value.replace(/\D/g, ""))}
           maxLength={ownerType === "PF" ? 13 : 10}
@@ -97,7 +97,7 @@ export default function OwnerIdentification({
         </label>
         <input
           type="email"
-          className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-colors duration-200"
+          className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 focus:outline-none transition-colors duration-200"
           value={email}
           onChange={(e) => onEmailChange(e.target.value)}
           placeholder="email@exemplu.ro"
@@ -115,7 +115,7 @@ export default function OwnerIdentification({
           <button
             type="button"
             onClick={() => setShowPrivacy(!showPrivacy)}
-            className="font-semibold text-emerald-600 underline hover:text-emerald-700"
+            className="font-semibold text-sky-600 underline hover:text-sky-700"
           >
             Detalii
           </button>
@@ -152,7 +152,7 @@ export default function OwnerIdentification({
               <button
                 type="button"
                 onClick={() => setShowPrivacy(false)}
-                className="rounded-lg bg-emerald-600 px-6 py-2 text-sm font-semibold text-white hover:bg-emerald-700 transition-colors duration-200"
+                className="rounded-lg bg-sky-600 px-6 py-2 text-sm font-semibold text-white hover:bg-sky-700 transition-colors duration-200"
               >
                 Am înțeles
               </button>

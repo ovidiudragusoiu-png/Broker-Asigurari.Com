@@ -173,7 +173,7 @@ export default function CategorySelect({ onSelect }: CategorySelectProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8 text-gray-500">
-        <span className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
+        <span className="h-5 w-5 animate-spin rounded-full border-2 border-sky-600 border-t-transparent" />
         <span className="ml-2 text-sm">Se încarcă categoriile...</span>
       </div>
     );
@@ -204,7 +204,7 @@ export default function CategorySelect({ onSelect }: CategorySelectProps) {
               onClick={() => setSelectedId(cat.id)}
               className={`flex flex-col items-center gap-3 rounded-xl border-2 p-5 transition-all ${
                 isSelected
-                  ? "border-emerald-500 bg-white shadow-md"
+                  ? "border-sky-500 bg-white shadow-md"
                   : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm"
               }`}
             >
@@ -215,11 +215,11 @@ export default function CategorySelect({ onSelect }: CategorySelectProps) {
               {/* Radio indicator */}
               <span
                 className={`flex h-5 w-5 items-center justify-center rounded-full border-2 ${
-                  isSelected ? "border-emerald-500" : "border-gray-300"
+                  isSelected ? "border-sky-500" : "border-gray-300"
                 }`}
               >
                 {isSelected && (
-                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-sky-500" />
                 )}
               </span>
             </button>

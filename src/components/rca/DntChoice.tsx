@@ -5,11 +5,12 @@ import { btn } from "@/lib/ui/tokens";
 
 interface DntChoiceProps {
   onContinueDirect: () => void;
+  productLabel?: string;
 }
 
 const CONSULTATION_EMAIL = "bucuresti@broker-asigurari.com";
 
-export default function DntChoice({ onContinueDirect }: DntChoiceProps) {
+export default function DntChoice({ onContinueDirect, productLabel = "RCA" }: DntChoiceProps) {
   const [showPopup, setShowPopup] = useState(false);
 
   return (
@@ -17,7 +18,7 @@ export default function DntChoice({ onContinueDirect }: DntChoiceProps) {
       <div className="text-center">
         <h2 className="text-2xl font-bold text-gray-900">Aproape gata!</h2>
         <p className="mt-1 text-sm text-gray-500">
-          Mai ai puțin până la ofertele RCA
+          Mai ai puțin până la ofertele {productLabel}
         </p>
       </div>
 
@@ -27,10 +28,10 @@ export default function DntChoice({ onContinueDirect }: DntChoiceProps) {
         <button
           type="button"
           onClick={onContinueDirect}
-          className="group flex flex-col items-center gap-4 rounded-xl border-2 border-emerald-200 bg-emerald-50/50 p-6 text-center transition-all hover:border-emerald-400 hover:shadow-md"
+          className="group flex flex-col items-center gap-4 rounded-xl border-2 border-sky-200 bg-sky-50/50 p-6 text-center transition-all hover:border-sky-400 hover:shadow-md"
         >
           {/* Icon */}
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 transition-colors group-hover:bg-emerald-200">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-sky-100 text-sky-600 transition-colors group-hover:bg-sky-200">
             <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
@@ -70,17 +71,12 @@ export default function DntChoice({ onContinueDirect }: DntChoiceProps) {
         </button>
       </div>
 
-      {/* Usage notice — subtle, at the bottom */}
-      <p className="mx-auto max-w-lg text-center text-xs font-bold text-gray-900">
-        Ofertele și polițele RCA sunt disponibile exclusiv pentru uz personal.
-      </p>
-
       {/* DNT consultation popup */}
       {showPopup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="mx-4 max-w-md rounded-xl bg-white p-6 shadow-xl">
             <div className="mb-4 flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-100 text-sky-600">
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
@@ -94,7 +90,7 @@ export default function DntChoice({ onContinueDirect }: DntChoiceProps) {
             </p>
             <a
               href={`mailto:${CONSULTATION_EMAIL}`}
-              className="mt-3 flex items-center justify-center gap-2 rounded-lg bg-emerald-50 px-4 py-3 text-base font-semibold text-emerald-700 transition-colors hover:bg-emerald-100"
+              className="mt-3 flex items-center justify-center gap-2 rounded-lg bg-sky-50 px-4 py-3 text-base font-semibold text-sky-700 transition-colors hover:bg-sky-100"
             >
               {CONSULTATION_EMAIL}
             </a>

@@ -52,12 +52,12 @@ export default function LocalitySelect({ countyId, countyName, onSelect }: Local
       <div className="mx-auto max-w-md">
         {loading ? (
           <div className="flex items-center justify-center gap-2 py-8 text-gray-500">
-            <span className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
+            <span className="h-5 w-5 animate-spin rounded-full border-2 border-sky-600 border-t-transparent" />
             <span className="text-sm">Se încarcă localitățile...</span>
           </div>
         ) : (
           <select
-            className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-colors duration-200"
+            className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 focus:outline-none transition-colors duration-200"
             value={selectedCityId ?? ""}
             onChange={(e) => e.target.value && handleSelect(Number(e.target.value))}
           >

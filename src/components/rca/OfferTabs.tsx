@@ -124,7 +124,7 @@ export default function OfferTabs({
           ))}
         </div>
         <div className="flex items-center justify-center gap-3 py-2">
-          <span className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
+          <span className="h-5 w-5 animate-spin rounded-full border-2 border-sky-600 border-t-transparent" />
           <p className="text-sm font-medium text-gray-500">
             Se generează ofertele... Poate dura câteva momente.
           </p>
@@ -248,7 +248,7 @@ export default function OfferTabs({
           let classes =
             "relative rounded-full px-6 py-3 text-sm font-semibold transition-all cursor-pointer select-none ";
           if (isActive) {
-            classes += "bg-emerald-600 text-white shadow-lg shadow-emerald-200 scale-105";
+            classes += "bg-sky-600 text-white shadow-lg shadow-sky-200 scale-105";
           } else {
             classes +=
               "bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700";
@@ -280,7 +280,7 @@ export default function OfferTabs({
           {currentTabConfig.columns.map((col) => (
             <div
               key={`${col.period}-${col.withDirectSettlement}`}
-              className="w-36 text-center text-sm font-bold text-emerald-700"
+              className="w-36 text-center text-sm font-bold text-sky-700"
             >
               {col.label}
             </div>
@@ -418,7 +418,7 @@ export default function OfferTabs({
                                 col.withDirectSettlement
                               )
                             }
-                            className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-emerald-700 hover:shadow-md"
+                            className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-sky-700 hover:shadow-md"
                           >
                             <svg
                               className="h-3.5 w-3.5"
@@ -447,8 +447,8 @@ export default function OfferTabs({
       )}
 
       {/* Footer message */}
-      <div className="rounded-lg bg-emerald-50 px-4 py-3 text-center">
-        <p className="text-sm text-emerald-800">
+      <div className="rounded-lg bg-sky-50 px-4 py-3 text-center">
+        <p className="text-sm text-sky-800">
           Plătești cu cardul și{" "}
           <span className="font-semibold">
             primești instant polița RCA pe email

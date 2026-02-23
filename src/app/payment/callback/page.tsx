@@ -166,16 +166,16 @@ function PaymentCallbackContent() {
       <div
         className={`rounded-lg border p-6 text-center ${
           isSuccess
-            ? "border-emerald-200 bg-emerald-50"
+            ? "border-sky-200 bg-sky-50"
             : "border-red-200 bg-red-50"
         }`}
       >
-        <div className={`mx-auto flex h-14 w-14 items-center justify-center rounded-full ${isSuccess ? "bg-emerald-100" : "bg-red-100"}`}>
-          <span className={`text-2xl font-bold ${isSuccess ? "text-emerald-600" : "text-red-600"}`}>{isSuccess ? "✓" : "✗"}</span>
+        <div className={`mx-auto flex h-14 w-14 items-center justify-center rounded-full ${isSuccess ? "bg-sky-100" : "bg-red-100"}`}>
+          <span className={`text-2xl font-bold ${isSuccess ? "text-sky-600" : "text-red-600"}`}>{isSuccess ? "✓" : "✗"}</span>
         </div>
         <h1
           className={`mt-3 text-2xl font-bold ${
-            isSuccess ? "text-emerald-700" : "text-red-700"
+            isSuccess ? "text-sky-700" : "text-red-700"
           }`}
         >
           {isSuccess ? "Plata a fost efectuată cu succes!" : "Plata nu a fost procesată"}
@@ -186,14 +186,14 @@ function PaymentCallbackContent() {
       {/* Auto-creating policy — show spinner */}
       {isSuccess && creating && (
         <div className="mt-6 flex items-center justify-center gap-3 text-gray-600">
-          <span className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
+          <span className="h-5 w-5 animate-spin rounded-full border-2 border-sky-600 border-t-transparent" />
           <span className="text-sm font-medium">Se emite polița...</span>
         </div>
       )}
 
       {/* Policy created successfully */}
       {policyCreated && policyResponse && (
-        <div className="mt-6 space-y-4 rounded-lg border border-emerald-200 bg-white p-6">
+        <div className="mt-6 space-y-4 rounded-lg border border-sky-200 bg-white p-6">
           <h2 className="font-semibold text-gray-900">Polița a fost emisă cu succes!</h2>
           {policyNumber && (
             <p className="text-sm text-gray-600">
