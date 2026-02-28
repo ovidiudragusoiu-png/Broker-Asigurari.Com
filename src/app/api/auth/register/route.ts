@@ -3,7 +3,44 @@ import { prisma } from "@/lib/db/prisma";
 import { hashPassword } from "@/lib/auth/password";
 import { signToken, setAuthCookie } from "@/lib/auth/jwt";
 
+// In-memory rate limiter
+const registerAttempts = new Map<string, { count: number; resetAt: number }>();
+const MAX_ATTEMPTS = 5;
+const WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+
+function getClientIp(request: Request): string {
+  return (
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip") ||
+    "unknown"
+  );
+}
+
 export async function POST(request: Request) {
+  const ip = getClientIp(request);
+
+  // Rate limiting
+  const now = Date.now();
+  const record = registerAttempts.get(ip);
+  if (record) {
+    if (now > record.resetAt) {
+      registerAttempts.delete(ip);
+    } else if (record.count >= MAX_ATTEMPTS) {
+      return NextResponse.json(
+        { error: "Prea multe încercări. Vă rugăm așteptați 15 minute." },
+        { status: 429 }
+      );
+    }
+  }
+
+  // Track attempt
+  const entry = registerAttempts.get(ip);
+  if (entry) {
+    entry.count++;
+  } else {
+    registerAttempts.set(ip, { count: 1, resetAt: now + WINDOW_MS });
+  }
+
   try {
     const body = await request.json();
     const { email, password, firstName, lastName, phone } = body;

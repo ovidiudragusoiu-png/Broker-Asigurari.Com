@@ -46,8 +46,8 @@ export default function PaymentFlow({
   const padOfferId = additionalOfferIds?.length ? additionalOfferIds[0] : null;
   const redirectURL = `${baseUrl}/payment/callback?orderId=${orderId}&offerId=${offerId}&orderHash=${orderHash}${productType ? `&productType=${productType}` : ""}${padOfferId ? `&padOfferId=${padOfferId}` : ""}`;
 
-  // PAD standalone uses non-v3 payment endpoint; HOUSE now uses v3 (same session)
-  const useNonV3 = productType === "PAD";
+  // All products now use V3 payment endpoints
+  const useNonV3 = false;
 
   const handlePay = async () => {
     setError(null);
@@ -67,6 +67,15 @@ export default function PaymentFlow({
       );
       if (customerEmail) sessionStorage.setItem("customerEmail", customerEmail);
       setStatus("redirecting");
+      // Validate payment URL before redirect
+      try {
+        const parsed = new URL(paymentUrl as string);
+        if (parsed.protocol !== "https:") throw new Error("URL invalid");
+      } catch {
+        setError("Link de plata invalid primit de la server.");
+        setStatus("failed");
+        return;
+      }
       window.location.href = paymentUrl as string;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Eroare la plata");
@@ -92,6 +101,15 @@ export default function PaymentFlow({
       );
       if (customerEmail) sessionStorage.setItem("customerEmail", customerEmail);
       setStatus("redirecting");
+      // Validate loan URL before redirect
+      try {
+        const parsed = new URL(loanUrl as string);
+        if (parsed.protocol !== "https:") throw new Error("URL invalid");
+      } catch {
+        setError("Link de plata in rate invalid primit de la server.");
+        setStatus("failed");
+        return;
+      }
       window.location.href = loanUrl as string;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Eroare la plata in rate");

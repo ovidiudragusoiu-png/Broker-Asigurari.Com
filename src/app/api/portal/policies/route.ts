@@ -28,6 +28,35 @@ export async function POST(request: Request) {
       );
     }
 
+    // Validate productType enum
+    const VALID_PRODUCT_TYPES = [
+      "RCA", "TRAVEL", "HOUSE", "PAD", "MALPRAXIS",
+      "CASCO", "GARANTII", "RASPUNDERE", "UNKNOWN",
+    ];
+    if (productType && !VALID_PRODUCT_TYPES.includes(String(productType).toUpperCase())) {
+      return NextResponse.json(
+        { error: "Tip produs invalid." },
+        { status: 400 }
+      );
+    }
+
+    // Validate email format
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email))) {
+      return NextResponse.json(
+        { error: "Format email invalid." },
+        { status: 400 }
+      );
+    }
+
+    // Validate currency
+    const VALID_CURRENCIES = ["RON", "EUR", "USD"];
+    if (currency && !VALID_CURRENCIES.includes(String(currency).toUpperCase())) {
+      return NextResponse.json(
+        { error: "Monedă invalidă." },
+        { status: 400 }
+      );
+    }
+
     // Check if user is logged in
     const user = await getCurrentUser();
     const emailLower = (email || "").toLowerCase().trim();

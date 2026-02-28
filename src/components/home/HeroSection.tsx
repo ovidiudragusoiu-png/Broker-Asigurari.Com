@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Car, ShieldCheck, Plane, Home, Stethoscope, FileCheck, ArrowRight } from "lucide-react";
 import { gsap } from "gsap";
 
@@ -163,9 +164,12 @@ export default function HeroSection() {
             <div className="hero-image relative overflow-hidden rounded-[2.5rem] shadow-2xl shadow-blue-900/30 bg-[#060D1F]">
               {/* Car image */}
               <div className="relative w-full overflow-hidden aspect-[16/10]">
-                <img
+                <Image
                   src="/images/hero-car.png"
                   alt="Asigurare auto"
+                  width={800}
+                  height={500}
+                  priority
                   className="absolute top-0 left-0 w-full h-[135%] object-cover object-top"
                 />
               </div>

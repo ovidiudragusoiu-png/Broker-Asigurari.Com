@@ -21,6 +21,32 @@ export default function RootLayout({
   return (
     <html lang="ro">
       <head>
+        {/* JSON-LD: Organization */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "InsuranceAgency",
+              name: "Broker-Asigurari.Com",
+              legalName: "FLETHO LLC SRL",
+              url: "https://broker-asigurari.com",
+              logo: "https://broker-asigurari.com/images/logo.png",
+              telephone: "+40720385551",
+              email: "bucuresti@broker-asigurari.com",
+              address: {
+                "@type": "PostalAddress",
+                addressCountry: "RO",
+                addressLocality: "București",
+              },
+              openingHours: "Mo-Fr 09:00-18:00",
+              sameAs: [
+                "https://www.facebook.com/brokerasiguraricom",
+                "https://instagram.com/brokerasigurari",
+              ],
+            }),
+          }}
+        />
         {/* Google Analytics (GA4) */}
         <script async src="https://www.googletagmanager.com/gtag/js?id=G-325066225" />
         <script dangerouslySetInnerHTML={{ __html: `

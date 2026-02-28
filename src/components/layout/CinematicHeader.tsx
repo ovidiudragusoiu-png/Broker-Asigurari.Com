@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck, Phone } from "lucide-react";
 import DesktopNav from "@/components/layout/DesktopNav";
 import MobileMenu from "@/components/home/MobileMenu";
 import HeaderAuthButton from "@/components/portal/HeaderAuthButton";
@@ -65,6 +65,13 @@ export default function CinematicHeader() {
 
         {/* CTA button placeholder + actions */}
         <div className="hidden items-center gap-6 md:flex">
+          <a
+            href="tel:+40720385551"
+            className="flex items-center gap-1.5 text-sm font-semibold text-slate-600 transition-colors hover:text-[#2563EB]"
+          >
+            <Phone className="h-4 w-4" />
+            0720 38 55 51
+          </a>
           <HeaderAuthButton />
           <Link
             href="/rca"
