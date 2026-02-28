@@ -30,7 +30,7 @@ const ALLOWED_PATHS: RegExp[] = [
   /^online\/offers\/payment\/check\/v3($|\?)/, // check payment
   /^online\/offers\/payment\/loan\/v3($|\?)/, // loan payment (v3)
   /^online\/offers\/payment\/loan($|\?)/, // loan payment (non-v3, PAD)
-  /^online\/offers\/paid\/pad($|\?)/, // PAD offer creation (non-v3)
+  /^online\/offers\/paid\/pad(\/v3)?($|\?)/, // PAD offer creation (v3 + non-v3)
   /^online\/offers\/\d+\/document\/v3($|\?)/, // offer document
   /^online\/offers\/travel\//, // travel offers
   /^online\/offers\/house\//, // house offers

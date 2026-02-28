@@ -8,6 +8,7 @@ import type {
   LegalType,
 } from "@/types/insuretech";
 import AddressForm, { emptyAddress } from "./AddressForm";
+import DateInput from "./DateInput";
 import { api } from "@/lib/api/client";
 import {
   validateCNP,
@@ -277,13 +278,11 @@ export default function PersonForm({
           {showDriverLicence && (
             <div>
               <label className={labelCls}>Data obtinere permis conducere</label>
-              <input
-                type="date"
-                className={selectCls}
+              <DateInput
                 value={value.driverLicenceDate ?? ""}
-                onChange={(e) =>
+                onChange={(v) =>
                   updatePF({
-                    driverLicenceDate: e.target.value || null,
+                    driverLicenceDate: v || null,
                   })
                 }
               />

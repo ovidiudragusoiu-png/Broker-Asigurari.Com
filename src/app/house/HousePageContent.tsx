@@ -13,6 +13,7 @@ import { isAddressValid, isPersonValid } from "@/lib/utils/formGuards";
 import { createOrderAndOffers } from "@/lib/flows/offerFlow";
 import { buildOrderPayload } from "@/lib/flows/payloadBuilders";
 import { autoSignConsent } from "@/lib/flows/consent";
+import DateInput from "@/components/shared/DateInput";
 import { getArray } from "@/lib/utils/dto";
 import { formatDateTime } from "@/lib/utils/formatters";
 import { dateOfBirthFromCNP } from "@/lib/utils/validation";
@@ -677,12 +678,10 @@ export default function HousePage() {
 
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">Data inceput polita</label>
-            <input
-              type="date"
-              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+            <DateInput
               value={policyStartDate}
               min={(() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().split("T")[0]; })()}
-              onChange={(e) => setPolicyStartDate(e.target.value)}
+              onChange={(v) => setPolicyStartDate(v)}
             />
           </div>
 
@@ -759,11 +758,9 @@ export default function HousePage() {
                     </div>
                     <div>
                       <label className="mb-1 block text-xs font-medium text-gray-500">Data inceput PAD (reinnoire)</label>
-                      <input
-                        type="date"
-                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none"
+                      <DateInput
                         value={padStartDate}
-                        onChange={(e) => setPadStartDate(e.target.value)}
+                        onChange={(v) => setPadStartDate(v)}
                         min={(() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().split("T")[0]; })()}
                         max={(() => { const d = new Date(); d.setDate(d.getDate() + 30); return d.toISOString().split("T")[0]; })()}
                       />

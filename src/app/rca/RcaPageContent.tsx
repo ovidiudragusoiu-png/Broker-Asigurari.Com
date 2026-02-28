@@ -38,6 +38,7 @@ import type { RcaOfferApi } from "@/lib/utils/rcaHelpers";
 import { btn } from "@/lib/ui/tokens";
 import { dateOfBirthFromCNP } from "@/lib/utils/validation";
 import { autoSignConsent } from "@/lib/flows/consent";
+import DateInput from "@/components/shared/DateInput";
 
 // ============================================================
 // Page wrapper (Suspense boundary for useSearchParams)
@@ -628,12 +629,10 @@ function RcaPageInner() {
           <label className="mb-1 block text-xs font-medium text-gray-500">
             Data început valabilitate RCA
           </label>
-          <input
-            type="date"
-            className="w-full rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none"
+          <DateInput
             value={state.startDate}
             min={new Date(Date.now() + 86400000).toISOString().split("T")[0]}
-            onChange={(e) => handlePolicyDetailsFieldChange("startDate", e.target.value)}
+            onChange={(v) => handlePolicyDetailsFieldChange("startDate", v)}
           />
           <p className="mt-1 text-xs text-gray-400">
             Selectați prima zi după expirarea poliței curente.

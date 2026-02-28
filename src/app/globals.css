@@ -76,6 +76,90 @@
   animation: pulse-dot 2s ease-in-out infinite;
 }
 
+/* ===== DatePicker Overrides ===== */
+.react-datepicker {
+  font-family: "Inter", ui-sans-serif, system-ui, sans-serif !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 1rem !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05) !important;
+}
+
+.react-datepicker__header {
+  background: #f8fafc !important;
+  border-bottom: 1px solid #e5e7eb !important;
+  border-radius: 1rem 1rem 0 0 !important;
+  padding-top: 10px !important;
+}
+
+.react-datepicker__current-month {
+  font-weight: 600 !important;
+  color: #1e293b !important;
+  font-size: 0.9rem !important;
+}
+
+.react-datepicker__day-name {
+  color: #94a3b8 !important;
+  font-size: 0.75rem !important;
+  font-weight: 500 !important;
+}
+
+.react-datepicker__day {
+  border-radius: 0.5rem !important;
+  font-size: 0.8rem !important;
+  line-height: 2rem !important;
+  width: 2rem !important;
+  margin: 0.15rem !important;
+}
+
+.react-datepicker__day:hover {
+  background: #eff6ff !important;
+  color: #2563eb !important;
+}
+
+.react-datepicker__day--selected,
+.react-datepicker__day--keyboard-selected {
+  background: #2563eb !important;
+  color: #fff !important;
+  font-weight: 600 !important;
+}
+
+.react-datepicker__day--today {
+  font-weight: 700 !important;
+}
+
+.react-datepicker__day--disabled {
+  color: #d1d5db !important;
+}
+
+.react-datepicker__navigation {
+  top: 12px !important;
+}
+
+.react-datepicker__month-dropdown-container,
+.react-datepicker__year-dropdown-container {
+  margin: 0 4px !important;
+}
+
+.react-datepicker__month-select,
+.react-datepicker__year-select {
+  font-family: "Inter", sans-serif !important;
+  font-size: 0.8rem !important;
+  padding: 2px 4px !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 0.375rem !important;
+  background: #fff !important;
+  color: #1e293b !important;
+  cursor: pointer !important;
+}
+
+.react-datepicker-wrapper {
+  width: 100% !important;
+}
+
+.react-datepicker__input-container {
+  width: 100% !important;
+}
+
 /* ===== GSAP Fade Up Initial State ===== */
 .gsap-fade-up {
   opacity: 0;

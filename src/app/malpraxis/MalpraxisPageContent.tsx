@@ -14,6 +14,7 @@ import { dateOfBirthFromCNP } from "@/lib/utils/validation";
 import { autoSignConsent } from "@/lib/flows/consent";
 import { createOrderAndOffers } from "@/lib/flows/offerFlow";
 import { buildMalpraxisOrderPayload } from "@/lib/flows/payloadBuilders";
+import DateInput from "@/components/shared/DateInput";
 import { getArray } from "@/lib/utils/dto";
 import { btn } from "@/lib/ui/tokens";
 
@@ -593,12 +594,10 @@ export default function MalpraxisPage() {
               </div>
               <div>
                 <label className={labelCls}>Data inceput polita</label>
-                <input
-                  type="date"
-                  className={inputCls}
+                <DateInput
                   value={policyStartDate}
                   min={tomorrowDate}
-                  onChange={(e) => setPolicyStartDate(e.target.value)}
+                  onChange={(v) => setPolicyStartDate(v)}
                 />
               </div>
             </div>

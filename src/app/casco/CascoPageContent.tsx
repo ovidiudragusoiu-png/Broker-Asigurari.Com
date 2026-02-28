@@ -4,8 +4,9 @@ import { useState, useEffect, useCallback } from "react";
 import WizardStepper, { useWizard } from "@/components/shared/WizardStepper";
 import { api } from "@/lib/api/client";
 import { readString, readNumber } from "@/lib/utils/rcaHelpers";
-import { validateVIN } from "@/lib/utils/validation";
+import { validateVIN, validateCNP } from "@/lib/utils/validation";
 import { btn } from "@/lib/ui/tokens";
+import DateInput from "@/components/shared/DateInput";
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -164,6 +165,12 @@ export default function CascoPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Inline validation — track touched fields + attempted submit
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [step1Attempted, setStep1Attempted] = useState(false);
+  const touch = (field: string) => setTouched((t) => ({ ...t, [field]: true }));
+  const shouldShowError = (field: string) => touched[field] || step1Attempted;
 
   // Nomenclatures
   const [counties, setCounties] = useState<SelectOption[]>([]);
@@ -350,8 +357,32 @@ export default function CascoPage() {
     form.cityId !== "" &&
     form.hasLicense !== "" &&
     (form.ownerType === "PF"
-      ? form.lastName.length > 0 && form.firstName.length > 0 && form.cnp.length === 13
+      ? form.lastName.length > 0 && form.firstName.length > 0 && validateCNP(form.cnp)
       : form.companyName.length > 0 && form.cui.length >= 2);
+
+  // Field-level error checks
+  const fieldErrors = {
+    lastName: form.ownerType === "PF" && form.lastName.length === 0,
+    firstName: form.ownerType === "PF" && form.firstName.length === 0,
+    cnp: form.ownerType === "PF" && !validateCNP(form.cnp),
+    companyName: form.ownerType === "PJ" && form.companyName.length === 0,
+    cui: form.ownerType === "PJ" && form.cui.length < 2,
+    email: !form.email.includes("@"),
+    phone: form.phone.length < 10,
+    countyId: form.countyId === "",
+    cityId: form.cityId === "",
+    hasLicense: form.hasLicense === "",
+  };
+
+  const errBorder = "!border-red-400";
+  const inputErr = (field: string) =>
+    shouldShowError(field) && fieldErrors[field as keyof typeof fieldErrors]
+      ? errBorder
+      : "";
+  const selectErr = (field: string) =>
+    shouldShowError(field) && fieldErrors[field as keyof typeof fieldErrors]
+      ? errBorder
+      : "";
 
   const step2Valid =
     form.currentInsurer !== "" &&
@@ -469,16 +500,28 @@ export default function CascoPage() {
                 <div className="grid grid-cols-2 gap-x-4 gap-y-3">
                   <div>
                     <label className={labelCls}>Nume</label>
-                    <input className={inputCls} value={form.lastName} onChange={(e) => set("lastName", e.target.value)} placeholder="ex: Popescu" />
+                    <input className={`${inputCls} ${inputErr("lastName")}`} value={form.lastName} onChange={(e) => set("lastName", e.target.value)} onBlur={() => touch("lastName")} placeholder="ex: Popescu" />
+                    {shouldShowError("lastName") && fieldErrors.lastName && (
+                      <p className="mt-1 text-xs text-red-500">Numele este obligatoriu</p>
+                    )}
                   </div>
                   <div>
                     <label className={labelCls}>Prenume</label>
-                    <input className={inputCls} value={form.firstName} onChange={(e) => set("firstName", e.target.value)} placeholder="ex: Ion" />
+                    <input className={`${inputCls} ${inputErr("firstName")}`} value={form.firstName} onChange={(e) => set("firstName", e.target.value)} onBlur={() => touch("firstName")} placeholder="ex: Ion" />
+                    {shouldShowError("firstName") && fieldErrors.firstName && (
+                      <p className="mt-1 text-xs text-red-500">Prenumele este obligatoriu</p>
+                    )}
                   </div>
                 </div>
                 <div>
                   <label className={labelCls}>CNP</label>
-                  <input className={inputCls} value={form.cnp} onChange={(e) => set("cnp", e.target.value)} placeholder="13 cifre" maxLength={13} />
+                  <input className={`${inputCls} ${inputErr("cnp")}`} value={form.cnp} onChange={(e) => set("cnp", e.target.value.replace(/\D/g, ""))} onBlur={() => touch("cnp")} placeholder="13 cifre" maxLength={13} inputMode="numeric" />
+                  {shouldShowError("cnp") && fieldErrors.cnp && form.cnp.length > 0 && (
+                    <p className="mt-1 text-xs text-red-500">{form.cnp.length < 13 ? "CNP-ul trebuie să aibă 13 cifre" : "CNP invalid"}</p>
+                  )}
+                  {shouldShowError("cnp") && fieldErrors.cnp && form.cnp.length === 0 && (
+                    <p className="mt-1 text-xs text-red-500">CNP-ul este obligatoriu</p>
+                  )}
                 </div>
                 <div>
                   <label className={labelCls}>Stare civila</label>
@@ -524,7 +567,10 @@ export default function CascoPage() {
                 )}
                 <div>
                   <label className={labelCls}>Nume firma</label>
-                  <input className={inputCls} value={form.companyName} onChange={(e) => set("companyName", e.target.value)} placeholder="Denumire firma" />
+                  <input className={`${inputCls} ${inputErr("companyName")}`} value={form.companyName} onChange={(e) => set("companyName", e.target.value)} onBlur={() => touch("companyName")} placeholder="Denumire firma" />
+                  {shouldShowError("companyName") && fieldErrors.companyName && (
+                    <p className="mt-1 text-xs text-red-500">Numele firmei este obligatoriu</p>
+                  )}
                 </div>
               </>
             )}
@@ -540,11 +586,23 @@ export default function CascoPage() {
               <div className="grid grid-cols-2 gap-x-4 gap-y-3">
                 <div>
                   <label className={labelCls}>Email</label>
-                  <input type="email" className={inputCls} value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="email@exemplu.ro" />
+                  <input type="email" className={`${inputCls} ${inputErr("email")}`} value={form.email} onChange={(e) => set("email", e.target.value)} onBlur={() => touch("email")} placeholder="email@exemplu.ro" />
+                  {shouldShowError("email") && fieldErrors.email && form.email.length > 0 && (
+                    <p className="mt-1 text-xs text-red-500">Adresa de email nu este validă</p>
+                  )}
+                  {shouldShowError("email") && fieldErrors.email && form.email.length === 0 && (
+                    <p className="mt-1 text-xs text-red-500">Emailul este obligatoriu</p>
+                  )}
                 </div>
                 <div>
                   <label className={labelCls}>Telefon</label>
-                  <input type="tel" className={inputCls} value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="07XXXXXXXX" />
+                  <input type="tel" className={`${inputCls} ${inputErr("phone")}`} value={form.phone} onChange={(e) => set("phone", e.target.value)} onBlur={() => touch("phone")} placeholder="07XXXXXXXX" />
+                  {shouldShowError("phone") && fieldErrors.phone && form.phone.length > 0 && (
+                    <p className="mt-1 text-xs text-red-500">Minim 10 cifre (ex: 0720385551)</p>
+                  )}
+                  {shouldShowError("phone") && fieldErrors.phone && form.phone.length === 0 && (
+                    <p className="mt-1 text-xs text-red-500">Telefonul este obligatoriu</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -560,16 +618,19 @@ export default function CascoPage() {
               <div className="grid grid-cols-2 gap-x-4 gap-y-3">
                 <div>
                   <label className={labelCls}>Detii permis auto?</label>
-                  <select className={selectCls} value={form.hasLicense} onChange={(e) => set("hasLicense", e.target.value as "da" | "nu" | "")}>
+                  <select className={`${selectCls} ${selectErr("hasLicense")}`} value={form.hasLicense} onChange={(e) => { set("hasLicense", e.target.value as "da" | "nu" | ""); touch("hasLicense"); }} onBlur={() => touch("hasLicense")}>
                     <option value="">Selecteaza</option>
                     <option value="da">Da</option>
                     <option value="nu">Nu</option>
                   </select>
+                  {shouldShowError("hasLicense") && fieldErrors.hasLicense && (
+                    <p className="mt-1 text-xs text-red-500">Selectați dacă dețineți permis</p>
+                  )}
                 </div>
                 {form.hasLicense === "da" && (
                   <div>
                     <label className={labelCls}>Data obtinere permis</label>
-                    <input type="date" className={inputCls} value={form.licenseDate} onChange={(e) => set("licenseDate", e.target.value)} />
+                    <DateInput value={form.licenseDate} onChange={(v) => set("licenseDate", v)} />
                   </div>
                 )}
               </div>
@@ -588,10 +649,11 @@ export default function CascoPage() {
                 <div>
                   <label className={labelCls}>Judet</label>
                   <select
-                    className={selectCls}
+                    className={`${selectCls} ${selectErr("countyId")}`}
                     value={isBucharest ? BUCHAREST_SENTINEL : form.countyId}
                     onChange={(e) => {
                       const val = e.target.value;
+                      touch("countyId");
                       if (val === BUCHAREST_SENTINEL) {
                         set("countyId", BUCHAREST_SENTINEL);
                         set("countyName", "Bucuresti");
@@ -605,12 +667,16 @@ export default function CascoPage() {
                         set("cityName", "");
                       }
                     }}
+                    onBlur={() => touch("countyId")}
                   >
                     <option value="">Selecteaza judetul</option>
                     {deduplicatedCounties.map((c) => (
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
                   </select>
+                  {shouldShowError("countyId") && fieldErrors.countyId && (
+                    <p className="mt-1 text-xs text-red-500">Selectați județul</p>
+                  )}
                 </div>
                 <div>
                   <label className={labelCls}>
@@ -618,7 +684,7 @@ export default function CascoPage() {
                   </label>
                   {isBucharest || isBucharestSentinel ? (
                     <select
-                      className={selectCls}
+                      className={`${selectCls} ${selectErr("cityId")}`}
                       value={isBucharest ? form.countyId : ""}
                       onChange={(e) => {
                         const sector = BUCHAREST_SECTORS.find((s) => String(s.countyId) === e.target.value);
@@ -627,8 +693,10 @@ export default function CascoPage() {
                           set("countyName", "Bucuresti");
                           set("cityId", String(sector.cityId));
                           set("cityName", sector.label);
+                          touch("cityId");
                         }
                       }}
+                      onBlur={() => touch("cityId")}
                     >
                       <option value="">Selecteaza sectorul</option>
                       {BUCHAREST_SECTORS.map((s) => (
@@ -637,20 +705,27 @@ export default function CascoPage() {
                     </select>
                   ) : (
                   <select
-                    className={selectCls}
+                    className={`${selectCls} ${selectErr("cityId")}`}
                     value={form.cityId}
                     disabled={!form.countyId}
                     onChange={(e) => {
                       const city = cities.find((c) => String(c.id) === e.target.value);
                       set("cityId", e.target.value);
                       set("cityName", city?.name || "");
+                      touch("cityId");
                     }}
+                    onBlur={() => touch("cityId")}
                   >
                     <option value="">Selecteaza localitatea</option>
                     {cities.map((c) => (
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
                   </select>
+                  )}
+                  {shouldShowError("cityId") && fieldErrors.cityId && (
+                    <p className="mt-1 text-xs text-red-500">
+                      {isBucharest || isBucharestSentinel ? "Selectați sectorul" : "Selectați localitatea"}
+                    </p>
                   )}
                 </div>
               </div>
@@ -659,7 +734,17 @@ export default function CascoPage() {
 
           {/* Continue */}
           <div className="text-center pt-2">
-            <button type="button" onClick={() => step1Valid && next()} disabled={!step1Valid} className={`${btn.primary} px-8`}>
+            <button
+              type="button"
+              onClick={() => {
+                if (step1Valid) {
+                  next();
+                } else {
+                  setStep1Attempted(true);
+                }
+              }}
+              className={`${btn.primary} px-8`}
+            >
               <span className="flex items-center gap-2">
                 Continua
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -667,6 +752,9 @@ export default function CascoPage() {
                 </svg>
               </span>
             </button>
+            {step1Attempted && !step1Valid && (
+              <p className="mt-2 text-xs text-red-500">Completați câmpurile marcate cu roșu</p>
+            )}
           </div>
         </div>
       ),
@@ -843,7 +931,7 @@ export default function CascoPage() {
                   </div>
                   <div>
                     <label className={labelCls}>Data primei inmatriculari</label>
-                    <input type="date" className={inputCls} value={form.firstRegistrationDate} onChange={(e) => set("firstRegistrationDate", e.target.value)} />
+                    <DateInput value={form.firstRegistrationDate} onChange={(v) => set("firstRegistrationDate", v)} />
                   </div>
                 </div>
 
@@ -938,7 +1026,7 @@ export default function CascoPage() {
               </div>
               <div>
                 <label className={labelCls}>Data inceput asigurare</label>
-                <input type="date" className={inputCls} value={form.startDate} min={tomorrowDate} onChange={(e) => set("startDate", e.target.value)} />
+                <DateInput value={form.startDate} onChange={(v) => set("startDate", v)} min={tomorrowDate} />
               </div>
             </div>
 

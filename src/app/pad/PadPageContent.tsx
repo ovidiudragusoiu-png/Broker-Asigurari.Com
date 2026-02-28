@@ -14,6 +14,7 @@ import { getArray } from "@/lib/utils/dto";
 import { btn } from "@/lib/ui/tokens";
 import { dateOfBirthFromCNP } from "@/lib/utils/validation";
 import { autoSignConsent } from "@/lib/flows/consent";
+import DateInput from "@/components/shared/DateInput";
 
 /* Local types for API responses not in shared types */
 interface BuildingStructureOption {
@@ -217,7 +218,7 @@ export default function PadPage() {
           "/online/offers/order/v3",
           {
             vendorProductType: "PAD",
-            mainInsuredDetails: { ...insuredNorm, policyPartyType: "INSURED" },
+            mainInsuredDetails: { ...insuredNorm, policyPartyType: "INSURED", quota: 100 },
             contractorDetails: { ...contractorNorm, policyPartyType: "CONTRACTOR" },
             clientDetails: insuredNorm,
             goodDetails: {
@@ -543,27 +544,25 @@ export default function PadPage() {
                 <label className="mb-1 block text-xs font-medium text-gray-500">
                   Data inceput polita
                   {!isRenewal && (
-                    <span className="ml-1 text-gray-400">(azi + 5 zile)</span>
+                    <span className="ml-1 text-gray-400">(azi + 5 zile, cfm. legii)</span>
                   )}
                   {isRenewal && (
                     <span className="ml-1 text-gray-400">(max. azi + 30 zile)</span>
                   )}
                 </label>
                 {isRenewal ? (
-                  <input
-                    type="date"
-                    className={inputCls}
+                  <DateInput
                     value={policyStartDate}
                     min={(() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().split("T")[0]; })()}
                     max={(() => { const d = new Date(); d.setDate(d.getDate() + 30); return d.toISOString().split("T")[0]; })()}
-                    onChange={(e) => setPolicyStartDate(e.target.value)}
+                    onChange={(v) => setPolicyStartDate(v)}
                   />
                 ) : (
-                  <input
-                    type="date"
-                    className={`${inputCls} bg-gray-100 cursor-not-allowed`}
+                  <DateInput
                     value={policyStartDate}
+                    onChange={() => {}}
                     readOnly
+                    className={`${inputCls} bg-gray-100 cursor-not-allowed`}
                   />
                 )}
               </div>

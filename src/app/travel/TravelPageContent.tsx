@@ -13,6 +13,7 @@ import { createOrderAndOffers } from "@/lib/flows/offerFlow";
 import { buildOrderPayload } from "@/lib/flows/payloadBuilders";
 import { autoSignConsent } from "@/lib/flows/consent";
 import { getArray } from "@/lib/utils/dto";
+import DateInput from "@/components/shared/DateInput";
 import { birthDateFromCnp } from "@/lib/utils/formatters";
 import { btn } from "@/lib/ui/tokens";
 
@@ -403,11 +404,11 @@ export default function TravelPage() {
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-500">Data plecare</label>
-                <input type="date" className={selectCls} value={startDate} min={new Date().toISOString().split("T")[0]} onChange={(e) => { const v = e.target.value; setStartDate(v); if (endDate && endDate < v) setEndDate(v); else if (!endDate && v) setEndDate(v); }} />
+                <DateInput value={startDate} min={new Date().toISOString().split("T")[0]} onChange={(v) => { setStartDate(v); if (endDate && endDate < v) setEndDate(v); else if (!endDate && v) setEndDate(v); }} />
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-500">Data intoarcere</label>
-                <input type="date" className={selectCls} value={endDate} min={startDate || new Date().toISOString().split("T")[0]} onChange={(e) => setEndDate(e.target.value)} />
+                <DateInput value={endDate} min={startDate || new Date().toISOString().split("T")[0]} onChange={(v) => setEndDate(v)} />
               </div>
             </div>
 
@@ -457,7 +458,7 @@ export default function TravelPage() {
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-medium text-gray-500">Data rezervare</label>
-                  <input type="date" className={inputCls} value={stornoStartDate} onChange={(e) => setStornoStartDate(e.target.value)} />
+                  <DateInput value={stornoStartDate} onChange={(v) => setStornoStartDate(v)} />
                 </div>
               </div>
             )}
@@ -475,7 +476,7 @@ export default function TravelPage() {
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-medium text-gray-500">Prima inmatriculare</label>
-                  <input type="date" className={inputCls} value={vehicleFirstRegistration} onChange={(e) => setVehicleFirstRegistration(e.target.value)} />
+                  <DateInput value={vehicleFirstRegistration} onChange={(v) => setVehicleFirstRegistration(v)} />
                 </div>
               </div>
             )}

@@ -5,6 +5,7 @@ import { isAdditionalDriverValid } from "@/lib/utils/formGuards";
 import type { AdditionalDriver } from "@/types/rcaFlow";
 import { emptyAdditionalDriver } from "@/lib/utils/rcaHelpers";
 import { btn } from "@/lib/ui/tokens";
+import DateInput from "@/components/shared/DateInput";
 
 interface AdditionalDriverFormProps {
   hasDriver: boolean;
@@ -139,11 +140,9 @@ export default function AdditionalDriverForm({
             <label className="mb-1 block text-xs font-medium text-gray-500">
               Data obținere permis de conducere
             </label>
-            <input
-              type="date"
-              className={inputCls}
+            <DateInput
               value={d.driverLicenceDate}
-              onChange={(e) => updateField("driverLicenceDate", e.target.value)}
+              onChange={(v) => updateField("driverLicenceDate", v)}
             />
           </div>
         </div>
