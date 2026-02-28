@@ -1,0 +1,1638 @@
+Insuretech API - RCA Online V2
+
+Overview
+
+This document explains how to create RCA (Romanian Compulsory Auto) insurance offers and emit those offers to obtain policies online using the Insuretech API. The API allows developers to automate the process of generating offers for RCA policies and finalizing the purchase by emitting a policy, streamlining online insurance operations.
+
+Version: 1.0.2
+Last Update: 11.12.2025 11:00
+
+Table of Contents
+
+
+Backend URL
+Authentication
+
+API Endpoints
+
+Owner/User/Leasing
+Address
+Vehicle
+Product
+Offer/Policy
+Payment
+
+
+Example
+
+Backend URL
+
+The backend URL for testing and production differs based on the system that is integrating with Insuretech. Please contact the administrator to obtain the correct backend URL for your environment.
+For this documentation, we will use the staging backend URL:
+
+https://insuretech.staging.insuretech.ro/api/v1/
+
+
+After your implementation is validated, our team will respond with the production URL and Authentication.
+Authentication
+
+Each API call requires two headers for authentication and user identification in the Insuretech system:
+
+
+Authorization: Basic authentication, encoded in Base64 format.
+
+Api_key: A unique API key assigned to each user.
+
+Example of the required headers:
+
+Authorization: Basic aX3zeXJlZnVhbWU6VGVzdACyMzHq
+api_key: c21f3970-b109-1235-z53c-b75deaa5c2e2
+
+
+Ensure that both headers are included in every request to authenticate successfully.
+SECURITY RISK! The authorization header should not be exposed on the client. If the implementation is not made using Server Side Rendering, you should use a PROXY implementation to hide the Authorization header an enrich the final request sent to us with the Authorization header.
+Order Hash
+
+Starting from 10.02.2025, we implemented the orderHash as an extra protection on endpoints that return sensitive information about the client or the offer. The orderHash is not required for now, but the plan is to make it required in order to provide better protection on the client data, so our recommendation is to implement it as soon as possible.
+If orderHash is sent on the query param with a wrong value, the endpoint will fail with a 401 error.
+API Endpoints
+
+The API follows a step-by-step process to create an RCA policy, starting with owner and user information, followed by address, vehicle details, product selection, offer generation, and payment validation.
+1. Owner/User/Leasing API
+
+This section handles creating the owner and user who will request the policy.
+1.1. Fetching Leasing Companies
+
+Fetch leasing companies when the owner of the car is a leasing company. In this case, we need to required the UserDetails information.
+
+IMPORTANT!
+Usually this call is made if the RCA Policy is for a vehicle owned by a leasing company. The user will select one company from this response, company that should be used to complete the ownerDetails object. (Check 5.1 - Creating the Order)
+
+Request
+
+GET /online/offers/rca/companies/leasing
+
+
+Response: PersonCompanyResponse[]
+
+[{
+    id: number;
+    cui: number;
+    cif: string;
+    email: string;
+    addressDetails: AddressResponse;
+    clientRepresentative: {
+        id: number;
+        firstName: string;
+        lastName: string;
+        email: string;
+        phoneNumber: string;
+        cif: string;
+        position: string;
+        documentNumber: string;
+    };
+    legalType: 'PJ';
+    phoneNumber: string;
+    companyName: string;
+    registrationNumber: string | null;
+    caenCode: string;
+    companyTypeId: number;
+    companyType: CompanyType['type'];
+}]
+
+
+1.2. Fetching Company Types
+
+Helper to map the company type for PersonRequest. Only for PJ Persons.
+Request
+
+GET /online/companytypes
+
+
+Response: CompanyType[]
+
+[{
+    id: number;
+    type: string;
+}]
+
+
+1.3. Fetching Caen Codes
+
+Helper to map the caen code for PersonRequest. Only for PJ Persons.
+Request
+
+GET /online/caencodes
+
+
+Response: string[]
+
+string[]
+
+
+1.3. Fetching Company Details based on CUI
+
+Fetch details of a company by searching information on the internet. Only for PJ Persons.
+Request
+
+GET /online/companies/utils/:cui
+- cui: required
+
+
+Response: TCompanyHelperResponse
+
+{
+    exciseDuty: string;
+    authorizationDocument: string;
+    address: string;
+    cif: string; // cui/cnp
+    postalCode: string; 
+    caenCode: string;
+    name: string;
+    fax: string;
+    taxMicro: string;
+    taxProfit: string;
+    county: string;
+    registrationNumber: string;
+    radiated: string;
+    state: string;
+    phone: string;
+    vat: string;
+    lastStatement: string;
+    lastProcessing: string;
+    addressResponse: AddressResponse | null; // convert this to AddressRequest
+}
+
+
+1.4. Fetching Id Types
+
+Helper to map the id types for PersonRequest. Only for PF Persons.
+Request
+
+GET /online/idtypes
+
+
+Response: string[]
+
+['CI','PASSPORT']
+
+
+2. Address API
+
+This section handles creating the address of the owner or user.
+
+IMPORTANT!
+Note that AddressRequest is different based on the countryId. If countryId is 185, then countyId and cityId is required. Otherwise, leave countyId and cityId null and provide foreignCityName and foreignCountyName.
+
+2.1. Fetching Countries
+
+Helper to map countries to AddressRequest.
+Request
+
+GET /online/address/utils/countries
+
+
+Response: CountryResponse[]
+
+[{
+    id: number;
+    name: string;
+    code: string;
+}]
+
+
+2.2. Fetching Counties
+
+Helper to map counties to AddressRequest. In order to display the Bucharest sectors, make use of the code property returned in CountyResponse.
+JS Example:
+
+const getCountyFormattedCode = (value: string): string => {
+    switch (value) {
+        case 'B1':
+            return '- Sectorul 1';
+        case 'B2':
+            return '- Sectorul 2';
+        case 'B3':
+            return '- Sectorul 3';
+        case 'B4':
+            return '- Sectorul 4';
+        case 'B5':
+            return '- Sectorul 5';
+        case 'B6':
+            return '- Sectorul 6';
+        default:
+            return '';
+    }
+};
+
+const countyName = `${c.name}${getCountyFormattedCode(c.code)}`;
+
+
+Request
+
+GET /online/address/utils/counties
+
+
+Response: CountyResponse[]
+
+[{
+    id: number;
+    name: string;
+    code: string;
+}]
+
+
+2.3. Fetching Cities on County
+
+Helper to map cities to AddressRequest. The uniquePostalCode can be used to fill the postalCode field when city has no postal codes (2.4).
+Request
+
+GET /online/address/utils/cities?countyId=:countyId
+- countyId: required
+
+
+Response: CityResponse[]
+
+[{
+    id: number;
+    name: string;
+    uniquePostalCode: string;
+}]
+
+
+2.4. Fetching Street Names on City
+
+Can be used to fill other fields in address: streetName, postalCode, streetTypeId.
+Request
+
+GET /online/address/utils/postalCodes/find?streetName=:streetName&cityId=:cityId
+- cityId: required
+- streetName: required, minLength: 3
+
+
+Response: PostalCodeResponse[]
+
+[{
+    id: number;
+    postalCode: string;
+    streetTypeId: number;
+    streetTypeName: string;
+    streetName: string;
+    streetNumberRange: string;
+}]
+
+
+2.5. Fetching Street Types
+
+Helper to map street types to AddressRequest.
+Request
+
+GET /online/address/utils/streetTypes
+
+
+Response: StreetTypeResponse[]
+
+[{
+    id: number;
+    type: string;
+}]
+
+
+2.6. Fetching Floors
+
+Helper to map floors to AddressRequest.
+Request
+
+GET /online/address/utils/floors
+
+
+Response: FloorResponse[]
+
+[{
+    id: number;
+    floor: string;
+}]
+
+
+3. Vehicle API
+
+This section is for fetching vehicle details and creating the vehicle request.
+
+IMPORTANT!
+Inform the user in your Vehicle Form that itpExpiration is a required field for some vendors (Grawe).
+
+3.1. Fetching Vehicle Categories
+
+Helper used to map vehicle category to VehicleRequest.
+Request
+
+GET /online/vehicles/categories
+
+
+Response: VehicleProperty[]
+
+[{
+    id: number;
+    name: string;
+}]
+
+
+3.2. Fetching Vehicle Sub Categories
+
+Helper used to map vehicle sub category to VehicleRequest.
+Request
+
+GET /online/vehicles/categories/:categoryId/subcategories
+- categoryId: required
+
+
+Response: VehicleProperty[]
+
+[{
+    id: number;
+    name: string;
+}]
+
+
+3.3. Fetching Vehicle Makes
+
+Helper used to map vehicle makes to VehicleRequest.
+Request
+
+GET /online/vehicles/makes
+
+
+Response: VehicleProperty[]
+
+[{
+    id: number;
+    name: string;
+}]
+
+
+3.4. Fetching Vehicle Registration Types
+
+Helper used to map vehicle registration types to VehicleRequest.
+Request
+
+GET /online/vehicles/registrationtypes
+
+
+Response: VehicleProperty[]
+
+[{
+    id: number;
+    name: string;
+}]
+
+
+3.5. Fetching Vehicle Activity Types
+
+Helper used to map vehicle activity type to VehicleRequest.
+Request
+
+GET /online/vehicles/activitytypes
+
+
+Response: VehicleProperty[]
+
+[{
+    id: number;
+    name: string;
+}]
+
+
+3.6. Fetching Vehicle Fuel Types
+
+Helper used to map vehicle fuel type to VehicleRequest.
+Request
+
+GET /online/vehicles/fueltypes
+
+
+Response: VehicleProperty[]
+
+[{
+    id: number;
+    name: string;
+}]
+
+
+3.7. Search vehicle in DRPCIV
+
+Try to inform the user that the DATA was provided from a public service and it might need correction.
+
+IMPORTANT!
+This is just a helper to complete the vehicle fields! There are cases when your VIN might be correct but this endpoint will return an error because the DRPCIV database does not contain the VIN. In this case, you need to provide a way to the user to complete the vehicle fields.
+
+Request
+
+GET /online/vehicles?VIN=:vin
+- vin: required, exact match
+
+
+Response: VehicleResponse[]
+
+{
+    id: number;
+    goodType: 'VEHICLE';
+    activityType: string;
+    fuel: string;
+    make: string;
+    registrationType: string;
+    vehicleCategory: string;
+    vehicleSubCategory: string;
+    activityTypeId: number | null;
+    civ: string;
+    engineCapacity: number | '';
+    enginePowerKw: number | '';
+    firstRegistration: string | null; // ISO date string
+    itpExpiration: string | null; // ISO date string
+    vignetteExpiration: string | null; // ISO date string
+    fuelTypeId: number | null;
+    makeId: number | null;
+    maxWeight: number | '';
+    plateNo: string;
+    productionYear: number | '';
+    registrationTypeId: number | null;
+    seatsNumber: number | '';
+    vehicleCategoryId: number | null;
+    vehicleSubCategoryId: number | null;
+    vin: string;
+    commercialName: string;
+}
+
+
+4. Product API
+
+This section handles fetching available products.
+4.1. Fetching Available Products
+
+Request
+
+GET /online/products/rca
+
+
+Response: ProductResponse[]
+
+[{
+    id: number;
+    vendorDetails: { 
+        id: number;
+        name: string;
+        commercialName: string;
+        linkLogo: string;
+    };
+    productName: string;
+    productType: string;
+    productSubType: string | null;
+    vendorProductType: 'RCA'
+    insuranceClass: string;
+    vat: number;
+}]
+
+
+4.2. Fetching Available Additional Products
+
+Request
+
+GET /online/products/rca/additionals
+
+
+Response: ProductResponse[]
+
+[{
+    id: number;
+    vendorDetails: { 
+        id: number;
+        name: string;
+        commercialName: string;
+        linkLogo: string;
+    };
+    productName: string;
+    productType: string;
+    productSubType: string | null;
+    vendorProductType: 'ROAD_ASSIST'
+    insuranceClass: string;
+    vat: number;
+},
+{
+    id: number;
+    vendorDetails: { 
+        id: number;
+        name: string;
+        commercialName: string;
+        linkLogo: string;
+    };
+    productName: string;
+    productType: string;
+    productSubType: string | null;
+    vendorProductType: 'ACC_PERS'
+    insuranceClass: string;
+    vat: number;
+}]
+
+
+5. Offer API
+
+This section explains how to generate offers based on the previously gathered information.
+
+IMPORTANT!
+Creating an order and generating RCA offers should happen after data is validated. Ensure that your OrderRequest and RCAProductRequest schemas are correct. Read each section from above and use the listed APIs to create the final request.
+
+5.1. Creating the Order
+
+The order is the main object that holds the RCA Offers, the Owner/User details and the Vehicle details.
+
+IMPORTANT!
+This endpoint will create the order and it will return the orderHash that must be used to finish the policy creation flow. Each endpoint that requires orderHash will have "ORDER HASH PROTECTED" in the description of the request.
+
+Request
+
+POST /online/offers/rca/order/v2
+
+
+Request Body: OrderRequest
+Check the * Used Schemas for PersonRequest details.
+
+GOOD TO KNOW!
+Both rcaUserDetails and rcaOwnerDetails are required. This is how to create the request:
+The client is a person:
+
+the vehicle is from a leasing company => owner = leasing company, user = client
+the client is the owner of the vehicle => owner = client, user = client
+the client can be the driver or you can let the client specify a different driver
+
+The client is a company:
+
+the vehicle is from a leasing company => owner = leasing, user = client
+the vehicle is not from a leasing company => owner = client, user = client
+a driver is required and must be sent when generating the offers
+
+
+
+{
+    rcaUserDetails: PersonRequest;
+    rcaOwnerDetails: PersonRequest;
+    vehicleDetails: VehicleRequest;
+}
+
+
+Response: OrderResponse
+
+{
+    id: number;
+    rcaUserId: number;
+    rcaOwnerId: number;
+    vehicleId: number;
+    productType: string;
+    orderHash: string;
+}
+
+
+5.2. Fetch existent order details by id
+
+This endpoint returns the details of the response which is more extensive than the response returned at 4.1.
+Request
+
+ORDER HASH PROTECTED
+
+
+GET /online/offers/rca/order/:orderId/details
+- orderId: required
+
+
+Response: OrderDetailedResponse
+
+{
+    orderId: number;
+    vehicleDetails: VehicleRequest;
+    ownerDetails: PersonRequest;
+    userDetails: PersonRequest;
+    policies: RCAPolicyResponse[];
+}
+
+
+5.3.1 Generating RCA Offers
+
+It's recommended to make the call to this API for each product in parallel. If you have 3 products, make 3 API calls for each product instead of making one. We recommend this because the response time for each product can be very different.
+
+IMPORTANT!
+The endpoint returns 4 offers for each product. If you select 4 products, then the endpoint will return 16 offers that are divided like this. Each product has 4 offers:
+
+firstMonthSelected - without direct settlement
+firstMonthSelected - with direct settlement
+secondMonthSelected - without direct settlement
+secondMonthSelected - with direct settlement
+
+
+Request
+
+ORDER HASH PROTECTED
+
+
+POST /online/offers/rca
+
+
+Request Body: RCAOfferRequest
+
+{
+    orderId: number;
+    policyStartDate: string;
+    periodMonths: string[]; // valid examples: ['6', '12'], ['1']
+    rcaUserId: number;
+    rcaOwnerId: number;
+    isLeasing: boolean;
+    driversDetails: DriverRequest[];
+    vehicleId: number;
+    rcaProductRequests: RCAProductRequest[];
+}
+
+
+Response: RCAMultipleOffersResponse
+
+{
+    orderId: number;
+    offers: RCAOfferResponse[];
+}
+
+
+5.3.2. Generating RCA Additional Offers
+
+
+IMPORTANT!
+If the 'periodMonths' is empty or null, the the endpoint returns 2 offers: one for 6 months and another for 12 months.
+
+Request
+
+ORDER HASH PROTECTED
+
+
+POST /online/offers/rca/additionals
+
+
+Request Body: RCAAdditionalOfferRequest
+
+{
+    orderId: number;
+    policyStartDate: string;
+    periodMonths: string[]; // valid examples: ['6', '12'], ['3']
+    isLeasing: boolean;
+    additionalProductRequest: {
+	    productId: number;
+    }
+}
+
+
+Response: RCAAdditionalOfferResponse
+
+[{
+     id: number;
+     orderId: number;
+     series: string;
+	 number: string;
+	 policyStartDate: string;
+	 policyEndDate: string;
+	 policyPremium: number;
+	 currency: string;
+	 error: boolean; // if this is true, policy creation failed
+	 message: string;  // here you can find the reason if policy creation fails
+	 installments: {
+		 number: number;
+		 year: number;
+		 amount: number;
+		 amountInRON: number;
+		 currency: string;
+		 dueDate: string;
+	}[];
+	periodDays: number;
+	periodMonths: number;
+	periodYears: number;
+	policyInstallmentsNo: number;
+	productDetails: {
+		 id: number;
+		 vendorDetails: { 
+			 id: number;
+			 name: string;
+			 commercialName: string;
+			 linkLogo: string;
+		 };
+		 productName: string;
+		 productType: string;
+		 productSubType: string | null;
+		 vendorProductType: 'ROAD_ASSIST'
+		 insuranceClass: string;
+		 vat: number;
+	}
+}]
+
+
+5.4. Fetch the offer document url
+
+Request
+
+ORDER HASH PROTECTED
+
+
+GET /online/offers/:offerId/document
+- offerId: required
+
+
+Response
+
+{
+    url: string
+}
+
+
+5.5. Fetch the policy document url
+
+Request
+
+ORDER HASH PROTECTED
+
+
+GET /online/policies/:policyId/document
+- policyId: required
+
+
+Response
+
+{
+    url: string
+}
+
+
+5.6. Create RCA Policy
+
+Before calling this endpoint, make sure the payment for the policy was made!
+Request
+
+ORDER HASH PROTECTED
+
+
+POST /online/policies/rca
+
+
+Request Body:
+additionalProductsOfferIds is an empty array and paymentMethodType is 'CardOnline'.
+
+{
+    rcaOfferId: number;
+    additionalProductsOfferIds: number[]; // offerIds for additional products
+    paymentMethodType: 'CardOnline';
+}
+
+
+Response
+
+IMPORTANT!
+Always check the policies array for errors. Policies with errors will have the id property null and in policyDetails the error property will be true. The message property in policyDetails will hold the reason for the policy creation error.
+
+
+{
+    orderId: number;
+    policies: RCAPolicyResponse[];
+}
+
+
+5.7. Fetching RCA Offers on Order
+
+This API will return all rca offers that were generated using the 4.3 (Generating RCA Offers) API Call.
+Request
+
+ORDER HASH PROTECTED
+
+
+GET /online/offers/rca/order/:orderId
+- orderId: required
+
+
+Response: RCAMultipleOffersResponse
+
+{
+    orderId: number;
+    offers: RCAOfferResponse[];
+}
+
+
+5.8. Fetching RCA Reference Tariff (DEPRECATED)
+
+
+Deprecated Endpoint!
+Please check 5.10. Fetching RCA BAAR Information
+
+Use this API only after having at least one successful call on 4.3 (Generating RCA Offers) API Call. If no RCA Offer was generated, this endpoint will return 404.
+Request
+
+ORDER HASH PROTECTED
+
+
+GET /online/offers/rca/order/:orderId/referenceTariff
+- orderId: required
+
+
+Response: number
+
+number
+
+
+5.9. Fetching RCA Offer
+
+This API gives details about a single RCA offer. Use this API when the user chooses an offer form the pricing comparator.
+Request
+
+ORDER HASH PROTECTED
+
+
+GET /online/offers/rca/:offerId/details
+- offerId: required
+
+
+Response: RCASingleOfferResponse
+
+{
+    offerId: number;
+    orderId: number;
+    productDetails: ProductResponse;
+    totalPremium: number; // total price of the offer (DS included)
+    vehicleDetails: VehicleResponse;
+    periodMonths: number;
+    policyStartDate: string;
+    offerDetails: {
+        series: string;
+        number: string;
+        vendorOfferInternalId: string;
+        offerStartDate: string;
+        offerEndDate: string;
+        policyStartDate: string;
+        periodMonths: number;
+        policyPremium: number; // Total Price without Direct settlement
+        policyPremiumWithDirectSettlement: number; // Total Price with Direct Settlement
+        currency: string;
+        leasing: boolean;
+        drivers: DriverRequest[];
+        referenceTariff: number;
+        exclusionsGreenCard: string;
+        bonusMalusPrevClass: string;
+        bonusMalusActualClass: string;
+        error: boolean;
+        message: string | null;
+        installments: {
+            number: number;
+            year: number;
+            amount: number;
+            amountInRON: number;
+            currency: string;
+            dueDate: string;
+        }[];
+        directSettlement: {
+            premium: number;
+            installments: {
+                number: number;
+                year: number;
+                amount: number;
+                amountInRON: number;
+                currency: string;
+                dueDate: string;
+            }[];
+            brokerCommission: {
+                amount: number;
+                percent: number;
+                minPercent: number;
+                maxPercent: number;
+            };
+        };
+        withDirectSettlement: boolean;
+        brokerCommission: {
+            amount: number;
+            percent: number;
+            minPercent: number;
+            maxPercent: number;
+        };
+        specificFields: Record<string, string>;
+        requiresRiskInspection: boolean;
+    };
+}
+
+
+5.10. Fetching RCA BAAR Info
+
+Make sure you use this API after having at least three successful calls on 4.3 (Generating RCA Offers) API Call. Without at least three offers, the system can't compute if the insured client is in the "insured with risk" category.
+Request
+
+ORDER HASH PROTECTED
+
+
+GET /online/offers/rca/order/:orderId/referenceTariff/v2
+- orderId: required
+
+
+Response: BAARInfoResponse
+
+{
+  referenceTariff: number | null;
+  bonusMalus: string | null;
+  baarThreshold: number | null;
+  isHighRiskClient: boolean | null;
+}
+
+
+6. Payment API
+
+This section handles the payment process.
+
+TESTING CARDS
+The payment page differs in the production environment depending on your broker. In the test environment, we run a test page from Libra Pay or Netopia. For payment details in the test environment: LibraPay Documentation / Netopia Test Cards.
+
+6.1. Creating the payment
+
+Endpoint to create the payment that returns the payment link (url) used for the payment process. Redirect or display the URL to the user after the payment link is returned.
+
+IMPORTANT!
+The redirection will also contain the result of the payment. Take in account that the payment can fail and the user should see the right screen on the browser.
+Redirection query params:
+
+status: should be "APPROVED" if the payment was processed
+message:
+
+"Approved"
+"Expired card"
+"Authentication failed"
+other messages that payment vendor might return
+
+
+
+
+Request
+
+ORDER HASH PROTECTED
+
+
+POST /online/offers/payment
+
+
+Request Body: PaymentRequest
+Request Headers: IT'S VERY IMPORTANT to set the Accept header to "text/plain", OTHERWISE THE ENDPOINT WILL FAIL
+
+{
+    offerId: number;
+    additionalProductsOfferIds?: number[]; // offer ids for additional products
+    redirectURL: string; // url where user is redirected after payment
+}
+
+
+Response: Payment Link (save it in storage to avoid another payment generation if user loses the state of the application)
+
+string
+
+
+6.2. Generating a TBI Loan Link
+
+If the broker allows, then you can send a TBI Loan request that returns a loan link (url) used for the payment process. Redirect or display the URL to the user after the loan link is returned.
+
+IMPORTANT!
+The redirection process and result is similar to: 6.1 Creating the payment. In order to test the TBI Implementation, open the loan link and then complete the flow displayed by the TBI Testing Environment.
+
+Request
+
+ORDER HASH PROTECTED
+
+
+POST /online/offers/rca/loan
+
+
+Request Body: PaymentRequest
+
+{
+    offerId: number;
+    additionalProductsOfferIds?: number[]; // offer ids for additional products
+    redirectURL: string; // url where user is redirected after payment
+}
+
+
+Response: Loan Link (save it in storage to avoid another payment generation if user loses the state of the application)
+
+string
+
+
+6.3. Checking payment status
+
+Use it after the payment link is generated. Make sure to match the offerId from the PaymentResponse with the offerId that the user is currently on.
+Request
+
+ORDER HASH PROTECTED
+
+
+POST /online/offers/payment/check
+
+
+Request Body: PaymentCheckRequest
+
+{
+    offerIds: number[];
+}
+
+
+Response: PaymentResponse
+
+{
+    offerId: number;
+    success: boolean;
+    message: string; // contains the error if success is false
+}
+
+
+* Used Schemas
+
+Schemas required in some API calls that are listed here to improve the document readability.
+AddressRequest
+
+
+{
+    countryId: number | null;
+    cityId: number | null;
+    countyId: number | null;
+    postalCode: string;
+    streetTypeId: number | null;
+    floorId: number | null;
+    addressType: 'HOME' | 'MAILING';
+    foreignCountyName: string | null;
+    foreignCityName: string | null;
+    streetName: string;
+    streetNumber: string;
+    building: string;
+    entrance: string;
+    apartment: string;
+}
+
+
+AddressResponse
+
+
+{
+    id: number;
+    addressType: 'HOME' | 'MAILING';
+    foreignCountyName: string | null;
+    foreignCityName: string | null;
+    postalCode: string;
+    sirutaCode: string;
+    streetName: string;
+    streetNumber: string;
+    building: string;
+    entrance: string;
+    apartment: string;
+    floorResponse: FloorResponse;
+    streetTypeResponse: StreetTypeResponse;
+    countryResponse:CountryResponse;
+    countyResponse: CountyResponse | null;
+    cityResponse: CityResponse | null;
+}
+
+
+PersonRequest
+
+It's different based on the "legalType" property.
+PF:
+
+{
+    legalType: 'PF';
+    firstName: string;
+    lastName: string;
+    idType: 'CI' | 'PASSPORT' | 'RESIDENCY_PERMIT';
+    idSerial: string;
+    idNumber: string;
+    idExpirationDate: string | null;
+    driverLicenceDate: string | null;
+    email: string;
+    phoneNumber: string;
+    address: AddressRequest;
+    cif: number;
+}
+
+
+PJ:
+
+{
+    legalType: 'PJ';
+    companyName: string;
+    registrationNumber: string;
+    caenCode: string | null;
+    companyTypeId: number | null;
+    email: string;
+    phoneNumber: string;
+    address: TAddressRequest;
+    cif: number;
+}
+
+
+VehicleRequest
+
+
+IMPORTANT
+
+
+kilometersNumber is required to receive an offer from Grawe
+
+itpExpiration is required to receive an offer from Generali
+
+
+
+{
+    activityTypeId: number | null;
+    civ: string;
+    engineCapacity: number | '';
+    enginePowerKw: number | '';
+    firstRegistration: string | null; // ISO date string
+    itpExpiration: string | null; // ISO date string
+    vignetteExpiration: string | null; // ISO date string
+    fuelTypeId: number | null;
+    makeId: number | null;
+    maxWeight: number | '';
+    kilometersNumber: number | '';
+    plateNo: string;
+    productionYear: number | '';
+    registrationTypeId: number | null;
+    seatsNumber: number | '';
+    vehicleCategoryId: number | null;
+    vehicleSubCategoryId: number | null;
+    vin: string;
+    commercialName: string;
+}
+
+
+DriverRequest
+
+
+{
+    firstName: string;
+    lastName: string;
+    idType: 'CI' | 'PASSPORT' | 'RESIDENCY_PERMIT';
+    cnp?: number | '';
+    idSeries?: string;
+    idNumber: string;
+    phoneNumber?: string;
+}
+
+
+RCAProductRequest
+
+
+{
+    productId: number;
+    specificFields: Record<string, string>;
+}
+
+
+RCAOfferResponse
+
+
+{
+    offerId: number;
+    orderId: number;
+    productDetails: ProductResponse;
+    offerDetails: {
+        series: string;
+        number: string;
+        vendorOfferInternalId: string;
+        offerStartDate: string;
+        offerEndDate: string;
+        policyStartDate: string;
+        periodMonths: number;
+        policyPremium: number;
+        policyPremiumWithDirectSettlement: number;
+        currency: string;
+        leasing: boolean;
+        drivers: DriverRequest[];
+        referenceTariff: number;
+        exclusionsGreenCard: string;
+        bonusMalusPrevClass: string;
+        bonusMalusActualClass: string;
+        error: boolean;
+        message: string | null;
+        installments: {
+            number: number;
+            year: number;
+            amount: number;
+            amountInRON: number;
+            currency: string;
+            dueDate: string;
+        }[];
+        directSettlement: {
+            premium: number;
+            installments: {
+                number: number;
+                year: number;
+                amount: number;
+                amountInRON: number;
+                currency: string;
+                dueDate: string;
+            }[];
+            brokerCommission: {
+                amount: number;
+                percent: number;
+                minPercent: number;
+                maxPercent: number;
+            };
+        };
+        withDirectSettlement: boolean;
+        brokerCommission: {
+            amount: number;
+            percent: number;
+            minPercent: number;
+            maxPercent: number;
+        };
+        specificFields: Record<string, string>;
+        requiresRiskInspection: boolean;
+    };
+}
+
+
+RCAPolicyResponse
+
+
+{
+    policyId: number | null; // if this is null, policy creation failed
+    offerId: number;
+    productDetails: ProductResponse;
+    receiptId: number;
+    receiptNumber: number;
+    policyDetails: {
+        series: string;
+        number: string;
+        policyIssueDate: string;
+        policyStartDate: string;
+        policyEndDate: string;
+        error: boolean; // if this is true, policy creation failed
+        message: string;  // here you can find the reason if policy creation fails
+        installments: {
+            number: number;
+            year: number;
+            amount: number;
+            amountInRON: number;
+            currency: string;
+            dueDate: string;
+        }[];
+        brokerCommission: {
+            amount: number;
+            percent: number;
+            minPercent: number;
+            maxPercent: number;
+        };
+        directSettlement: {
+            premium: number;
+            installments: {
+                number: number;
+                year: number;
+                amount: number;
+                amountInRON: number;
+                currency: string;
+                dueDate: string;
+            }[];
+            brokerCommission: {
+                amount: number;
+                percent: number;
+                minPercent: number;
+                maxPercent: number;
+            };
+        };
+        additionalClauses: {
+            clauseVendorProductType: ProductResponse['vendorProductType'];
+            vendorProductClauseId: string;
+            premium: number;
+            mandatory: boolean;
+            generatePolicy: boolean;
+            installments: {
+                number: number;
+                year: number;
+                amount: number;
+                amountInRON: number;
+                currency: string;
+                dueDate: string;
+            }[];
+            brokerCommission: {
+                amount: number;
+                percent: number;
+                minPercent: number;
+                maxPercent: number;
+            };
+        }[];
+    };
+}
+
+
+Example
+
+There are different ways of completing the whole flow but the following example is the one recommended by us in order to have the best performance using this API.
+1. Generating a new RCA Policy
+
+In this example we will explore how to generate a policy for a PF Person.
+1.1. Creating the Order
+
+Let's create the order after gathering the required details: Person Details, Vehicle Details, Valability Details, Selected Products:
+1.1.1. The client is a person and it's the owner of the vehicle
+
+
+CURL REQUEST
+
+curl -XPOST -H 'Authorization: Basic aX3zeXJlZnVhbWU6VGVzdACyMzHq' -H 'Api_key: c21f3970-b109-1235-z53c-b75deaa5c2e2' -H "Content-type: application/json" -d '{
+    "rcaOwnerDetails": {
+        "legalType": "PF",
+        "cif": "1851117206417",
+        "firstName": "Ionel",
+        "lastName": "Popescu",
+        "idType": "CI",
+        "idSerial": "VS",
+        "idNumber": "111111",
+        "idExpirationDate": "2030-12-12T00:00:00",
+        "driverLicenceDate": "2012-12-12T00:00:00",
+        "email": "test@test.com",
+        "phoneNumber": "0760000000",
+        "address": {
+            "countryId": 185,
+            "cityId": 1598,
+            "countyId": 14,
+            "postalCode": "011454",
+            "streetTypeId": 11,
+            "floorId": 35,
+            "addressType": "HOME",
+            "foreignCityName": "",
+            "foreignCountyName": "",
+            "streetName": "Averescu Alexandru, maresal",
+            "streetNumber": "1",
+            "apartment": "125",
+            "building": "B2",
+            "entrance": "C"
+        }
+    },
+    "rcaUserDetails": {
+        "legalType": "PF",
+        "cif": "1851117206417",
+        "firstName": "Ionel",
+        "lastName": "Popescu",
+        "idType": "CI",
+        "idSerial": "VS",
+        "idNumber": "111111",
+        "idExpirationDate": "2030-12-12T00:00:00",
+        "driverLicenceDate": "2012-12-12T00:00:00",
+        "email": "test@test.com",
+        "phoneNumber": "0760000000",
+        "address": {
+            "countryId": 185,
+            "cityId": 1598,
+            "countyId": 14,
+            "postalCode": "011454",
+            "streetTypeId": 11,
+            "floorId": 35,
+            "addressType": "HOME",
+            "foreignCityName": "",
+            "foreignCountyName": "",
+            "streetName": "Averescu Alexandru, maresal",
+            "streetNumber": "1",
+            "apartment": "125",
+            "building": "B2",
+            "entrance": "C"
+        }
+    },
+    "vehicleDetails": {
+        "activityTypeId": 11,
+        "civ": "L123123",
+        "engineCapacity": 2494,
+        "enginePowerKw": 133,
+        "firstRegistration": "2013-07-25T00:00:00",
+        "itpExpiration": "2030-10-31T00:00:00",
+        "vignetteExpiration": "2030-10-31T00:00:00",
+        "fuelTypeId": 1,
+        "makeId": 98,
+        "maxWeight": 2145,
+        "kilometersNumber": 100123,
+        "plateNo": "B001TST",
+        "productionYear": 2013,
+        "registrationTypeId": 1,
+        "seatsNumber": 5,
+        "vehicleCategoryId": 1,
+        "vehicleSubCategoryId": 1,
+        "vin": "JTHBH5D2305001249",
+        "commercialName": "IS300H"
+    }
+}' 'https://insuretech.staging.insuretech.ro/api/v1/online/offers/rca/order/v2'
+
+
+
+1.1.2. The client is a person and a leasing company is the owner of the vehicle
+
+
+CURL REQUEST
+
+curl -XPOST -H 'Authorization: Basic aX3zeXJlZnVhbWU6VGVzdACyMzHq' -H 'Api_key: c21f3970-b109-1235-z53c-b75deaa5c2e2' -H "Content-type: application/json" -d '{
+    "rcaOwnerDetails": {
+        "legalType": "PJ",
+        "cif": "3214321",
+        "companyName": "Example Leasing",
+        "companyTypeId": 12,
+        "caenCode": "7711", 
+        "email": "test@test.com",
+        "phoneNumber": "0760000000",
+        "registrationNumber": "J234123",
+        "address": {
+            "countryId": 185,
+            "cityId": 1598,
+            "countyId": 14,
+            "postalCode": "011454",
+            "streetTypeId": 11,
+            "floorId": 35,
+            "addressType": "HOME",
+            "foreignCityName": "",
+            "foreignCountyName": "",
+            "streetName": "Averescu Alexandru, maresal",
+            "streetNumber": "1",
+            "apartment": "125",
+            "building": "B2",
+            "entrance": "C"
+        }
+    },
+    "rcaUserDetails": {
+        "legalType": "PF",
+        "cif": "1851117206417",
+        "firstName": "Ionel",
+        "lastName": "Popescu",
+        "idType": "CI",
+        "idSerial": "VS",
+        "idNumber": "111111",
+        "idExpirationDate": "2030-12-12T00:00:00",
+        "driverLicenceDate": "2012-12-12T00:00:00",
+        "email": "test@test.com",
+        "phoneNumber": "0760000000",
+        "address": {
+            "countryId": 185,
+            "cityId": 1598,
+            "countyId": 14,
+            "postalCode": "011454",
+            "streetTypeId": 11,
+            "floorId": 35,
+            "addressType": "HOME",
+            "foreignCityName": "",
+            "foreignCountyName": "",
+            "streetName": "Averescu Alexandru, maresal",
+            "streetNumber": "1",
+            "apartment": "125",
+            "building": "B2",
+            "entrance": "C"
+        }
+    },
+    "vehicleDetails": {
+        "activityTypeId": 11,
+        "civ": "L123123",
+        "engineCapacity": 2494,
+        "enginePowerKw": 133,
+        "firstRegistration": "2013-07-25T00:00:00",
+        "itpExpiration": "2030-10-31T00:00:00",
+        "vignetteExpiration": "2030-10-31T00:00:00",
+        "fuelTypeId": 1,
+        "makeId": 98,
+        "maxWeight": 2145,
+        "kilometersNumber": 100123,
+        "plateNo": "B001TST",
+        "productionYear": 2013,
+        "registrationTypeId": 1,
+        "seatsNumber": 5,
+        "vehicleCategoryId": 1,
+        "vehicleSubCategoryId": 1,
+        "vin": "JTHBH5D2305001249",
+        "commercialName": "IS300H"
+    }
+}' 'https://insuretech.staging.insuretech.ro/api/v1/online/offers/rca/order/v2'
+
+
+
+1.2.1 Generating RCA Offer
+
+
+CURL REQUEST
+
+curl -XPOST -H 'Authorization: Basic aX3zeXJlZnVhbWU6VGVzdACyMzHq' -H 'Api_key: c21f3970-b109-1235-z53c-b75deaa5c2e2' -H "Content-type: application/json" -d '{
+    "driversDetails": [
+        {
+            "lastName": "Popescu",
+            "firstName": "Ionel",
+            "cnp": "1851117206417",
+            "idType": "CI",
+            "idSeries": "VS",
+            "idNumber": "111111",
+            "phoneNumber": "0760000000"
+        }
+    ],
+    "orderId": 741909,
+    "vehicleId": 604527,
+    "rcaOwnerId": 353180,
+    "rcaUserId": 353180,
+    "policyStartDate": "2024-10-31T00:00:00",
+    "isLeasing": false,
+    "rcaProductRequests": [
+        {
+            "productId": 9
+        }
+    ],
+    "periodMonths": [
+        "6",
+        "12"
+    ]
+}' 'https://insuretech.staging.insuretech.ro/api/v1/online/offers/rca?orderHash=c1641229-3412-44ce-9495-402276e8df791739012344427'
+
+
+
+1.2.2 Generating RCA Additional Offer
+
+
+CURL REQUEST
+
+curl -XPOST -H 'Authorization: Basic aX3zeXJlZnVhbWU6VGVzdACyMzHq' -H 'Api_key: c21f3970-b109-1235-z53c-b75deaa5c2e2' -H "Content-type: application/json" -d '{
+    "orderId": 741909,
+    "policyStartDate": "2024-10-31T00:00:00",
+    "isLeasing": false,
+    "additionalProductRequest": {
+            "productId": 1299
+     },
+    "periodMonths": [
+        "6",
+        "12"
+    ]
+}' 'https://insuretech.staging.insuretech.ro/api/v1/online/offers/rca/additionals?orderHash=c1641229-3412-44ce-9495-402276e8df791739012344427'
+
+
+
+1.3. Fetching Reference Tariff
+
+After generating and rendering te Grawe offers, we fetch the reference tariff.
+
+CURL REQUEST
+
+curl -XGET -H 'Authorization: Basic aX3zeXJlZnVhbWU6VGVzdACyMzHq' -H 'Api_key: c21f3970-b109-1235-z53c-b75deaa5c2e2' -H "Content-type: application/json" 'https://insuretech.staging.insuretech.ro/api/v1/online/offers/rca/order/741909/referenceTariff?orderHash=c1641229-3412-44ce-9495-402276e8df791739012344427'
+
+
+
+1.4. Fetching Order and Offer details
+
+User decided to go on with one of the Grawe offers and now we have to redirect him to a page where he can:
+
+View more details about the offer
+View a summary of the pricing and product
+Download the offer document
+Pay and generate the RCA Policy
+
+In order to render the data required for this page we will retrieve details about the Order and the Offer
+
+CURL REQUEST (Order Details)
+
+curl -XGET -H 'Authorization: Basic aX3zeXJlZnVhbWU6VGVzdACyMzHq' -H 'Api_key: c21f3970-b109-1235-z53c-b75deaa5c2e2' -H "Content-type: application/json" 'https://insuretech.staging.insuretech.ro/api/v1/online/offers/rca/6575544/details?orderHash=c1641229-3412-44ce-9495-402276e8df791739012344427'
+
+
+
+
+CURL REQUEST (Offer Details)
+
+curl -XGET -H 'Authorization: Basic aX3zeXJlZnVhbWU6VGVzdACyMzHq' -H 'Api_key: c21f3970-b109-1235-z53c-b75deaa5c2e2' -H "Content-type: application/json" 'https://insuretech.staging.insuretech.ro/api/v1/online/offers/rca/order/741909/details?orderHash=c1641229-3412-44ce-9495-402276e8df791739012344427'
+
+
+
+1.5. Fetching payment status
+
+After the user returns to the site, we check the payment status. It's recommended to add a button for payment status check in your website.
+
+CURL REQUEST
+
+curl -XPOST -H 'Authorization: Basic aX3zeXJlZnVhbWU6VGVzdACyMzHq' -H 'Api_key: c21f3970-b109-1235-z53c-b75deaa5c2e2' -H "Content-type: application/json" -d '{
+    "offerIds": [
+        6575544
+    ]
+}' 'https://insuretech.staging.insuretech.ro/api/v1/online/offers/payment/check?orderHash=c1641229-3412-44ce-9495-402276e8df791739012344427'
+
+
+
+1.6.1. Creating the policy
+
+The payment was made and we need to create the policy. Don't forget to check the response in order to validate the the policies were create without errors. (Check documentation on 5.3)
+
+CURL REQUEST
+
+curl -XPOST -H 'Authorization: Basic aX3zeXJlZnVhbWU6VGVzdACyMzHq' -H 'Api_key: c21f3970-b109-1235-z53c-b75deaa5c2e2' -H "Content-type: application/json" -d '{
+    "rcaOfferId": 6575544,
+    "paymentMethodType": "CardOnline",
+    "additionalProductsOfferIds": []
+}' 'https://insuretech.staging.insuretech.ro/api/v1/online/policies/rca?orderHash=c1641229-3412-44ce-9495-402276e8df791739012344427'
+
+
+
+1.6.2. Creating the policy with additional offers
+
+The payment was made and we need to create the policy. Don't forget to check the response in order to validate the the policies were create without errors. (Check documentation on 5.3)
+
+CURL REQUEST
+
+curl -XPOST -H 'Authorization: Basic aX3zeXJlZnVhbWU6VGVzdACyMzHq' -H 'Api_key: c21f3970-b109-1235-z53c-b75deaa5c2e2' -H "Content-type: application/json" -d '{
+    "rcaOfferId": 6575544,
+    "paymentMethodType": "CardOnline",
+    "additionalProductsOfferIds": [<id from the 1.2.2 response>]
+}' 'https://insuretech.staging.insuretech.ro/api/v1/online/policies/rca?orderHash=c1641229-3412-44ce-9495-402276e8df791739012344427'
+
+

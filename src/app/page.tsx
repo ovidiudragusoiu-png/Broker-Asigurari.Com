@@ -1,9 +1,7 @@
 import HeroSection from "@/components/home/HeroSection";
 import TrustSignals from "@/components/home/TrustSignals";
 import Features from "@/components/home/Features";
-import Philosophy from "@/components/home/Philosophy";
-import Protocol from "@/components/home/Protocol";
-import Testimonials from "@/components/home/Testimonials";
+import Reviews from "@/components/home/Reviews";
 import FAQ from "@/components/home/FAQ";
 import FinalCTA from "@/components/home/FinalCTA";
 
@@ -13,9 +11,7 @@ export default function HomePage() {
       <HeroSection />
       <TrustSignals />
       <Features />
-      <Philosophy />
-      <Protocol />
-      <Testimonials />
+      <Reviews />
       <FAQ />
       <FinalCTA />
     </>

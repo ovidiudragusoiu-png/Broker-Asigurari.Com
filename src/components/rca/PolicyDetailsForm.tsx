@@ -4,7 +4,11 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { api } from "@/lib/api/client";
 import type { AddressRequest } from "@/types/insuretech";
 import type { OwnerType } from "@/types/rcaFlow";
-import { btn, inputClass as inputToken } from "@/lib/ui/tokens";
+import { btn } from "@/lib/ui/tokens";
+
+const inputCls = "w-full rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none";
+const selectCls = "w-full appearance-none rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none";
+const labelCls = "mb-1 block text-xs font-medium text-gray-500";
 
 // Bucharest sectors: each is a separate county + city in the InsureTech API
 const BUCHAREST_SECTORS = [
@@ -149,10 +153,8 @@ export default function PolicyDetailsForm({
     ? caenCodes.filter((c) => c.startsWith(caenFilter)).slice(0, 20)
     : [];
 
-  const inputClass = inputToken;
-
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto max-w-2xl space-y-4">
       {/* Title */}
       <div className="text-center">
         {ownerType === "PJ" && !companyFound ? (
@@ -175,14 +177,14 @@ export default function PolicyDetailsForm({
           <div className="grid grid-cols-2 gap-3">
             <input
               type="text"
-              className={inputClass}
+              className={inputCls}
               value={ownerLastName}
               onChange={(e) => onFieldChange("ownerLastName", e.target.value)}
               placeholder="NUME PROPRIETAR"
             />
             <input
               type="text"
-              className={inputClass}
+              className={inputCls}
               value={ownerFirstName}
               onChange={(e) => onFieldChange("ownerFirstName", e.target.value)}
               placeholder="PRENUME PROPRIETAR"
@@ -193,14 +195,14 @@ export default function PolicyDetailsForm({
           <div className="grid grid-cols-2 gap-3">
             <input
               type="text"
-              className={`${inputClass} uppercase`}
+              className={`${inputCls} uppercase`}
               value={idSeries}
               onChange={(e) => onFieldChange("idSeries", e.target.value.toUpperCase())}
               placeholder="SERIE CI"
             />
             <input
               type="text"
-              className={inputClass}
+              className={inputCls}
               value={idNumber}
               onChange={(e) => onFieldChange("idNumber", e.target.value)}
               placeholder="NUMAR CI"
@@ -214,7 +216,7 @@ export default function PolicyDetailsForm({
             <div className="col-span-2">
               <input
                 type="text"
-                className={inputClass}
+                className={inputCls}
                 value={companyName}
                 onChange={(e) => onFieldChange("companyName", e.target.value)}
                 placeholder="NUME FIRMA"
@@ -223,7 +225,7 @@ export default function PolicyDetailsForm({
           </div>
           <input
             type="text"
-            className={inputClass}
+            className={inputCls}
             value={registrationNumber}
             onChange={(e) => onFieldChange("registrationNumber", e.target.value)}
             placeholder="NR. INREGISTRARE (REG. COM.)"
@@ -231,18 +233,18 @@ export default function PolicyDetailsForm({
 
           {/* CAEN dropdown with search */}
           <div className="relative">
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+            <label className={labelCls}>
               CAEN
             </label>
             {caenCode ? (
               <div className="flex items-center gap-2">
-                <span className="flex-1 rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-sm">
+                <span className="flex-1 rounded-xl border-2 border-gray-200 bg-gray-50 px-3 py-2.5 text-sm">
                   {caenCode}
                 </span>
                 <button
                   type="button"
                   onClick={() => { onCaenChange(null); setCaenFilter(""); }}
-                  className="rounded-lg border border-gray-300 px-3 py-3 text-sm text-gray-500 hover:bg-gray-100"
+                  className="rounded-xl border-2 border-gray-200 px-3 py-2.5 text-sm text-gray-500 hover:bg-gray-50 transition-colors"
                 >
                   Schimbă
                 </button>
@@ -251,18 +253,18 @@ export default function PolicyDetailsForm({
               <>
                 <input
                   type="text"
-                  className={inputClass}
+                  className={inputCls}
                   value={caenFilter}
                   onChange={(e) => setCaenFilter(e.target.value)}
                   placeholder="Introdu primele cifre (ex: 62, 6202)"
                 />
                 {filteredCaen.length > 0 && (
-                  <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+                  <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-xl border border-gray-200 bg-white shadow-lg">
                     {filteredCaen.map((code) => (
                       <li key={code}>
                         <button
                           type="button"
-                          className="w-full px-4 py-2 text-left text-sm hover:bg-sky-50"
+                          className="w-full px-4 py-2 text-left text-sm hover:bg-[#2563EB]/5"
                           onClick={() => { onCaenChange(code); setCaenFilter(""); }}
                         >
                           <span className="font-semibold">{code}</span>
@@ -280,24 +282,24 @@ export default function PolicyDetailsForm({
       {/* Email + Phone */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+          <label className={labelCls}>
             Email
           </label>
           <input
             type="email"
-            className={inputClass}
+            className={inputCls}
             value={email}
             onChange={(e) => onEmailChange(e.target.value)}
             placeholder="email@exemplu.ro"
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+          <label className={labelCls}>
             Telefon
           </label>
           <input
             type="tel"
-            className={inputClass}
+            className={inputCls}
             value={phoneNumber}
             onChange={(e) => onPhoneChange(e.target.value)}
             placeholder="07XXXXXXXX"
@@ -308,11 +310,11 @@ export default function PolicyDetailsForm({
       {/* Bucharest sector dropdown */}
       {isBucharest && (
         <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+          <label className={labelCls}>
             Sector
           </label>
           <select
-            className={inputClass}
+            className={inputCls}
             value={address.countyId ?? ""}
             onChange={(e) => {
               const sector = BUCHAREST_SECTORS.find((s) => s.countyId === Number(e.target.value));
@@ -336,12 +338,12 @@ export default function PolicyDetailsForm({
       {/* Address - street autocomplete + number fields */}
       <div className="grid grid-cols-6 gap-3">
         <div className="col-span-3 relative" ref={streetContainerRef}>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+          <label className={labelCls}>
             Nume stradă
           </label>
           <input
             type="text"
-            className={inputClass}
+            className={inputCls}
             value={streetQuery}
             onChange={(e) => handleStreetInputChange(e.target.value)}
             onFocus={() => { if (streetResults.length > 0 && !streetSelected) setShowStreetDropdown(true); }}
@@ -354,12 +356,12 @@ export default function PolicyDetailsForm({
             </p>
           )}
           {showStreetDropdown && streetResults.length > 0 && (
-            <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+            <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-xl border border-gray-200 bg-white shadow-lg">
               {streetResults.map((r) => (
                 <li key={r.id}>
                   <button
                     type="button"
-                    className="w-full px-3 py-2 text-left text-sm hover:bg-sky-50"
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-[#2563EB]/5"
                     onClick={() => handleStreetSelect(r)}
                   >
                     {r.streetTypeName} {r.streetName}
@@ -372,36 +374,36 @@ export default function PolicyDetailsForm({
           )}
         </div>
         <div className="col-span-1">
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+          <label className={labelCls}>
             &nbsp;
           </label>
           <input
             type="text"
-            className={inputClass}
+            className={inputCls}
             value={address.streetNumber}
             onChange={(e) => updateAddress("streetNumber", e.target.value)}
             placeholder="NR."
           />
         </div>
         <div className="col-span-1">
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+          <label className={labelCls}>
             &nbsp;
           </label>
           <input
             type="text"
-            className={inputClass}
+            className={inputCls}
             value={address.building}
             onChange={(e) => updateAddress("building", e.target.value)}
             placeholder="BLOC"
           />
         </div>
         <div className="col-span-1">
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+          <label className={labelCls}>
             &nbsp;
           </label>
           <input
             type="text"
-            className={inputClass}
+            className={inputCls}
             value={address.entrance}
             onChange={(e) => updateAddress("entrance", e.target.value)}
             placeholder="SCARA"
@@ -413,7 +415,7 @@ export default function PolicyDetailsForm({
         <div className="col-span-1">
           <input
             type="text"
-            className={inputClass}
+            className={inputCls}
             value={address.floorId != null ? String(address.floorId) : ""}
             onChange={(e) => updateAddress("floorId", e.target.value ? Number(e.target.value) || null : null)}
             placeholder="ETAJ"
@@ -422,7 +424,7 @@ export default function PolicyDetailsForm({
         <div className="col-span-2">
           <input
             type="text"
-            className={inputClass}
+            className={inputCls}
             value={address.apartment}
             onChange={(e) => updateAddress("apartment", e.target.value)}
             placeholder="AP."
@@ -436,9 +438,14 @@ export default function PolicyDetailsForm({
           type="button"
           onClick={onContinue}
           disabled={!isValid}
-          className={btn.primary}
+          className={`${btn.primary} px-8`}
         >
-          Înainte
+          <span className="flex items-center gap-2">
+            Continuă
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+            </svg>
+          </span>
         </button>
       </div>
     </div>

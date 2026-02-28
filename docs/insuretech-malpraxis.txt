@@ -1,0 +1,858 @@
+Documentație InsureTech
+V3
+Insuretech API - Malpraxis Online V3
+Overview
+This document explains how to use the Malpraxis Insurance API. The API allows developers to automate the process of generating offers for Malpraxis policies and finalizing the purchase by emitting a policy, streamlining online insurance operations.
+
+Version: 3.0.1
+Last Update: 20.02.2026 02:15 PM
+
+Version 3 Changes
+You are accessing the latest documentation for Insuretech API – RCA Online V3, which includes the following updates:
+
+The orderHash parameter is now required and is no longer optional.
+RCA Payment endpoints have been standardized to match the general Payment endpoints.
+Orders can be created only after the client has provided the required consent, as detailed in this documentation.
+If you are migrating from an older API version, check our Migration Tutorial!
+
+Backend URL
+The backend URL for testing and production differs based on the system that is integrating with Insuretech. Please contact the administrator to obtain the correct backend URL for your environment.
+
+For this documentation, we will use the following backend URL as an example:
+
+https://insuretech-api/api/v1
+
+Authentication
+Each API call requires two headers for authentication and user identification in the Insuretech system:
+
+Authorization: Basic authentication, encoded in Base64 format.
+Api_key: A unique API key assigned to each user.
+Example of the required headers:
+
+Authorization: Basic aX3zeXJlZnVhbWU6VGVzdACyMzHq
+api_key: c21f3970-b109-1235-z53c-b75deaa5c2e2
+
+Ensure that both headers are included in every request to authenticate successfully.
+
+SECURITY RISK! The authorization header should not be exposed on the client. If the implementation is not made using Server Side Rendering, you should use a PROXY implementation to hide the Authorization header an enrich the final request sent to us with the Authorization header.
+
+Order Hash
+Starting with V3, the orderHash parameter is mandatory for all endpoints that return sensitive client or offer information and must be provided as a query parameter, where explicitly specified in the documentation.
+
+Requests that include a missing or invalid orderHash will result in a 404 Not Found response, as the requested resource cannot be identified without a valid orderHash.
+
+API Endpoints
+The API follows a step-by-step process to create a Malpraxis policy, starting with insured client information, followed by Malpraxis, insured malpraxis details, contractor details, offer generation, and payment validation.
+
+Insured API
+This section handles creating the insured who will request the policy.
+
+Fetching Company Types
+Helper to map the company type for PersonRequest. Only for PJ Persons.
+
+
+Request
+Endpoint:
+GET /online/companytypes
+
+Response
+{
+  id: number;
+  type: string;
+}[]
+Fetching Caen Codes
+Helper to map the caen code for PersonRequest. Only for PJ Persons.
+
+
+Request
+Endpoint:
+GET /online/caencodes
+
+Response
+Fetching Company Details based on CUI
+Fetch details of a company by searching information on the internet. Only for PJ Persons.
+
+
+Request
+Endpoint:
+GET /online/companies/utils/:cui
+URL Parameters:
+Name	Description
+cui	CUI of searched company
+
+Response
+Fetching Id Types
+Helper to map the id types for PersonRequest. Only for PF Persons.
+
+
+Request
+Endpoint:
+GET /online/idtypes
+
+Response
+Address API
+This section handles creating the address of the owner or user.
+
+Important!
+Note that AddressRequest is different based on the countryId. If countryId is 185, then countyId and cityId is required. Otherwise, leave countyId and cityId null and provide foreignCityName and foreignCountyName.
+
+Fetching Countries
+Helper to map countries to AddressRequest.
+
+
+Request
+Endpoint:
+GET /online/address/utils/countries
+
+Response
+Fetching Counties
+Helper to map counties to AddressRequest. In order to display the Bucharest sectors, make use of the code property returned in CountyResponse.
+
+const getCountyFormattedCode = (value: string): string => {
+  switch (value) {
+      case 'B1':
+          return '- Sectorul 1';
+      case 'B2':
+          return '- Sectorul 2';
+      case 'B3':
+          return '- Sectorul 3';
+      case 'B4':
+          return '- Sectorul 4';
+      case 'B5':
+          return '- Sectorul 5';
+      case 'B6':
+          return '- Sectorul 6';
+      default:
+          return '';
+  }
+};
+
+      const countyName = `${c.name}${getCountyFormattedCode(c.code)}`;
+
+Request
+Endpoint:
+GET /online/address/utils/counties
+
+Response
+Fetching Cities on County
+Helper to map cities to AddressRequest. The uniquePostalCode can be used to fill the postalCode field when city has no postal codes (2.4).
+
+
+Request
+Endpoint:
+GET /online/address/utils/cities?countyId=:countyId
+Parameters:
+Name	Required	Description
+countyId	
+Required
+The id of the county
+
+Response
+Fetching Street Names on City
+Can be used to fill other fields in address: streetName, postalCode, streetTypeId.
+
+
+Request
+Endpoint:
+GET /online/address/utils/postalCodes/find?streetName=:streetName&cityId=:cityId
+Parameters:
+Name	Required	Description
+cityId	
+Required
+The id of the city
+streetName	
+Required
+The name of the street. Minimum length required: 3
+
+Response
+Fetching Street Types
+Helper to map street types to AddressRequest.
+
+
+Request
+Endpoint:
+GET /online/address/utils/streetTypes
+
+Response
+Fetching Floors
+Helper to map floors to AddressRequest.
+
+
+Request
+Endpoint:
+GET /online/address/utils/floors
+
+Response
+Malpraxis Utils API
+This section contains the required calls you need to make in order to obtain the data used to create the Malpraxis Offer.
+
+Fetching all details for a comparator malpraxis offer
+Helper to obtain all details for a comparator malpraxis offer.
+
+
+Request
+Endpoint:
+GET /online/offers/malpraxis/comparator/utils
+
+Response
+Fetching Malpraxis Products
+Helper to obtain available Malpraxis Products.
+
+
+Request
+Endpoint:
+GET /online/products/malpraxis
+
+Response
+GET eligible products based on selected informations
+Helper to obtain eligible products for the selected informations.
+
+
+Request
+Endpoint:
+GET /online/offers/malpraxis/comparator/products/eligible
+Request Body:
+{
+  clientId: number;
+  productIds: string[];
+  policyEndDate: string; // end date in YYYY-MM-DDTHH:mm:ss format
+  policyStartDate: string; // start date in YYYY-MM-DDTHH:mm:ss format
+  offerDetails: {
+      malpraxisProfessionId: string;
+      category: string;
+      categoryType: string;
+      generalLimit: string;
+      customMoralDamagesLimit: number;
+      moralDamagesLimit: number;
+      currency: string;
+      operatingAuthorizationType: number;
+      installmentsNo: number;
+      retroactivePeriod: string;
+  };
+}
+
+Response
+Consent & DNT API
+In V3, to generate offers for a client, we need to get the consent of the client and he has to "sign" the Online D.N.T. by answering some questions.
+
+In this section, you will learn how to get the status of the consent, how to get the questions and how to submit the answers.
+
+The consent is a required step
+Without the consent of the user, the order creation will fail. This step needs to be added in your flow after getting the client details and before generating the order.
+
+Fetching the consent status
+This endpoint fetches the status of the consent. If signedDocuments is true, then you don't need to get the consent from the client. If signedDocuments is false, you need to get the consent from the client. After the client gives the consent, the endpoint will return true in the next two hours as the consent is available for 2 hours.
+
+
+Request
+Endpoint:
+GET /online/client/documents/status
+Parameters:
+Name	Required	Description
+legalType	
+Required
+Legal type of the client. Ex: PF
+cif	
+Required
+The client identifier. For PF is the CNP Field and for PJ is the CUI field.
+vendorProductType	
+Required
+Values: RCA, PAD, TRAVEL, HOUSE or MALPRAXIS
+
+Response
+Fetching consent & DNT questions
+Retrieve the required questions using this endpoint. Each question is required and the logic to display the questions is explained in the response schema.
+
+We created a HTML & Javascript snippet to help you render the questions easily:
+
+https://codesandbox.io/p/sandbox/condescending-cdn-2k48qr
+
+
+Request
+Endpoint:
+GET /online/client/documents/fetch-questions
+Parameters:
+Name	Required	Description
+legalType	
+Required
+Legal type of the client. Ex: PF
+vendorProductType	
+Required
+Values: RCA, PAD, TRAVEL, HOUSE or MALPRAXIS
+
+Response
+Sending the consent
+This endpoint is used to send the consent of the user to the server. After the endpoint finishes (it might take a few seconds), the PDF containing the generated documents for the client will be returned in the response.
+
+Required validations or this endpoint:
+
+All questions are required
+If a question has an extraField, that extraField is required
+If an answer is mandatory, that answer needs to be selected
+An extraField must be provided only if the answer that generates the extraField is selected
+If a question is hidden, don't validate that question and don't add it to the formInputData object
+When legalType is PF and the age is under 18, or when legalType is PJ, the personBaseRequest must include a clientRepresentative
+Mapping answers to formInputData
+The structure of this object follow these rules:
+
+each key is an id of a answer or an id of an extra field
+
+each key is unique
+
+if the type of the question (represented by the key) is checkbox_oneOf:
+
+the value will be a boolean (boolean)
+
+if the type of the question (represented by the key) is checkbox_allIn:
+
+all the selected answers should be added by key as boolean (boolean)
+
+if the type of the question (represented by the key) is text:
+
+the value will be a string (string)
+
+if the key represents an extra field:
+
+the value will be a string (string)
+
+This structure is also created on state.answers, state that is created on the code snippet.
+
+{
+
+"inputName_1207": true,
+"inputName_123": true,
+"inputName_124": true,
+"inputName_120": true,
+"inputName_652": true,
+"inputName_1158": true,
+"inputName_1166": true,
+"inputName_254": true,
+"inputName_304": true,
+"inputName_320": true,
+"inputName_263": true,
+"inputName_1052": true,
+"inputGroupName_1402": "This is a text answer. Because it does not have options will use the groupName.",
+"inputName_1902": true
+}
+Show full code
+
+Request
+Endpoint:
+POST /online/client/documents/submit-answers
+Request Body:
+{
+  personBaseRequest: PersonRequest & {
+      // It is required for legalType = PJ, or for legalType = PF when the age is under 18.
+      clientRepresentative?: {
+          firstName: string;
+          lastName: string;
+      };
+  };
+  communicationChannelEmail: boolean;
+  formInputData: {[key: string]: string | boolean; } // it was documented above this endpoint
+  vendorProductType: string; // Values: RCA, PAD, TRAVEL, HOUSE or MALPRAXIS
+  website: string; // your website, where the client is giving the consent (it will appear on the final onboarding documents)
+}
+
+Response
+Order API
+This section explains how to generate an order based on the previously gathered information.
+
+Creating an order and generating a new Malpraxis offer should happen after data is validated. Ensure that your OrderRequest and OfferRequest schemas are correct. Read each section from above and use the listed APIs to create the final request.
+
+Creating the order
+The order is the main object that holds the offer details, the parties details and the policy details.
+
+This endpoint will create the order and it will return the orderHash that must be used to finish the policy creation flow. Each endpoint that requires orderHash will have "ORDER HASH PROTECTED" in the description of the request.
+
+Do you have the consent from the client?
+The order can only be created if you have consent from the client.
+The whole consent process is described above this section: Consent & DNT API
+
+
+Request
+Endpoint:
+POST /online/offers/order/v3
+Request Body:
+{
+  vendorProductType: 'MALPRAXIS';
+  mainInsuredDetails: PersonRequest; // insured details
+  contractorDetails: PersonRequest; // if you have a contractor specified, then complete with the contractor details, otherwise use the insured details
+  clientDetails: PersonRequest; // same as insured details
+}
+Reusable schemas: PersonRequest, AddressRequest
+
+Response
+Fetch order parties of order
+Use this endpoint to retrieve information about the parties that were used to generate the order.
+
+
+Request
+ORDER HASH PROTECTED
+Endpoint:
+GET /online/order/:orderId/persons/details
+URL Parameters:
+Name	Description
+orderId	The id of the order
+Parameters:
+Name	Required	Description
+orderHash	
+Required
+The order hash of the order
+
+Response
+Offer API
+Using the created order and the gathered information, you can generate a new Malpraxis offer and attach it to the order.
+
+Retrieve request bodies
+You first have to get the request body for each product.
+
+
+Request
+ORDER HASH PROTECTED
+Endpoint:
+POST /online/offers/malpraxis/comparator/bodies/v3
+Parameters:
+Name	Required	Description
+orderHash	
+Required
+The order hash of the order
+Request Body:
+{
+  orderId: number; // linked order id
+  productIds: number[]; // selected products ids
+  policyEndDate: string; // end date in YYYY-MM-DDTHH:mm:ss format
+  policyStartDate: string; // start date in YYYY-MM-DDTHH:mm:ss format
+  offerDetails: {
+      malpraxisProfessionId: string;
+      category: string;
+      categoryType: string;
+      generalLimit: string;
+      customMoralDamagesLimit: number;
+      moralDamagesLimit: number;
+      currency: string;
+      operatingAuthorizationType: number;
+      installmentsNo: number;
+      retroactivePeriod: string;
+  };
+  specificDetails: [{
+      value: string;
+      code: string;   //the code of the specific detail from utils
+  }]
+}
+
+Response
+Generating a new Malpraxis Offer
+Each order should have a single Malpraxis offer for each product on it, so we recommend to link the order creation call with the offer creation call.
+
+The selected medical category must belong to the corresponding profession type, and similarly, the selected subcategory must belong to the appropriate category defined in the utils.
+The policyEndDate can have a single value: policyStartDate + 1 year - 1 day (1 year added to the policy, and we subtracting 1 day because the policy is also available in the policyStartDate date.
+
+Request
+ORDER HASH PROTECTED
+Endpoint:
+POST /online/offers/malpraxis/comparator/v3
+Parameters:
+Name	Required	Description
+orderHash	
+Required
+The order hash of the order
+Request Body:
+{
+  orderId: number; // linked order id
+  productId: number; // selected product id
+  policyEndDate: string; // end date in YYYY-MM-DDTHH:mm:ss format
+  policyStartDate: string; // start date in YYYY-MM-DDTHH:mm:ss format
+  offerDetails: {
+      malpraxisProfessionId: string;
+      category: string;
+      categoryType: string;
+      generalLimit: string;
+      customMoralDamagesLimit: number;
+      moralDamagesLimit: number;
+      currency: string;
+      operatingAuthorizationType: number;
+      installmentsNo: number;
+      retroactivePeriod: string;
+  };
+  specificDetails: [{
+      value: string;
+      code: string;   //the code of the specific detail from utils
+  }]
+}
+
+Response
+Fetching an existent offer from order
+This endpoint might return an array of offers, but if you have used the API correctly, the order should have a single offer for each product on it.
+
+
+Request
+ORDER HASH PROTECTED
+Endpoint:
+GET /online/offers/malpraxis/order/:orderId/v3
+URL Parameters:
+Name	Description
+orderId	The id of the order
+Parameters:
+Name	Required	Description
+orderHash	
+Required
+The order hash of the order
+
+Response
+Fetching an existent offer by id
+
+Request
+ORDER HASH PROTECTED
+Endpoint:
+GET /online/offers/malpraxis/:offerId/details/v3
+URL Parameters:
+Name	Description
+offerId	The id of the offer
+Parameters:
+Name	Required	Description
+orderHash	
+Required
+The order hash of the order
+
+Response
+Payment API
+This section handles the payment process.
+
+Testing Cards
+The payment page differs in the production environment depending on your broker. In the test environment, we run a test page from Libra Pay or Netopia. For payment details in the test environment: LibraPay Documentation / Netopia Test Cards.
+
+Creating the payment
+Endpoint to create the payment that returns the payment link (url) used for the payment process. Redirect or display the URL to the user after the payment link is returned.
+
+Important!
+The redirection will also contain the result of the payment. Take in account that the payment can fail and the user should see the right screen on the browser.
+
+Redirection query params:
+
+status: should be "APPROVED" if the payment was processed
+message:
+"Approved"
+"Expired card"
+"Authentication failed"
+other messages that payment vendor might return
+
+Request
+ORDER HASH PROTECTED
+Endpoint:
+POST /online/offers/payment/v3
+Parameters:
+Name	Required	Description
+orderHash	
+Required
+The order hash of the order
+Request Body:
+Request Headers: IT'S VERY IMPORTANT to set the Accept header to "text/plain", OTHERWISE THE ENDPOINT WILL FAIL
+{
+  offerId: number;
+  additionalProductsOfferIds?: number[]; // offer ids for additional products
+  redirectURL: string; // url where user is redirected after payment
+}
+
+Response
+Generating a TBI Loan Link
+If the broker allows, then you can send a TBI Loan request that returns a loan link (url) used for the payment process. Redirect or display the URL to the user after the loan link is returned.
+
+Good to know!
+The redirection process and result is similar to: 6.1 Creating the payment. In order to test the TBI Implementation, open the loan link and then complete the flow displayed by the TBI Testing Environment.
+
+
+Request
+ORDER HASH PROTECTED
+Endpoint:
+POST /online/offers/payment/loan/v3
+Parameters:
+Name	Required	Description
+orderHash	
+Required
+The order hash of the order
+Request Body:
+Request Headers: IT'S VERY IMPORTANT to set the Accept header to "text/plain", OTHERWISE THE ENDPOINT WILL FAIL
+{
+  offerId: number;
+  additionalProductsOfferIds?: number[]; // offer ids for additional products
+  redirectURL: string; // url where user is redirected after payment
+}
+
+Response
+Checking payment status
+Use it after the payment link is generated. Make sure to match the offerId from the PaymentResponse with the offerId that the user is currently on.
+
+
+Request
+ORDER HASH PROTECTED
+Endpoint:
+POST /online/offers/payment/check/v3
+Parameters:
+Name	Required	Description
+orderHash	
+Required
+The order hash of the order
+Request Body:
+Request Headers: IT'S VERY IMPORTANT to set the Accept header to "text/plain", OTHERWISE THE ENDPOINT WILL FAIL
+{
+  offerIds: number[];
+}
+
+Response
+Policy API
+Only create the policy after you validate that the payment was succesfuly processed.
+
+Creating the policy
+
+Request
+ORDER HASH PROTECTED
+Endpoint:
+POST /online/policies/v3
+Parameters:
+Name	Required	Description
+orderHash	
+Required
+The order hash of the order
+Request Body:
+{
+  offerId: number;
+  paymentMethodType: 'CardOnline';
+}
+
+Response
+Fetching policies by order id
+If the API was correctly used, this response should a single policy.
+
+
+Request
+ORDER HASH PROTECTED
+Endpoint:
+GET /online/order/:orderId/policies
+URL Parameters:
+Name	Description
+orderId	The id of the order
+Parameters:
+Name	Required	Description
+orderHash	
+Required
+The order hash of the order
+
+Response
+Documents API
+You can serve documents to the client using these endpoints.
+
+Fetch the offer document url
+Give the client the option to download this document after the offer is created.
+
+
+Request
+ORDER HASH PROTECTED
+Endpoint:
+GET /online/offers/:offerId/document/v3
+URL Parameters:
+Name	Description
+offerId	The id of the offer
+Parameters:
+Name	Required	Description
+orderHash	
+Required
+The order hash of the order
+
+Response
+Fetch the policy document url
+Give the client the option to download this document after the policy is successfuly created.
+
+
+Request
+ORDER HASH PROTECTED
+Endpoint:
+GET /online/policies/:policyId/document/v3
+URL Parameters:
+Name	Description
+policyId	The id of the policy
+Parameters:
+Name	Required	Description
+orderHash	
+Required
+The order hash of the order
+
+Response
+Reused Schemas
+AddressResponse
+{
+  id: number;
+  addressType: 'HOME' | 'MAILING';
+  foreignCountyName: string | null;
+  foreignCityName: string | null;
+  postalCode: string;
+  sirutaCode: string;
+  streetName: string;
+  streetNumber: string;
+  building: string;
+  entrance: string;
+  apartment: string;
+  floorResponse: {
+      id: number;
+      floor: string;
+  },
+  streetTypeResponse: {
+      id: number;
+      type: string;
+  },
+  countryResponse: {
+      id: number;
+      code: string;
+      name: string;
+  },
+  countyResponse: {
+    id: number;
+    code: string;
+    name: string;
+  } | null,
+  cityResponse: {
+      id: number;
+      uniquePostalCode: string;
+      name: string;
+  } | null;
+}
+AddressRequest
+{
+  countryId: number | null;
+  cityId: number | null;
+  countyId: number | null;
+  postalCode: string;
+  streetTypeId: number | null;
+  floorId: number | null;
+  addressType: 'HOME' | 'MAILING';
+  foreignCountyName: string | null;
+  foreignCityName: string | null;
+  streetName: string;
+  streetNumber: string;
+  building: string;
+  entrance: string;
+  apartment: string;
+}
+PersonRequest
+// Different based on legalType property
+{
+  legalType: 'PF';
+  firstName: string;
+  lastName: string;
+  idType: 'CI' | 'PASSPORT' | 'RESIDENCY_PERMIT';
+  idSerial: string;
+  idNumber: string;
+  idExpirationDate: string | null;
+  driverLicenceDate: string | null;
+  email: string;
+  phoneNumber: string;
+  address: AddressRequest;
+  cif: number;
+} | {
+  legalType: 'PJ';
+  companyName: string;
+  registrationNumber: string;
+  caenCode: string | null;
+  companyTypeId: number | null;
+  email: string;
+  phoneNumber: string;
+  address: AddressRequest;
+  cif: number;
+}
+ProductResponse
+{
+  id: number;
+  insuranceClass: string;
+  productName: string;
+  productSubType: string | null;
+  productType: string;
+  vat: number | null;
+  vendorDetails: {
+      commercialName: string;
+      id: number;
+      linkLogo: string;
+      name: string;
+  };
+  vendorProductType: string;
+}
+Migration Tutorial
+Migrate from an older version following this tutorial.
+
+Store the orderHash
+The orderHash is now required in order to access protected endpoints. We recommend you to store the orderHash, along with the orderId.
+
+When making a call to a protected endpoint, you need to send the orderHash as a query parameter.
+
+Protected endpoints:
+
+/online/offers/rca/order/:orderId/details/v3
+/online/offers/rca/v3
+/online/offers/rca/order/:orderId/v3
+/online/offers/rca/order/:orderId/referenceTariff/v3
+/online/offers/rca/:offerId/details/v3
+/online/offers/order/v3
+/online/order/:orderId/persons/details
+/online/offers/travel/comparator/bodies/v3
+/online/offers/malpraxis/comparator/bodies/v3
+/online/offers/house/comparator/bodies/v3
+/online/offers/travel/comparator/v3
+/online/offers/malpraxis/comparator/v3
+/online/offers/house/comparator/v3
+/online/offers/travel/order/:orderId/v3
+/online/offers/malpraxis/order/:orderId/v3
+/online/offers/house/order/:orderId/v3
+/online/offers/travel/:offerId/details/v3
+/online/offers/malpraxis/:offerId/details/v3
+/online/offers/house/:offerId/details/v3
+/online/offers/paid/pad/v3
+/online/order/paid/pad/:orderId/v3
+/online/offers/paid/pad/:offerId/details/v3
+/online/policies/v3
+/online/order/:orderId/policies
+/online/offers/payment/v3
+/online/offers/payment/loan/v3
+/online/offers/payment/check/v3
+/online/policies/rca/v3
+/online/offers/:offerId/document/v3
+/online/policies/:policyId/document/v3
+Use the new endpoints
+Because we had to keep a backward compatibility for older version, new APIs that are protected and require the orderHash were added in the new version.
+
+OLD	NEW (V3)
+/online/offers/rca/order/:orderId/details	/online/offers/rca/order/:orderId/details/v3
+/online/offers/rca	/online/offers/rca/v3
+/online/offers/rca/order/:orderId	/online/offers/rca/order/:orderId/v3
+/online/offers/rca/order/:orderId/referenceTariff	/online/offers/rca/order/:orderId/referenceTariff/v3
+/online/offers/rca/order/:orderId/referenceTariff/v2	/online/offers/rca/order/:orderId/referenceTariff/v3
+/online/offers/rca/:offerId/details	/online/offers/rca/:offerId/details/v3
+/online/offers/order	/online/offers/order/v3
+/online/order/:orderId/persons/details	/online/order/:orderId/persons/details/v3
+/online/offers/travel/comparator/bodies	/online/offers/travel/comparator/bodies/v3
+/online/offers/malpraxis/comparator/bodies	/online/offers/malpraxis/comparator/bodies/v3
+/online/offers/house/comparator/bodies	/online/offers/house/comparator/bodies/v3
+/online/offers/travel/comparator	/online/offers/travel/comparator/v3
+/online/offers/malpraxis/comparator	/online/offers/malpraxis/comparator/v3
+/online/offers/house/comparator	/online/offers/house/comparator/v3
+/online/offers/travel/order/:orderId	/online/offers/travel/order/:orderId/v3
+/online/offers/malpraxis/order/:orderId	/online/offers/malpraxis/order/:orderId/v3
+/online/offers/house/order/:orderId	/online/offers/house/order/:orderId/v3
+/online/offers/travel/:offerId/details	/online/offers/travel/:offerId/details/v3
+/online/offers/malpraxis/:offerId/details	/online/offers/malpraxis/:offerId/details/v3
+/online/offers/house/:offerId/details	/online/offers/house/:offerId/details/v3
+/online/offers/paid/pad	/online/offers/paid/pad/v3
+/online/order/paid/pad/:orderId	/online/order/paid/pad/:orderId/v3
+/online/offers/paid/pad/:offerId/details	/online/offers/paid/pad/:offerId/details/v3
+/online/policies	/online/policies/v3
+/online/order/:orderId/policies	/online/order/:orderId/policies/v3
+/online/offers/payment	/online/offers/payment/v3
+/online/offers/payment/loan	/online/offers/payment/loan/v3
+/online/offers/payment/check	/online/offers/payment/check/v3
+/online/offers/payment/rca	/online/offers/payment/v3
+/online/offers/payment/rca/check	/online/offers/payment/check/v3
+/online/policies/rca	/online/policies/rca/v3
+/online/offers/:offerId/document	/online/offers/:offerId/document/v3
+/online/policies/:policyId/document	/online/policies/:policyId/document/v3
+Run the consent flow
+The last step is to introduce the Consent & DNT API in your flow.
+
+If the client doesn't complete this flow, the order generation will fail.

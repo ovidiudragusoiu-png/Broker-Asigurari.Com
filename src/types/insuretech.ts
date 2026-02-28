@@ -349,45 +349,60 @@ export interface ReferenceTariffResponse {
 // ============================================================
 
 export interface TravelZone {
-  id: number;
+  code: string;
   name: string;
-  countries: string[];
 }
 
 export interface TravelPurpose {
-  id: number;
+  code: string;
+  name: string;
+}
+
+export interface TravelMethod {
+  code: string;
   name: string;
 }
 
 export interface TravelUtils {
-  travelZones: TravelZone[];
-  travelPurposes: TravelPurpose[];
-  travelMethods: { id: number; name: string }[];
+  travelZone: TravelZone[];
+  travelPurpose: TravelPurpose[];
+  travelMethod: TravelMethod[];
   vendorSpecificDetails: Record<string, unknown>[];
 }
 
+export interface TravelOfferDetailsRequest {
+  travelZone: string;
+  travelPurpose: string;
+  travelMethod: string;
+  destinationCountryId: number;
+  residencyCountryId?: number;
+  summerSports?: boolean;
+  winterSports?: boolean;
+  withStorno?: boolean;
+  stornoInsuredValueEUR?: number;
+  stornoStartDate?: string;
+  bookingDate?: string;
+  roadAssistance?: boolean;
+  vehiclePlateNo?: string;
+  vehicleVIN?: string;
+  vehicleFirstRegistration?: string;
+  isClientInRomania?: boolean;
+}
+
 export interface TravelEligibilityRequest {
-  clientId: number;
-  productIds: string[];
-  travelZoneId: number;
-  startDate: string;
-  endDate: string;
-  purposeId: number;
-  numberOfTravelers: number;
-  travelerAges: number[];
+  productIds: number[];
+  policyStartDate: string;
+  policyEndDate: string;
+  insuredsNumber: number;
+  offerDetails: TravelOfferDetailsRequest;
 }
 
 export interface TravelBodiesRequest {
   orderId: number;
-  productIds: string[];
-  travelZoneId: number;
-  startDate: string;
-  endDate: string;
-  purposeId: number;
-  methodId: number;
-  numberOfTravelers: number;
-  travelerDetails: PersonRequest[];
-  specificDetails?: Record<string, unknown>;
+  productIds: number[];
+  policyStartDate: string;
+  policyEndDate: string;
+  offerDetails: TravelOfferDetailsRequest;
 }
 
 export interface TravelOfferResponse {
@@ -500,32 +515,54 @@ export interface HouseCoverage {
 // ============================================================
 
 export interface PadUtils {
-  buildingTypes: { id: string; name: string }[]; // A or B
-  environmentTypes: { id: number; name: string }[];
+  buildingType: string[];      // ["A", "B"]
+  environmentType: string[];   // ["Urban", "Rural"]
 }
 
 export interface PadCesionar {
-  id: number;
+  cif: string;
   name: string;
+  legalType: string;
+}
+
+export interface PadGoodDetails {
+  goodType: "HOME";
+  padPropertyType: string;
+  environmentType: string;
+  buildingStructureTypeId: number;
+  constructionType: string;
+  constructionTypeId: number;
+  constructionYear: number;
+  area: number;
+  noOfRooms: number;
+  noOfFloors: number;
+  usableArea: number;
+  noOfConstructedBuildings: number;
+  padBuildingIdentificationMention?: string;
+  addressRequest: AddressRequest;
 }
 
 export interface PadOfferRequest {
   orderId: number;
-  buildingType: "A" | "B";
-  environmentTypeId: number;
-  address: AddressRequest;
-  contractorDetails: PersonRequest;
-  insuredDetails: PersonRequest;
-  otherInsuredDetails?: PersonRequest[];
-  cesionari?: { cesionarId: number }[];
+  productId: number;
+  policyStartDate: string;
+  policyEndDate: string;
+  offerDetails: {
+    notesCesionari?: string;
+    cesionari?: PadCesionar[];
+  };
 }
 
 export interface PadOfferResponse {
   id: number;
-  premium: number;
+  policyPremium: number;
   currency: string;
-  buildingType: string;
-  error?: string;
+  installments?: InstallmentInfo[];
+  productDetails?: {
+    productName?: string;
+    vendorDetails?: { linkLogo?: string };
+  };
+  error: boolean;
   message?: string;
 }
 

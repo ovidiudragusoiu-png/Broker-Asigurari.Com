@@ -66,6 +66,30 @@ export function validatePhoneRO(phone: string): boolean {
 }
 
 /**
+ * Extract date of birth from a Romanian CNP as "YYYY-MM-DDTHH:mm:ss" string.
+ * Returns null if CNP is invalid or date cannot be extracted.
+ * CNP structure: S YY MM DD CC NNN C
+ *   S = sex/century digit (1/2=1900s, 5/6=2000s, 7/8=resident)
+ */
+export function dateOfBirthFromCNP(cnp: string): string | null {
+  if (!/^\d{13}$/.test(cnp)) return null;
+
+  const s = Number(cnp[0]);
+  const yy = Number(cnp.substring(1, 3));
+  const mm = cnp.substring(3, 5);
+  const dd = cnp.substring(5, 7);
+
+  let century: number;
+  if (s === 1 || s === 2) century = 1900;
+  else if (s === 3 || s === 4) century = 1800;
+  else if (s === 5 || s === 6) century = 2000;
+  else century = 1900; // 7/8 = foreign residents, assume 1900s
+
+  const year = century + yy;
+  return `${year}-${mm}-${dd}T00:00:00`;
+}
+
+/**
  * Validate VIN (Vehicle Identification Number) - 17 characters.
  */
 export function validateVIN(vin: string): boolean {

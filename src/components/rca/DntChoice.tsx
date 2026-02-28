@@ -6,11 +6,13 @@ import { btn } from "@/lib/ui/tokens";
 interface DntChoiceProps {
   onContinueDirect: () => void;
   productLabel?: string;
+  onBack?: () => void;
+  backLabel?: string;
 }
 
 const CONSULTATION_EMAIL = "bucuresti@broker-asigurari.com";
 
-export default function DntChoice({ onContinueDirect, productLabel = "RCA" }: DntChoiceProps) {
+export default function DntChoice({ onContinueDirect, productLabel = "RCA", onBack, backLabel = "Inapoi la datele calatorilor" }: DntChoiceProps) {
   const [showPopup, setShowPopup] = useState(false);
 
   return (
@@ -28,10 +30,10 @@ export default function DntChoice({ onContinueDirect, productLabel = "RCA" }: Dn
         <button
           type="button"
           onClick={onContinueDirect}
-          className="group flex flex-col items-center gap-4 rounded-xl border-2 border-sky-200 bg-sky-50/50 p-6 text-center transition-all hover:border-sky-400 hover:shadow-md"
+          className="group flex flex-col items-center gap-4 rounded-xl border-2 border-[#2563EB]/20 bg-[#2563EB]/5/50 p-6 text-center transition-all hover:border-[#2563EB]/60 hover:shadow-md"
         >
           {/* Icon */}
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-sky-100 text-sky-600 transition-colors group-hover:bg-sky-200">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#2563EB]/10 text-[#2563EB] transition-colors group-hover:bg-[#2563EB]/20">
             <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
@@ -71,12 +73,28 @@ export default function DntChoice({ onContinueDirect, productLabel = "RCA" }: Dn
         </button>
       </div>
 
+      {/* Back button */}
+      {onBack && (
+        <div className="text-center">
+          <button
+            type="button"
+            onClick={onBack}
+            className="inline-flex items-center gap-2 text-sm font-semibold text-gray-500 transition-colors duration-200 hover:text-gray-700"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+            </svg>
+            {backLabel}
+          </button>
+        </div>
+      )}
+
       {/* DNT consultation popup */}
       {showPopup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="mx-4 max-w-md rounded-xl bg-white p-6 shadow-xl">
             <div className="mb-4 flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-100 text-sky-600">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#2563EB]/10 text-[#2563EB]">
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
@@ -90,7 +108,7 @@ export default function DntChoice({ onContinueDirect, productLabel = "RCA" }: Dn
             </p>
             <a
               href={`mailto:${CONSULTATION_EMAIL}`}
-              className="mt-3 flex items-center justify-center gap-2 rounded-lg bg-sky-50 px-4 py-3 text-base font-semibold text-sky-700 transition-colors hover:bg-sky-100"
+              className="mt-3 flex items-center justify-center gap-2 rounded-lg bg-[#2563EB]/5 px-4 py-3 text-base font-semibold text-blue-700 transition-colors hover:bg-[#2563EB]/10"
             >
               {CONSULTATION_EMAIL}
             </a>

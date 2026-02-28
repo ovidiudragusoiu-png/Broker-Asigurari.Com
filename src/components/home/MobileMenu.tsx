@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Menu, X, ChevronDown, Car, ShieldCheck, Plane, Home, Building2, Stethoscope, Handshake } from "lucide-react";
+import { Menu, X, ChevronDown, Car, ShieldCheck, Plane, Home, Building2, Stethoscope, Handshake, Scale, User, LogIn } from "lucide-react";
+import { useAuth } from "@/components/portal/AuthProvider";
 import type { LucideIcon } from "lucide-react";
 
 interface DropdownItem {
@@ -33,6 +34,7 @@ const INSURANCE_GROUPS: DropdownGroup[] = [
       { href: "/pad", label: "PAD", description: "Asigurare obligatorie locuință", icon: Building2 },
       { href: "/malpraxis", label: "Malpraxis", description: "Asigurare profesională medici", icon: Stethoscope },
       { href: "/garantii", label: "Garanții", description: "Garanții contractuale firme", icon: Handshake },
+      { href: "/raspundere-profesionala", label: "Răspundere profesională", description: "Asigurare de răspundere civilă profesională", icon: Scale },
     ],
   },
 ];
@@ -48,6 +50,7 @@ interface MobileMenuProps {
 }
 
 export default function MobileMenu({ scrolled = true }: MobileMenuProps) {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [insuranceOpen, setInsuranceOpen] = useState(false);
 
@@ -58,9 +61,8 @@ export default function MobileMenu({ scrolled = true }: MobileMenuProps) {
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className={`rounded-xl p-2 transition ${
-          scrolled ? "text-slate-600 hover:bg-gray-100" : "text-white hover:bg-white/10"
-        }`}
+        className={`rounded-xl p-2 transition ${scrolled ? "text-[#1E293B] hover:bg-slate-50" : "text-[#1E293B] hover:bg-white/50"
+          }`}
         aria-label={open ? "Închide meniu" : "Deschide meniu"}
       >
         {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -73,7 +75,7 @@ export default function MobileMenu({ scrolled = true }: MobileMenuProps) {
             <button
               type="button"
               onClick={() => setInsuranceOpen(!insuranceOpen)}
-              className="flex w-full items-center justify-between rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-sky-50 hover:text-sky-600"
+              className="flex w-full items-center justify-between rounded-xl px-4 py-3 text-sm font-semibold text-[#1E293B] transition hover:bg-slate-50 hover:text-[#2563EB]"
             >
               Asigurări
               <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${insuranceOpen ? "rotate-180" : ""}`} />
@@ -93,13 +95,13 @@ export default function MobileMenu({ scrolled = true }: MobileMenuProps) {
                           key={item.href}
                           href={item.href}
                           onClick={close}
-                          className="flex items-center gap-3 rounded-xl px-4 py-2.5 transition hover:bg-sky-50"
+                          className="flex items-center gap-3 rounded-xl px-4 py-2.5 transition hover:bg-slate-50"
                         >
-                          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-600">
+                          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-[#2563EB]/10 text-[#2563EB]">
                             <Icon className="h-4 w-4" />
                           </div>
                           <div>
-                            <p className="text-sm font-semibold text-slate-800">{item.label}</p>
+                            <p className="text-sm font-semibold text-[#1E293B]">{item.label}</p>
                             <p className="text-xs text-slate-500">{item.description}</p>
                           </div>
                         </Link>
@@ -116,11 +118,23 @@ export default function MobileMenu({ scrolled = true }: MobileMenuProps) {
                 key={link.href}
                 href={link.href}
                 onClick={close}
-                className="block rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-sky-50 hover:text-sky-600"
+                className="block rounded-xl px-4 py-3 text-sm font-semibold text-[#1E293B] transition hover:bg-slate-50 hover:text-[#2563EB]"
               >
                 {link.label}
               </Link>
             ))}
+
+            {/* Auth link */}
+            <div className="border-t border-gray-100 mt-2 pt-2">
+              <Link
+                href={user ? "/dashboard" : "/login"}
+                onClick={close}
+                className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-[#2563EB] transition hover:bg-[#2563EB]/5"
+              >
+                {user ? <User className="h-4 w-4" /> : <LogIn className="h-4 w-4" />}
+                {user ? "Contul meu" : "Autentificare"}
+              </Link>
+            </div>
           </div>
         </div>
       )}

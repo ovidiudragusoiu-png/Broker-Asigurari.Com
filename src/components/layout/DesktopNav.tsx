@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { ChevronDown, Car, ShieldCheck, Plane, Home, Building2, Stethoscope, Handshake } from "lucide-react";
+import { ChevronDown, Car, ShieldCheck, Plane, Home, Building2, Stethoscope, Handshake, Scale } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 interface DropdownItem {
@@ -33,6 +33,7 @@ const INSURANCE_GROUPS: DropdownGroup[] = [
       { href: "/pad", label: "PAD", description: "Asigurare obligatorie locuință", icon: Building2 },
       { href: "/malpraxis", label: "Malpraxis", description: "Asigurare profesională medici", icon: Stethoscope },
       { href: "/garantii", label: "Garanții", description: "Garanții contractuale firme", icon: Handshake },
+      { href: "/raspundere-profesionala", label: "Răspundere profesională", description: "Asigurare de răspundere civilă profesională", icon: Scale },
     ],
   },
 ];
@@ -71,8 +72,8 @@ export default function DesktopNav({ scrolled = true }: DesktopNavProps) {
   }, []);
 
   const linkColor = scrolled
-    ? "text-slate-600 hover:text-[#4db8cc]"
-    : "text-white/80 hover:text-white";
+    ? "text-slate-600 hover:text-[#2563EB]"
+    : "text-[#1E293B]/80 hover:text-[#2563EB]";
 
   return (
     <div className="hidden items-center gap-7 md:flex">
@@ -94,11 +95,10 @@ export default function DesktopNav({ scrolled = true }: DesktopNavProps) {
 
         {/* Dropdown panel */}
         <div
-          className={`absolute left-1/2 top-full z-50 mt-4 -translate-x-1/2 transition-all duration-200 ${
-            open
-              ? "pointer-events-auto translate-y-0 opacity-100"
-              : "pointer-events-none -translate-y-2 opacity-0"
-          }`}
+          className={`absolute left-1/2 top-full z-50 mt-4 -translate-x-1/2 transition-all duration-200 ${open
+            ? "pointer-events-auto translate-y-0 opacity-100"
+            : "pointer-events-none -translate-y-2 opacity-0"
+            }`}
         >
           <div className="grid w-[520px] grid-cols-2 gap-6 rounded-[2rem] border border-gray-100 bg-white p-6 shadow-xl">
             {INSURANCE_GROUPS.map((group) => (
@@ -114,13 +114,13 @@ export default function DesktopNav({ scrolled = true }: DesktopNavProps) {
                         key={item.href}
                         href={item.href}
                         onClick={() => setOpen(false)}
-                        className="group flex items-start gap-3 rounded-xl p-3 transition-colors hover:bg-sky-50"
+                        className="group flex items-start gap-3 rounded-xl p-3 transition-colors hover:bg-slate-50"
                       >
-                        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-600 transition-colors group-hover:bg-sky-200">
+                        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#2563EB]/10 text-[#2563EB] transition-colors group-hover:bg-[#2563EB]/20">
                           <Icon className="h-5 w-5" />
                         </div>
                         <div>
-                          <p className="text-sm font-semibold text-slate-900">{item.label}</p>
+                          <p className="text-sm font-semibold text-[#1E293B]">{item.label}</p>
                           <p className="text-xs text-slate-500">{item.description}</p>
                         </div>
                       </Link>

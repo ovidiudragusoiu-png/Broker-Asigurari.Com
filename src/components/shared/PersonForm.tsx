@@ -16,11 +16,25 @@ import {
   validatePhoneRO,
 } from "@/lib/utils/validation";
 
+const inputCls =
+  "w-full rounded-xl border-2 border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none";
+const inputErrCls =
+  "w-full rounded-xl border-2 border-red-300 bg-white px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 focus:outline-none";
+const selectCls =
+  "w-full appearance-none rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none";
+const labelCls = "mb-1 block text-xs font-medium text-gray-500";
+
 interface PersonFormProps {
   value: PersonRequest;
   onChange: (person: PersonRequest) => void;
   title?: string;
   showDriverLicence?: boolean;
+  /** Hide the ID document fields (type, series, number) */
+  hideIdDocument?: boolean;
+  /** When provided, shows a "Copy address" button in the address section */
+  onCopyAddress?: () => void;
+  /** Label for the copy address button */
+  copyAddressLabel?: string;
 }
 
 export default function PersonForm({
@@ -28,12 +42,16 @@ export default function PersonForm({
   onChange,
   title,
   showDriverLicence = false,
+  hideIdDocument = false,
+  onCopyAddress,
+  copyAddressLabel = "Copiaza adresa",
 }: PersonFormProps) {
   const [companyTypes, setCompanyTypes] = useState<
     { id: number; type: string }[]
   >([]);
   const [loadingCompany, setLoadingCompany] = useState(false);
   const [companyTypesError, setCompanyTypesError] = useState<string | null>(null);
+  const [cuiLookupError, setCuiLookupError] = useState<string | null>(null);
 
   useEffect(() => {
     if (value.legalType === "PJ") {
@@ -82,91 +100,128 @@ export default function PersonForm({
   const lookupCUI = async () => {
     if (value.legalType !== "PJ" || !value.cif) return;
     setLoadingCompany(true);
+    setCuiLookupError(null);
     try {
       const data = await api.get<Record<string, unknown>>(
         `/online/companies/utils/${value.cif}`
       );
-      updatePJ({
-        companyName: (data.companyName as string) || value.companyName,
-        registrationNumber:
-          (data.registrationNumber as string) || value.registrationNumber,
+
+      // API returns `name`, not `companyName`
+      const updates: Partial<PersonRequestPJ> = {
+        companyName: (data.name as string) || value.companyName,
+        registrationNumber: (data.registrationNumber as string) || value.registrationNumber,
         caenCode: (data.caenCode as string) || value.caenCode,
-        companyTypeId: (data.companyTypeId as number) || value.companyTypeId,
-      });
+      };
+
+      // Map phone if available and not already set
+      if (data.phone && !value.phoneNumber) {
+        updates.phoneNumber = data.phone as string;
+      }
+
+      // Map addressResponse (nested objects) → AddressRequest (flat IDs)
+      const addrResp = data.addressResponse as Record<string, unknown> | null;
+      if (addrResp) {
+        const country = addrResp.countryResponse as Record<string, unknown> | null;
+        const county = addrResp.countyResponse as Record<string, unknown> | null;
+        const city = addrResp.cityResponse as Record<string, unknown> | null;
+        const streetType = addrResp.streetTypeResponse as Record<string, unknown> | null;
+        const floor = addrResp.floorResponse as Record<string, unknown> | null;
+        updates.address = {
+          addressType: (addrResp.addressType as "HOME" | "MAILING") || "HOME",
+          countryId: country ? (country.id as number) : null,
+          countyId: county ? (county.id as number) : null,
+          cityId: city ? (city.id as number) : null,
+          postalCode: (addrResp.postalCode as string) ?? "",
+          streetTypeId: streetType ? (streetType.id as number) : null,
+          floorId: floor ? (floor.id as number) : null,
+          streetName: (addrResp.streetName as string) ?? "",
+          streetNumber: (addrResp.streetNumber as string) ?? "",
+          building: (addrResp.building as string) ?? "",
+          entrance: (addrResp.entrance as string) ?? "",
+          apartment: (addrResp.apartment as string) ?? "",
+          foreignCountyName: (addrResp.foreignCountyName as string | null) ?? null,
+          foreignCityName: (addrResp.foreignCityName as string | null) ?? null,
+        };
+      }
+
+      updatePJ(updates);
     } catch {
-      // CUI not found - user fills manually
+      setCuiLookupError("CUI negasit sau date indisponibile. Completati manual.");
     } finally {
       setLoadingCompany(false);
     }
   };
 
   return (
-    <div className="space-y-4">
+    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+      {/* Header with icon */}
       {title && (
-        <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+        <div className="mb-4 flex items-center gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50">
+            <svg className="h-4.5 w-4.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+            </svg>
+          </div>
+          <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
+        </div>
       )}
 
       {/* Legal type toggle */}
-      <div className="flex gap-4">
-        <button
-          type="button"
-          onClick={() => toggleLegalType("PF")}
-          className={`rounded-md px-4 py-2 text-sm font-medium ${
-            value.legalType === "PF"
-              ? "bg-blue-700 text-white"
-              : "bg-gray-100 text-gray-700"
-          }`}
-        >
-          Persoana Fizica
-        </button>
-        <button
-          type="button"
-          onClick={() => toggleLegalType("PJ")}
-          className={`rounded-md px-4 py-2 text-sm font-medium ${
-            value.legalType === "PJ"
-              ? "bg-blue-700 text-white"
-              : "bg-gray-100 text-gray-700"
-          }`}
-        >
-          Persoana Juridica
-        </button>
+      <div className="mb-4 flex gap-2">
+        {(["PF", "PJ"] as const).map((type) => (
+          <button
+            key={type}
+            type="button"
+            onClick={() => toggleLegalType(type)}
+            className={`flex items-center gap-2 rounded-lg border-2 px-4 py-2 text-xs font-medium transition-all duration-200 ${
+              value.legalType === type
+                ? "border-[#2563EB] bg-blue-50/60 text-blue-700"
+                : "border-gray-200 bg-gray-50/30 text-gray-600 hover:border-gray-300"
+            }`}
+          >
+            {value.legalType === type && (
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+              </svg>
+            )}
+            {type === "PF" ? "Persoana Fizica" : "Persoana Juridica"}
+          </button>
+        ))}
       </div>
 
       {value.legalType === "PF" ? (
-        <>
-          {/* PF fields */}
-          <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-3">
+          {/* Name row */}
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Nume
-              </label>
+              <label className={labelCls}>Nume</label>
               <input
                 type="text"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                className={inputCls}
+                placeholder="Ex: Popescu"
                 value={value.lastName}
                 onChange={(e) => updatePF({ lastName: e.target.value })}
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Prenume
-              </label>
+              <label className={labelCls}>Prenume</label>
               <input
                 type="text"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                className={inputCls}
+                placeholder="Ex: Ion"
                 value={value.firstName}
                 onChange={(e) => updatePF({ firstName: e.target.value })}
               />
             </div>
           </div>
 
+          {/* CNP */}
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              CNP
-            </label>
+            <label className={labelCls}>CNP</label>
             <input
               type="text"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              className={cnpInvalid ? inputErrCls : inputCls}
+              placeholder="Cod numeric personal (13 cifre)"
               value={value.cif || ""}
               onChange={(e) =>
                 updatePF({ cif: Number(e.target.value) || 0 })
@@ -174,61 +229,57 @@ export default function PersonForm({
               maxLength={13}
             />
             {cnpInvalid && (
-              <p className="mt-1 text-xs text-red-600">CNP invalid</p>
+              <p className="mt-1 text-xs text-red-500">CNP invalid</p>
             )}
           </div>
 
           {/* ID document */}
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Tip document
-              </label>
-              <select
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                value={value.idType}
-                onChange={(e) =>
-                  updatePF({
-                    idType: e.target.value as PersonRequestPF["idType"],
-                  })
-                }
-              >
-                <option value="CI">Carte de Identitate</option>
-                <option value="PASSPORT">Pasaport</option>
-              </select>
+          {!hideIdDocument && (
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className={labelCls}>Tip document</label>
+                <select
+                  className={selectCls}
+                  value={value.idType}
+                  onChange={(e) =>
+                    updatePF({
+                      idType: e.target.value as PersonRequestPF["idType"],
+                    })
+                  }
+                >
+                  <option value="CI">Carte de Identitate</option>
+                  <option value="PASSPORT">Pasaport</option>
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>Serie</label>
+                <input
+                  type="text"
+                  className={inputCls}
+                  placeholder="Ex: RD"
+                  value={value.idSerial}
+                  onChange={(e) => updatePF({ idSerial: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className={labelCls}>Numar</label>
+                <input
+                  type="text"
+                  className={inputCls}
+                  placeholder="Ex: 123456"
+                  value={value.idNumber}
+                  onChange={(e) => updatePF({ idNumber: e.target.value })}
+                />
+              </div>
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Serie
-              </label>
-              <input
-                type="text"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                value={value.idSerial}
-                onChange={(e) => updatePF({ idSerial: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Numar
-              </label>
-              <input
-                type="text"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                value={value.idNumber}
-                onChange={(e) => updatePF({ idNumber: e.target.value })}
-              />
-            </div>
-          </div>
+          )}
 
           {showDriverLicence && (
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Data obtinere permis conducere
-              </label>
+              <label className={labelCls}>Data obtinere permis conducere</label>
               <input
                 type="date"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                className={selectCls}
                 value={value.driverLicenceDate ?? ""}
                 onChange={(e) =>
                   updatePF({
@@ -238,57 +289,65 @@ export default function PersonForm({
               />
             </div>
           )}
-        </>
+        </div>
       ) : (
-        <>
-          {/* PJ fields */}
+        <div className="space-y-3">
+          {/* CUI + lookup */}
           <div className="flex gap-2">
             <div className="flex-1">
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                CUI
-              </label>
+              <label className={labelCls}>CUI</label>
               <input
                 type="text"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                className={cuiInvalid ? inputErrCls : inputCls}
+                placeholder="Cod unic de inregistrare"
                 value={value.cif || ""}
-                onChange={(e) =>
-                  updatePJ({ cif: Number(e.target.value) || 0 })
-                }
+                onChange={(e) => {
+                  setCuiLookupError(null);
+                  updatePJ({ cif: Number(e.target.value) || 0 });
+                }}
               />
-              {cuiInvalid && (
-                <p className="mt-1 text-xs text-red-600">CUI invalid</p>
+                  {cuiInvalid && (
+                <p className="mt-1 text-xs text-red-500">CUI invalid</p>
               )}
             </div>
             <button
               type="button"
               onClick={lookupCUI}
               disabled={loadingCompany}
-              className="mt-6 rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50"
+              className="mt-5 flex h-10 items-center gap-1.5 rounded-xl bg-[#2563EB] px-4 text-xs font-semibold text-white shadow-sm transition-all duration-200 hover:bg-blue-700 hover:shadow-md disabled:bg-gray-300 disabled:text-gray-500 disabled:shadow-none"
             >
-              {loadingCompany ? "..." : "Cauta"}
+              {loadingCompany ? (
+                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              ) : (
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                </svg>
+              )}
+              Cauta
             </button>
           </div>
+          {cuiLookupError && (
+            <p className="text-xs text-amber-600">{cuiLookupError}</p>
+          )}
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Denumire firma
-            </label>
+            <label className={labelCls}>Denumire firma</label>
             <input
               type="text"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              className={inputCls}
+              placeholder="Denumirea companiei"
               value={value.companyName}
               onChange={(e) => updatePJ({ companyName: e.target.value })}
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Nr. Inregistrare (Reg. Com.)
-              </label>
+              <label className={labelCls}>Nr. Inregistrare (Reg. Com.)</label>
               <input
                 type="text"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                className={inputCls}
+                placeholder="J40/1234/2020"
                 value={value.registrationNumber}
                 onChange={(e) =>
                   updatePJ({ registrationNumber: e.target.value })
@@ -296,11 +355,9 @@ export default function PersonForm({
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Tip firma
-              </label>
+              <label className={labelCls}>Tip firma</label>
               <select
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                className={selectCls}
                 value={value.companyTypeId ?? ""}
                 onChange={(e) =>
                   updatePJ({
@@ -320,53 +377,79 @@ export default function PersonForm({
             </div>
           </div>
           {companyTypesError && (
-            <p className="text-xs text-yellow-700">{companyTypesError}</p>
-          )}
-        </>
-      )}
-
-      {/* Contact info (shared) */}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
-            Email
-          </label>
-          <input
-            type="email"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-            value={value.email}
-            onChange={(e) => {
-              if (value.legalType === "PF") updatePF({ email: e.target.value });
-              else updatePJ({ email: e.target.value });
-            }}
-          />
-          {emailInvalid && (
-            <p className="mt-1 text-xs text-red-600">Email invalid</p>
+            <p className="text-xs text-amber-600">{companyTypesError}</p>
           )}
         </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
-            Telefon
-          </label>
-          <input
-            type="tel"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-            value={value.phoneNumber}
-            onChange={(e) => {
-              if (value.legalType === "PF")
-                updatePF({ phoneNumber: e.target.value });
-              else updatePJ({ phoneNumber: e.target.value });
-            }}
-          />
-          {phoneInvalid && (
-            <p className="mt-1 text-xs text-red-600">Numar de telefon invalid</p>
-          )}
+      )}
+
+      {/* Contact info (shared) — separator line */}
+      <div className="mt-4 border-t border-gray-100 pt-4">
+        <div className="mb-3 flex items-center gap-2">
+          <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+          </svg>
+          <span className="text-xs font-medium text-gray-500">Date de contact</span>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={labelCls}>Email</label>
+            <input
+              type="email"
+              className={emailInvalid ? inputErrCls : inputCls}
+              placeholder="exemplu@email.com"
+              value={value.email}
+              onChange={(e) => {
+                if (value.legalType === "PF") updatePF({ email: e.target.value });
+                else updatePJ({ email: e.target.value });
+              }}
+            />
+            {emailInvalid && (
+              <p className="mt-1 text-xs text-red-500">Email invalid</p>
+            )}
+          </div>
+          <div>
+            <label className={labelCls}>Telefon</label>
+            <input
+              type="tel"
+              className={phoneInvalid ? inputErrCls : inputCls}
+              placeholder="07xx xxx xxx"
+              value={value.phoneNumber}
+              onChange={(e) => {
+                if (value.legalType === "PF")
+                  updatePF({ phoneNumber: e.target.value });
+                else updatePJ({ phoneNumber: e.target.value });
+              }}
+            />
+            {phoneInvalid && (
+              <p className="mt-1 text-xs text-red-500">Numar de telefon invalid</p>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Address */}
-      <div className="rounded-md border border-gray-200 p-4">
-        <h4 className="mb-3 text-sm font-semibold text-gray-700">Adresa</h4>
+      <div className="mt-4 border-t border-gray-100 pt-4">
+        <div className="mb-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+            </svg>
+            <span className="text-xs font-medium text-gray-500">Adresa</span>
+          </div>
+          {onCopyAddress && (
+            <button
+              type="button"
+              onClick={onCopyAddress}
+              className="flex items-center gap-1.5 rounded-lg border-2 border-dashed border-blue-200 bg-blue-50/40 px-3 py-1.5 text-xs font-medium text-blue-600 transition-all duration-200 hover:border-blue-400 hover:bg-blue-50"
+            >
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
+              </svg>
+              {copyAddressLabel}
+            </button>
+          )}
+        </div>
         <AddressForm
           value={value.address}
           onChange={(address) => {

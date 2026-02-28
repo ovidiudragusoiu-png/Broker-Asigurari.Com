@@ -1,0 +1,42 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  firstName    String?
+  lastName     String?
+  phone        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  policies     Policy[]
+}
+
+model Policy {
+  id           String   @id @default(cuid())
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id])
+  email        String
+  orderId      Int
+  orderHash    String
+  offerId      Int
+  policyId     Int
+  productType  String
+  policyNumber String?
+  vendorName   String?
+  premium      Float?
+  currency     String   @default("RON")
+  startDate    String?
+  endDate      String?
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([email])
+}

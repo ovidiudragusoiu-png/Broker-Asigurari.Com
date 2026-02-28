@@ -37,7 +37,7 @@ export function isAddressValid(address: AddressRequest): boolean {
   return !!address.countyId && !!address.cityId;
 }
 
-export function isPersonValid(person: PersonRequest): boolean {
+export function isPersonValid(person: PersonRequest, opts?: { skipIdDocument?: boolean }): boolean {
   const hasContact =
     !!person.email?.trim() &&
     !!person.phoneNumber?.trim() &&
@@ -48,13 +48,10 @@ export function isPersonValid(person: PersonRequest): boolean {
   if (!hasContact || !hasAddress) return false;
 
   if (person.legalType === "PF") {
-    return (
-      !!person.firstName?.trim() &&
-      !!person.lastName?.trim() &&
-      !!person.idSerial?.trim() &&
-      !!person.idNumber?.trim() &&
-      validateCNP(String(person.cif || ""))
-    );
+    const hasName = !!person.firstName?.trim() && !!person.lastName?.trim();
+    const hasCnp = validateCNP(String(person.cif || ""));
+    if (opts?.skipIdDocument) return hasName && hasCnp;
+    return hasName && !!person.idSerial?.trim() && !!person.idNumber?.trim() && hasCnp;
   }
 
   return (

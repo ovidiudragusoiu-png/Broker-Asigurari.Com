@@ -38,18 +38,18 @@ export default function WizardStepper({
                   disabled={!isCompleted}
                   className={`flex items-center gap-2 text-sm font-medium ${
                     isCompleted
-                      ? "cursor-pointer text-sky-600"
+                      ? "cursor-pointer text-[#2563EB]"
                       : isCurrent
-                        ? "text-sky-600"
+                        ? "text-[#2563EB]"
                         : "text-gray-400"
                   }`}
                 >
                   <span
                     className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                       isCompleted
-                        ? "bg-sky-600 text-white"
+                        ? "bg-[#2563EB] text-white"
                         : isCurrent
-                          ? "border-2 border-sky-600 text-sky-600"
+                          ? "border-2 border-[#2563EB] text-[#2563EB]"
                           : "border-2 border-gray-300 text-gray-400"
                     }`}
                   >
@@ -60,7 +60,7 @@ export default function WizardStepper({
                 {index < steps.length - 1 && (
                   <div
                     className={`mx-2 h-0.5 flex-1 ${
-                      isCompleted ? "bg-sky-600" : "bg-gray-300"
+                      isCompleted ? "bg-[#2563EB]" : "bg-gray-300"
                     }`}
                   />
                 )}

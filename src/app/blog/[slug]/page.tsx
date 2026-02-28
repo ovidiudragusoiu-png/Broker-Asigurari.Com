@@ -79,7 +79,7 @@ export default async function ArticlePage({ params }: PageProps) {
           />
 
           {/* CTA */}
-          <div className="mt-12 rounded-2xl bg-gradient-to-r from-sky-50 to-sky-100 p-8 text-center">
+          <div className="mt-12 rounded-2xl bg-gradient-to-r from-[#2563EB]/5 to-[#2563EB]/10 p-8 text-center">
             <h3 className="text-xl font-bold text-slate-900">Ai nevoie de o asigurare?</h3>
             <p className="mt-2 text-sm text-slate-600">
               Compară ofertele celor mai buni asigurători din România, 100% online.
@@ -87,13 +87,13 @@ export default async function ArticlePage({ params }: PageProps) {
             <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
               <Link
                 href="/rca"
-                className="rounded-lg bg-sky-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-700"
+                className="rounded-lg bg-[#2563EB] px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
               >
                 Calculează RCA
               </Link>
               <Link
                 href="/casco"
-                className="rounded-lg border border-sky-200 bg-white px-6 py-2.5 text-sm font-semibold text-sky-600 transition hover:bg-sky-50"
+                className="rounded-lg border border-[#2563EB]/20 bg-white px-6 py-2.5 text-sm font-semibold text-[#2563EB] transition hover:bg-[#2563EB]/5"
               >
                 Cerere CASCO
               </Link>
@@ -116,7 +116,7 @@ export default async function ArticlePage({ params }: PageProps) {
                 >
                   <div className={`h-12 w-12 flex-shrink-0 rounded-lg bg-gradient-to-br ${r.gradient}`} />
                   <div className="flex-1">
-                    <p className="text-sm font-bold text-slate-900 group-hover:text-sky-600 transition-colors">
+                    <p className="text-sm font-bold text-slate-900 group-hover:text-[#2563EB] transition-colors">
                       {r.title}
                     </p>
                     <p className="mt-1 flex items-center text-xs text-slate-400">

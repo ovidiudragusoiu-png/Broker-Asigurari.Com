@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Phone, Mail, Clock, MapPin } from "lucide-react";
-import { btn, inputClass } from "@/lib/ui/tokens";
+import { Phone, Mail, Clock } from "lucide-react";
+import { btn } from "@/lib/ui/tokens";
 
 interface ContactForm {
   name: string;
@@ -33,6 +33,12 @@ const SUBJECTS = [
   "Asistență daune",
   "Altele",
 ];
+
+const inputCls =
+  "w-full rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none";
+const selectCls =
+  "w-full appearance-none rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none";
+const labelCls = "mb-1 block text-xs font-medium text-gray-500";
 
 export default function ContactPage() {
   const [form, setForm] = useState<ContactForm>(EMPTY_FORM);
@@ -79,176 +85,179 @@ export default function ContactPage() {
 
   if (submitted) {
     return (
-      <section className="mx-auto max-w-3xl px-4 py-16 text-center">
-        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-sky-100">
-          <svg className="h-8 w-8 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-          </svg>
+      <div className="mx-auto max-w-4xl px-4 pt-24 pb-8 sm:px-6 lg:px-8">
+        <div className="text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-green-500 to-green-600 shadow-lg shadow-green-500/25">
+            <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold text-gray-900">Mesajul a fost trimis cu succes!</h2>
+          <p className="mt-1 text-sm text-gray-500">Vă vom răspunde în cel mai scurt timp posibil.</p>
+          <button
+            type="button"
+            onClick={() => { setForm(EMPTY_FORM); setSubmitted(false); }}
+            className={`mt-6 ${btn.primary}`}
+          >
+            Trimite un alt mesaj
+          </button>
         </div>
-        <h2 className="text-2xl font-bold text-gray-900">Mesajul a fost trimis cu succes!</h2>
-        <p className="mt-2 text-gray-500">
-          Vă vom răspunde în cel mai scurt timp posibil.
-        </p>
-        <button
-          type="button"
-          onClick={() => { setForm(EMPTY_FORM); setSubmitted(false); }}
-          className={`mt-8 ${btn.primary}`}
-        >
-          Trimite un alt mesaj
-        </button>
-      </section>
+      </div>
     );
   }
 
   return (
-    <>
-      {/* Hero */}
-      <section className="bg-gradient-to-br from-slate-900 via-slate-800 to-sky-900 py-16 sm:py-24">
-        <div className="mx-auto max-w-7xl px-4 text-center sm:px-6 lg:px-8">
-          <h1 className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl">
-            Contact
-          </h1>
-          <p className="mx-auto mt-4 max-w-2xl text-lg text-slate-300">
-            Suntem aici să te ajutăm. Trimite-ne un mesaj și îți vom răspunde cât de curând posibil.
-          </p>
+    <div className="mx-auto max-w-4xl px-4 pt-24 pb-8 sm:px-6 lg:px-8">
+      {/* Page header */}
+      <div className="text-center mb-6">
+        <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/25">
+          <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+          </svg>
         </div>
-      </section>
+        <h2 className="text-lg font-bold text-gray-900">Contact</h2>
+        <p className="mt-0.5 text-sm text-gray-500">Suntem aici sa te ajutam cu orice intrebare</p>
+      </div>
 
-      <section className="bg-gray-50 py-16 sm:py-24">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid gap-12 lg:grid-cols-3">
-            {/* Contact info sidebar */}
-            <div className="space-y-8">
-              <div>
-                <h2 className="text-xl font-bold text-slate-900 mb-4">Informații de contact</h2>
-                <p className="text-sm text-slate-600 leading-relaxed">
-                  Nu ezita să ne contactezi pentru orice întrebare legată de asigurări. Echipa noastră de specialiști îți stă la dispoziție.
-                </p>
+      <div className="grid gap-6 lg:grid-cols-[340px_1fr]">
+        {/* Left sidebar — contact info */}
+        <div className="space-y-3">
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm space-y-5">
+            <h3 className="text-sm font-semibold text-gray-900">Informatii de contact</h3>
+
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#2563EB]/10 text-[#2563EB]">
+                <Phone className="h-5 w-5" />
               </div>
-
-              <div className="space-y-4">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-600">
-                    <Phone className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">Telefon</p>
-                    <p className="text-sm text-slate-600">031 123 4567</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-600">
-                    <Mail className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">Email</p>
-                    <p className="text-sm text-slate-600">contact@brokerasigurari.ro</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-600">
-                    <MapPin className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">Adresă</p>
-                    <p className="text-sm text-slate-600">București, România</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-600">
-                    <Clock className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">Program</p>
-                    <p className="text-sm text-slate-600">Luni - Vineri: 09:00 - 18:00</p>
-                  </div>
-                </div>
+              <div>
+                <p className="text-xs font-medium text-gray-500">Telefon</p>
+                <p className="text-sm font-semibold text-gray-900">0720 38 55 51</p>
               </div>
             </div>
 
-            {/* Contact form */}
-            <div className="lg:col-span-2">
-              <div className="rounded-2xl bg-white p-8 shadow-sm">
-                <h2 className="text-xl font-bold text-slate-900 mb-6">Trimite-ne un mesaj</h2>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#2563EB]/10 text-[#2563EB]">
+                <Mail className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-gray-500">Email</p>
+                <p className="text-sm font-semibold text-gray-900 break-all">bucuresti@broker-asigurari.com</p>
+              </div>
+            </div>
 
-                <div className="space-y-5">
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <input
-                      className={inputClass}
-                      value={form.name}
-                      onChange={(e) => set("name", e.target.value)}
-                      placeholder="Nume complet"
-                    />
-                    <input
-                      type="email"
-                      className={inputClass}
-                      value={form.email}
-                      onChange={(e) => set("email", e.target.value)}
-                      placeholder="Email"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <input
-                      type="tel"
-                      className={inputClass}
-                      value={form.phone}
-                      onChange={(e) => set("phone", e.target.value)}
-                      placeholder="Telefon (07XXXXXXXX)"
-                    />
-                    <select
-                      className={inputClass}
-                      value={form.subject}
-                      onChange={(e) => set("subject", e.target.value)}
-                    >
-                      <option value="">— Selectează subiectul —</option>
-                      {SUBJECTS.map((s) => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <textarea
-                    className={inputClass}
-                    rows={5}
-                    value={form.message}
-                    onChange={(e) => set("message", e.target.value)}
-                    placeholder="Mesajul tău..."
-                  />
-
-                  <label className="flex items-start gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={form.consent}
-                      onChange={(e) => set("consent", e.target.checked)}
-                      className="mt-0.5 h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500"
-                    />
-                    <span className="text-sm text-gray-600">
-                      Sunt de acord cu prelucrarea datelor personale în vederea procesării cererii mele de contact.
-                    </span>
-                  </label>
-
-                  {error && (
-                    <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{error}</p>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={handleSubmit}
-                    disabled={!isValid || submitting}
-                    className={btn.primary}
-                  >
-                    {submitting ? "Se trimite..." : "Trimite mesajul"}
-                  </button>
-                </div>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#2563EB]/10 text-[#2563EB]">
+                <Clock className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-gray-500">Program</p>
+                <p className="text-sm font-semibold text-gray-900">L-V: 09:00 - 18:00</p>
               </div>
             </div>
           </div>
         </div>
-      </section>
-    </>
+
+        {/* Right — Contact form card */}
+        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm space-y-4">
+          <h3 className="text-sm font-semibold text-gray-900">Trimite-ne un mesaj</h3>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label className={labelCls}>Nume complet</label>
+              <input
+                className={inputCls}
+                value={form.name}
+                onChange={(e) => set("name", e.target.value)}
+                placeholder="Ion Popescu"
+              />
+            </div>
+            <div>
+              <label className={labelCls}>Email</label>
+              <input
+                type="email"
+                className={inputCls}
+                value={form.email}
+                onChange={(e) => set("email", e.target.value)}
+                placeholder="ion@exemplu.ro"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label className={labelCls}>Telefon</label>
+              <input
+                type="tel"
+                className={inputCls}
+                value={form.phone}
+                onChange={(e) => set("phone", e.target.value)}
+                placeholder="07XXXXXXXX"
+              />
+            </div>
+            <div>
+              <label className={labelCls}>Subiect</label>
+              <select
+                className={selectCls}
+                value={form.subject}
+                onChange={(e) => set("subject", e.target.value)}
+              >
+                <option value="">— Selecteaza subiectul —</option>
+                {SUBJECTS.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className={labelCls}>Mesaj</label>
+            <textarea
+              className={inputCls}
+              rows={5}
+              value={form.message}
+              onChange={(e) => set("message", e.target.value)}
+              placeholder="Scrie mesajul tau aici..."
+            />
+          </div>
+
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={form.consent}
+              onChange={(e) => set("consent", e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-gray-300 text-[#2563EB] focus:ring-[#2563EB]"
+            />
+            <span className="text-xs text-gray-500">
+              Sunt de acord cu prelucrarea datelor personale in vederea procesarii cererii mele de contact.
+            </span>
+          </label>
+
+          {error && (
+            <div className="flex items-center gap-2 rounded-xl bg-red-50 px-4 py-3">
+              <svg className="h-4 w-4 flex-shrink-0 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+              </svg>
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+          )}
+
+          <div className="flex justify-center pt-2">
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={!isValid || submitting}
+              className={`${btn.primary} inline-flex items-center gap-2`}
+            >
+              {submitting ? "Se trimite..." : "Trimite mesajul"}
+              {!submitting && (
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                </svg>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

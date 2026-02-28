@@ -1,0 +1,2256 @@
+Travel API
+
+API Authentication is made using basicAuth (username + password) together with api_key header
+Response is always json type on all endpoints
+Swagger https://insuretech-rca-online.staging.insuretech.ro/api/v1/swagger-ui/index.html
+Test/Staging Env Base URL https://insuretech.staging.insuretech.ro
+
+Version: 1.0.0
+Last Update: 27.08.2025 11:50 AM
+
+Description
+
+Travel API consists of the following steps:
+
+obtaining Travel products
+filling the minimal information about the trip and check product eligibility
+create an order with client/insured details
+retrieving offer request bodies. Once the trip information is sent and the desired products are chosen the API responds with all PRE-BUILT offer request bodies that can be directly used to obtain offers from the server. This helps the client to have each request in control and not be blocked by some requests that may take longer to respond to.
+send requests with the above PRE-BUILT request bodies and obtain prices for the chosen products
+download offer PDF
+choose the desired offer and issue the policy
+download policy PDF
+
+GET Travel Products
+
+
+
+Method: GET
+
+
+Endpoint: /api/v1/online/products/travel
+
+
+Response example:
+
+[
+    {
+      "id": 253,
+      "vendorDetails": {
+          "id": 6,
+          "name": "Omniasig",
+          "commercialName": "Omniasig",
+      },
+      "productName": "MEDICALA"
+     },
+    {
+      "id": 217,
+      "vendorDetails": {
+          "id": 8,
+          "name": "Groupama",
+          "commercialName": "Groupama",
+      },
+      "productName": "MEDICALA",
+    }
+]
+
+
+
+
+GET Utils information
+
+
+
+Method: GET
+
+Endpoint: /api/v1/online/offers/travel/comparator/utils
+
+Response example:
+
+
+{
+    "travelPurpose": [
+        {
+            "name": "Turism",
+            "code": "TOURISM"
+        },
+        {
+            "name": "Afaceri",
+            "code": "BUSINESS"
+        },
+        {
+            "name": "Sofer profesionist",
+            "code": "PROFESSIONAL_DRIVER"
+        },
+        {
+            "name": "Studii",
+            "code": "STUDIES"
+        },
+        {
+            "name": "Munca",
+            "code": "WORK"
+        }
+    ],
+    "travelZone": [
+        {
+            "name": "Europa",
+            "code": "EUROPE"
+        },
+        {
+            "name": "Toate tarile cu exceptia SUA, Canada, Romania",
+            "code": "ALL_WORLD_EXCL_USA_CANADA"
+        },
+        {
+            "name": "Intreaga lume",
+            "code": "ALL_WORLD"
+        }
+    ],
+    "travelMethod": [
+        {
+            "name": "Avion si masina inchiriata",
+            "code": "AvionSiMasinaInchiriata"
+        },
+        {
+            "name": "Autocar/Altceva",
+            "code": "Autocar"
+        },
+        {
+            "name": "Vapor",
+            "code": "Vapor"
+        },
+        {
+            "name": "Avion",
+            "code": "Avion"
+        },
+        {
+            "name": "Masina personala",
+            "code": "Masina"
+        }
+    ]
+}
+
+
+GET Utils information with vendorSpecificDetails only for specific product id
+
+
+
+Method: GET
+
+Endpoint: /api/v1/online/offers/travel/comparator/utils?productId=253
+
+Response example:
+
+
+{
+    "travelPurpose": [
+        {
+            "name": "Turism",
+            "code": "TOURISM"
+        },
+        {
+            "name": "Afaceri",
+            "code": "BUSINESS"
+        },
+        {
+            "name": "Sofer profesionist",
+            "code": "PROFESSIONAL_DRIVER"
+        },
+        {
+            "name": "Studii",
+            "code": "STUDIES"
+        },
+        {
+            "name": "Munca",
+            "code": "WORK"
+        }
+    ],
+    "travelZone": [
+        {
+            "name": "Europa",
+            "code": "EUROPE"
+        },
+        {
+            "name": "Toate tarile cu exceptia SUA, Canada, Romania",
+            "code": "ALL_WORLD_EXCL_USA_CANADA"
+        },
+        {
+            "name": "Intreaga lume",
+            "code": "ALL_WORLD"
+        }
+    ],
+    "travelMethod": [
+        {
+            "name": "Avion si masina inchiriata",
+            "code": "AvionSiMasinaInchiriata"
+        },
+        {
+            "name": "Autocar/Altceva",
+            "code": "Autocar"
+        },
+        {
+            "name": "Vapor",
+            "code": "Vapor"
+        },
+        {
+            "name": "Avion",
+            "code": "Avion"
+        },
+        {
+            "name": "Masina personala",
+            "code": "Masina"
+        }
+    ],
+    "vendorSpecificDetails": [
+        {
+            "productCode": "OMNIASIG_TRAVEL",
+            "details": [
+                {
+                    "description": "Travel Package: BASIC - 10000 EUR, STANDARD - 30000 EUR, PREMIUM - 50000 EUR or PREMIUMPLUS - 100000 EUR",
+                    "name": "Pachet Calatorie",
+                    "code": "TRAVEL_PACKAGE",
+                    "type": "STRING",
+                    "acceptedValues": [
+                        {
+                            "name": "Basic - 10000 EUR",
+                            "code": "BASIC"
+                        },
+                        {
+                            "name": "Standard - 30000 EUR",
+                            "code": "STANDARD"
+                        },
+                        {
+                            "name": "Premium - 50000 EUR",
+                            "code": "PREMIUM"
+                        },
+                        {
+                            "name": "PremiumPlus - 100000 EUR",
+                            "code": "PREMIUMPLUS"
+                        }
+                    ],
+                    "isInterval": false,
+                    "value": null,
+                    "valueTo": null,
+                    "currency": "EUR",
+                    "toolTip": null,
+                    "mandatory": true
+                }
+            ]
+        }
+}
+
+
+GET eligible products based on trip information
+
+
+
+Method: GET
+
+Endpoint: /api/v1/online/offers/travel/comparator/products/eligible
+
+Request example:
+
+
+{
+    "insuredsNumber": 1,
+    "productIds": [361,356,304,51,1287,217,92,253,353,68,1288],
+    "policyStartDate": "2024-08-26T00:00:00",
+    "policyEndDate": "2024-09-10T00:00:00",
+    "offerDetails": {
+        "travelZone": "EUROPE",
+        "travelPurpose": "TOURISM",
+        "travelMethod": "Avion",
+        "destinationCountryId": 16,
+        "residencyCountryId": 185,
+        "summerSports": false,
+        "winterSports": false,
+        "withStorno": false,
+        "roadAssistance": false,
+        "isClientInRomania": true
+    }
+}
+
+
+
+
+Response example:
+
+
+[
+    {
+        "productId": 68,
+        "isEligible": false,
+        "reason": "Produsul Uniqa nu poate avea data de start astazi"
+    },
+    {
+        "productId": 51,
+        "isEligible": true,
+        "reason": null
+    },
+    {
+        "productId": 217,
+        "isEligible": false,
+        "reason": "Produsul Groupama nu poate avea data de start astazi"
+    }
+]
+
+
+Create order with insureds and contractor information
+
+
+
+Method: POST
+
+Endpoint: /api/v1/online/offers/order
+
+Request example:
+
+
+{
+    "vendorProductType": "TRAVEL",
+    "contractorDetails": {
+        "legalType": "PF",
+        "email": "test@aa.com",
+        "phoneNumber": "0777777777",
+        "policyPartyType": "CONTRACTOR",
+        "cnp": 1870802116331,
+        "cif": "1870802116331",
+        "firstName": "Vlad",
+        "lastName": "Mihalcea",
+        "idType": "CI",
+        "idSerial": "VX",
+        "idNumber": "123456",
+        "dateOfBirth": "1987-08-02T00:00:00",
+        "citizenshipId": 185,
+        "nationalityId": 185,
+        "isResident": true,
+        "address": {
+            "addressType": "HOME",
+            "countryId": 185,
+            "cityId": 1,
+            "postalCode": "515100",
+            "streetTypeId": "41",
+            "streetName": "Mures",
+            "streetNumber": "7",
+            "building": "4B",
+            "entrance": "5",
+            "floorId": 8,
+            "apartment": "16"
+        }
+    },
+    "mainInsuredDetails": {
+        "legalType": "PF",
+        "email": "test@aa.com",
+        "phoneNumber": "0777777777",
+        "policyPartyType": "INSURED",
+        "cnp": 1870802116331,
+        "cif": "1870802116331",
+        "firstName": "Vlad",
+        "lastName": "Mihalcea",
+        "idType": "CI",
+        "idSerial": "VX",
+        "idNumber": "123456",
+        "dateOfBirth": "1987-08-02T00:00:00",
+        "citizenshipId": 185,
+        "nationalityId": 185,
+        "isResident": true,
+        "address": {
+            "addressType": "HOME",
+            "countryId": 185,
+            "cityId": 1,
+            "postalCode": "515100",
+            "streetTypeId": "41",
+            "streetName": "Mures",
+            "streetNumber": "7",
+            "building": "4B",
+            "entrance": "5",
+            "floorId": 8,
+            "apartment": "16"
+        }
+    },
+    "otherInsuredsDetails":[],
+    "isContractorSameAsMainInsured": true
+}
+
+
+
+
+Response example:
+
+
+{
+    "id": 535690,
+    "productType": "TRAVEL"
+}
+
+
+Retrieve Request Bodies
+
+
+
+Method: POST
+
+Endpoint: /api/v1/online/offers/travel/comparator/bodies
+
+Details: During this call "isExtremeSportsUniqa" gets calculated and the order party is updated.
+
+Request example:
+
+
+{
+    "orderId": 535690,
+    "productIds": [304, 51],
+    "policyStartDate": "2024-08-26T00:00:00",
+    "policyEndDate": "2024-09-10T00:00:00",
+    "offerDetails": {
+        "travelZone": "EUROPE",
+        "travelPurpose": "TOURISM",
+        "travelMethod": "Avion",
+        "destinationCountryId": 16,
+        "residencyCountryId": 185,
+        "summerSports": false,
+        "winterSports": false,
+        "withStorno": false,
+        "roadAssistance": false,
+        "isClientInRomania": true
+    }
+}
+
+
+
+
+Response example:
+
+
+[
+    {
+        "orderId": 535690,
+        "productId": 304,
+        "agencyId": null,
+        "policyStartDate": "2024-08-26T00:00:00",
+        "policyEndDate": "2024-09-10T00:00:00",
+        "offerDetails": {
+            "travelZone": "EUROPE",
+            "travelPurpose": "TOURISM",
+            "travelMethod": "Avion",
+            "destinationCountryId": 16,
+            "residencyCountryId": 185,
+            "summerSports": false,
+            "winterSports": false,
+            "withStorno": false,
+            "stornoInsuredValueEUR": null,
+            "stornoStartDate": null,
+            "bookingDate": null,
+            "roadAssistance": false,
+            "vehiclePlateNo": null,
+            "vehicleVIN": null,
+            "vehicleFirstRegistration": null,
+            "isClientInRomania": true,
+            "insuredHomeAddress": null
+        },
+        "productCode": "ALLIANZ_VOIAJ_TRAVEL",
+        "specificDetails": [
+            {
+                "code": "TRAVEL_INSURED_AMOUNT",
+                "value": "30000"
+            },
+            {
+                "code": "LUGGAGE_INSURED_AMOUNT",
+                "value": "0"
+            },
+            {
+                "code": "PERSONAL_ACCIDENTS_INSURED_AMOUNT",
+                "value": "0"
+            },
+            {
+                "code": "THIRDPARTY_LIABILITY_INSURED_SUM",
+                "value": "0"
+            }
+        ]
+    },
+    {
+        "orderId": 535690,
+        "productId": 304,
+        "agencyId": null,
+        "policyStartDate": "2024-08-26T00:00:00",
+        "policyEndDate": "2024-09-10T00:00:00",
+        "offerDetails": {
+            "travelZone": "EUROPE",
+            "travelPurpose": "TOURISM",
+            "travelMethod": "Avion",
+            "destinationCountryId": 16,
+            "residencyCountryId": 185,
+            "summerSports": false,
+            "winterSports": false,
+            "withStorno": false,
+            "stornoInsuredValueEUR": null,
+            "stornoStartDate": null,
+            "bookingDate": null,
+            "roadAssistance": false,
+            "vehiclePlateNo": null,
+            "vehicleVIN": null,
+            "vehicleFirstRegistration": null,
+            "isClientInRomania": true,
+            "insuredHomeAddress": null
+        },
+        "productCode": "ALLIANZ_VOIAJ_TRAVEL",
+        "specificDetails": [
+            {
+                "code": "TRAVEL_INSURED_AMOUNT",
+                "value": "50000"
+            },
+            {
+                "code": "LUGGAGE_INSURED_AMOUNT",
+                "value": "0"
+            },
+            {
+                "code": "PERSONAL_ACCIDENTS_INSURED_AMOUNT",
+                "value": "0"
+            },
+            {
+                "code": "THIRDPARTY_LIABILITY_INSURED_SUM",
+                "value": "0"
+            }
+        ]
+    },
+    {
+        "orderId": 535690,
+        "productId": 51,
+        "agencyId": null,
+        "policyStartDate": "2024-08-26T00:00:00",
+        "policyEndDate": "2024-09-10T00:00:00",
+        "offerDetails": {
+            "travelZone": "EUROPE",
+            "travelPurpose": "TOURISM",
+            "travelMethod": "Avion",
+            "destinationCountryId": 16,
+            "residencyCountryId": 185,
+            "summerSports": false,
+            "winterSports": false,
+            "withStorno": false,
+            "stornoInsuredValueEUR": null,
+            "stornoStartDate": null,
+            "bookingDate": null,
+            "roadAssistance": false,
+            "vehiclePlateNo": null,
+            "vehicleVIN": null,
+            "vehicleFirstRegistration": null,
+            "isClientInRomania": true,
+            "insuredHomeAddress": null
+        },
+        "productCode": "ASIROM_TRAVEL",
+        "specificDetails": [
+            {
+                "code": "TRAVEL_PACKAGE",
+                "value": "SIMPLU"
+            },
+            {
+                "code": "TRAVEL_INSURED_AMOUNT",
+                "value": "SUMA_ASIG_30000"
+            },
+            {
+                "code": "TRAVEL_TYPE",
+                "value": "CALATORIE_INDIVIDUALA"
+            }
+        ]
+    },
+    {
+        "orderId": 535690,
+        "productId": 51,
+        "agencyId": null,
+        "policyStartDate": "2024-08-26T00:00:00",
+        "policyEndDate": "2024-09-10T00:00:00",
+        "offerDetails": {
+            "travelZone": "EUROPE",
+            "travelPurpose": "TOURISM",
+            "travelMethod": "Avion",
+            "destinationCountryId": 16,
+            "residencyCountryId": 185,
+            "summerSports": false,
+            "winterSports": false,
+            "withStorno": false,
+            "stornoInsuredValueEUR": null,
+            "stornoStartDate": null,
+            "bookingDate": null,
+            "roadAssistance": false,
+            "vehiclePlateNo": null,
+            "vehicleVIN": null,
+            "vehicleFirstRegistration": null,
+            "isClientInRomania": true,
+            "insuredHomeAddress": null
+        },
+        "productCode": "ASIROM_TRAVEL",
+        "specificDetails": [
+            {
+                "code": "TRAVEL_PACKAGE",
+                "value": "SIMPLU"
+            },
+            {
+                "code": "TRAVEL_INSURED_AMOUNT",
+                "value": "SUMA_ASIG_50000"
+            },
+            {
+                "code": "TRAVEL_TYPE",
+                "value": "CALATORIE_INDIVIDUALA"
+            }
+        ]
+    },
+    {
+        "orderId": 535690,
+        "productId": 51,
+        "agencyId": null,
+        "policyStartDate": "2024-08-26T00:00:00",
+        "policyEndDate": "2024-09-10T00:00:00",
+        "offerDetails": {
+            "travelZone": "EUROPE",
+            "travelPurpose": "TOURISM",
+            "travelMethod": "Avion",
+            "destinationCountryId": 16,
+            "residencyCountryId": 185,
+            "summerSports": false,
+            "winterSports": false,
+            "withStorno": false,
+            "stornoInsuredValueEUR": null,
+            "stornoStartDate": null,
+            "bookingDate": null,
+            "roadAssistance": false,
+            "vehiclePlateNo": null,
+            "vehicleVIN": null,
+            "vehicleFirstRegistration": null,
+            "isClientInRomania": true,
+            "insuredHomeAddress": null
+        },
+        "productCode": "ASIROM_TRAVEL",
+        "specificDetails": [
+            {
+                "code": "TRAVEL_PACKAGE",
+                "value": "SIGUR"
+            },
+            {
+                "code": "TRAVEL_INSURED_AMOUNT",
+                "value": "SUMA_ASIG_50000"
+            },
+            {
+                "code": "TRAVEL_TYPE",
+                "value": "CALATORIE_INDIVIDUALA"
+            }
+        ]
+    }
+]
+
+
+Request Offer
+
+
+
+Method: POST
+
+Endpoint: /api/v1/online/offers/travel/comparator
+
+Request example:
+
+
+{
+        "orderId": 535690,
+        "productId": 51,
+        "agencyId": null,
+        "policyStartDate": "2024-08-26T00:00:00",
+        "policyEndDate": "2024-09-10T00:00:00",
+        "offerDetails": {
+            "travelZone": "EUROPE",
+            "travelPurpose": "TOURISM",
+            "travelMethod": "Avion",
+            "destinationCountryId": 16,
+            "residencyCountryId": 185,
+            "summerSports": false,
+            "winterSports": false,
+            "withStorno": false,
+            "stornoInsuredValueEUR": null,
+            "stornoStartDate": null,
+            "bookingDate": null,
+            "roadAssistance": false,
+            "vehiclePlateNo": null,
+            "vehicleVIN": null,
+            "vehicleFirstRegistration": null,
+            "isClientInRomania": true,
+            "insuredHomeAddress": null
+        },
+        "productCode": "ASIROM_TRAVEL",
+        "specificDetails": [
+            {
+                "code": "TRAVEL_PACKAGE",
+                "value": "SIGUR"
+            },
+            {
+                "code": "TRAVEL_INSURED_AMOUNT",
+                "value": "SUMA_ASIG_50000"
+            },
+            {
+                "code": "TRAVEL_TYPE",
+                "value": "CALATORIE_INDIVIDUALA"
+            }
+        ]
+    }
+
+
+
+
+Response example:
+
+
+[
+    {
+        "id": 6535564,
+        "series": null,
+        "number": "AA24130TOG",
+        "orderId": 535690,
+        "policyStartDate": "2024-08-26T00:00:00",
+        "policyEndDate": "2024-09-10T00:00:00",
+        "policyPremium": 9.47,
+        "currency": "EUR",
+        "installments": [
+            {
+                "number": 1,
+                "year": 1,
+                "amount": 9.47,
+                "amountInRON": null,
+                "currency": "EUR",
+                "dueDate": "2024-09-15T00:00:00"
+            }
+        ],
+        "error": false,
+        "message": null,
+        "periodDays": null,
+        "periodMonths": null,
+        "periodYears": null,
+        "policyInstallmentsNo": 1,
+        "installmentFrequency": null,
+        "status": null,
+        "productDetails": {
+            "id": 51,
+            "vendorDetails": {
+                "id": 1,
+                "name": "Asirom",
+                "commercialName": "Asirom",
+                "linkLogo": "https://s3.eu-central-1.amazonaws.com/insuretech.ro/logo/Asirom.svg"
+            },
+            "productName": "EASY TRAVEL",
+            "productCode": "ASIROM_TRAVEL",
+            "productSubPackage": "Sigur"
+        },
+        "insuredAmount": "50000",
+        "insuredAmountCurrency": "EUR",
+        "stornoAmount": null,
+        "stornoCurrency": null
+    }
+]
+
+
+Create Policy
+
+
+
+Method: POST
+
+Endpoint: /api/v1/online/policies
+
+Request example:
+
+
+{
+    "offerId": 6535564,
+    "paymentMethodType": "CardOnline"
+}
+
+
+
+
+Response example:
+
+
+{
+    "orderId": 535690,
+    "offerId": 6535564,
+    "policyId": 666613,
+    "receiptId": null,
+    "receiptNumber": null,
+    "series": "AST",
+    "number": "000006722",
+    "policyIssueDate": "2024-08-26T13:26:07",
+    "policyStartDate": "2024-08-26T00:00:00",
+    "policyEndDate": "2024-09-10T00:00:00",
+    "error": false,
+    "message": null,
+    "productId": 51,
+    "vendorName": "Asirom",
+    "currency": "EUR",
+    "premium": 9.47
+}
+
+
+Download Offer PDF Document
+
+
+
+Method: GET
+
+Endpoint: /api/v1/online/offers/{offerId}/document
+
+Request example:
+
+
+POST /api/v1/online/offers/6535564/document
+
+
+
+
+Response example:
+
+
+{
+    "url": "https://amazonaws.com/documentType......",
+    "expirationDate": "2024-09-02T13:27:07.599984382"
+}
+
+
+Download Policy PDF Document
+
+
+
+Method: GET
+
+Endpoint: /api/v1/online/policies/{policyId}/document
+
+Request example:
+
+
+POST /api/v1/online/policies/666613/document
+
+
+
+
+Response example:
+
+
+{
+    "url": "https://amazonaws.com/documentType......",
+    "expirationDate": "2024-09-02T13:27:07.599984382"
+}
+
+
+GET Offer Details
+
+
+
+Method: GET
+
+Endpoint: /api/v1/online/offers/travel/{offerId}/details
+
+Request example:
+
+
+GET /api/v1/online/offers/travel/6535564/details
+
+
+
+
+Response example:
+
+
+{
+    "id": 6535564,
+    "series": null,
+    "number": "9900016149",
+    "orderId": 535690,
+    "policyStartDate": "2024-08-28T00:00:00",
+    "policyEndDate": "2024-09-15T20:59:59",
+    "policyPremium": 316.36,
+    "currency": "RON",
+    "installments": [
+        {
+            "number": 1,
+            "year": 1,
+            "amount": 316.36,
+            "amountInRON": null,
+            "currency": "RON",
+            "dueDate": "2024-08-28T00:00:00"
+        }
+    ],
+    "error": false,
+    "message": null,
+    "policyInstallmentsNo": 1,
+    "status": null,
+    "productDetails": {
+        "id": 1288,
+        "vendorDetails": {
+            "id": 28,
+            "name": "Colonnade_Insurance",
+            "commercialName": "COLONNADE INSURANCE SA",
+        },
+        "productName": "Colonnade Travel",
+        "productCode": "COLONNADE_TRAVEL",
+        "productSubPackage": "Platinum"
+    },
+    "insuredAmount": "200000",
+    "insuredAmountCurrency": "EUR",
+    "stornoAmount": null,
+    "stornoCurrency": null
+}
+
+
+GET Offers on Order
+
+
+
+Method: GET
+
+Endpoint: /api/v1/online/offers/travel/order/{orderId}
+
+Request example:
+
+
+GET /api/v1/online/offers/travel/order/535690
+
+
+
+
+Response example:
+
+
+[
+{
+    "id": 6535564,
+    "series": null,
+    "number": "9900016149",
+    "orderId": 535690,
+    "policyStartDate": "2024-08-28T00:00:00",
+    "policyEndDate": "2024-09-15T20:59:59",
+    "policyPremium": 316.36,
+    "currency": "RON",
+    "installments": [
+        {
+            "number": 1,
+            "year": 1,
+            "amount": 316.36,
+            "amountInRON": null,
+            "currency": "RON",
+            "dueDate": "2024-08-28T00:00:00"
+        }
+    ],
+    "error": false,
+    "message": null,
+    "policyInstallmentsNo": 1,
+    "status": null,
+    "productDetails": {
+        "id": 1288,
+        "vendorDetails": {
+            "id": 28,
+            "name": "Colonnade_Insurance",
+            "commercialName": "COLONNADE INSURANCE SA",
+        },
+        "productName": "Colonnade Travel",
+        "productCode": "COLONNADE_TRAVEL",
+        "productSubPackage": "Platinum"
+    },
+    "insuredAmount": "200000",
+    "insuredAmountCurrency": "EUR",
+    "stornoAmount": null,
+    "stornoCurrency": null
+}
+]
+
+
+Retrieve Payment Link for Card Online
+
+
+
+Method: POST
+
+Endpoint: /api/v1/online/offers/payment
+
+Request example:
+
+
+{
+    "offerId": 6535564,
+    "redirectURL": "https://www.google.ro?myquery=3"
+}
+
+
+
+
+Response example:
+
+
+200 OK - https://insuretech.staging.insuretech.ro/api/v1/online/broker/payments/pub/pay?token=H4sIAAAAAAAA%2FzMyMLI0NAAAqGZNyAYAAAA%3D
+
+
+Check Payment Status for Card Online
+
+
+
+Method: POST
+
+Endpoint: /api/v1/online/offers/payment/check
+
+Request example:
+
+
+{
+    "offerIds": [6535564]
+}
+
+
+
+
+Response example:
+
+
+[
+    {
+        "offerId": 6535564,
+        "success": true,
+        "message": "Plata confirmata!"
+    }
+]
+
+
+Download Receipt PDF (for payment method Cash ONLY)
+
+
+
+Method: GET
+
+Endpoint: /api/v1/online/payments/receipt/69122/link
+
+Request example:
+
+
+POST /api/v1/online/payments/receipt/69122/link
+
+
+
+
+Response example:
+
+
+200 OK - https://insuretech.staging.insuretech.ro/api/v1/documents/pub/payments/receipt/online?token=S8nI7aXuMEHyEAoOTEre1q6hV0csbeqntw32GIQbU3rfzJb6QA==
+
+
+GET countries
+
+
+
+Method: GET
+
+Endpoint: /api/v1/online/address/utils/countries
+
+Response example:
+
+
+[
+    {
+        "id": 1,
+        "code": "AF",
+        "name": "Afganistan"
+    },
+    {
+        "id": 2,
+        "code": "ZA",
+        "name": "Africa de Sud"
+    }
+]
+
+
+GET counties
+
+
+
+Method: GET
+
+Endpoint: /api/v1/online/address/utils/counties
+
+Response example:
+
+
+[
+    {
+        "id": 29,
+        "code": "AB",
+        "name": "Alba"
+    },
+    {
+        "id": 15,
+        "code": "AR",
+        "name": "Arad"
+    }
+]
+
+
+GET cities
+
+
+
+Method: GET
+
+Endpoint: /api/v1/online/address/utils/cities?countyId={countyId}
+
+Request example:
+
+
+GET /api/v1/online/address/utils/cities?countyId=15
+
+
+
+
+Response example:
+
+
+[
+    {
+        "id": 1315,
+        "name": "Aciuta",
+        "uniquePostalCode": "317261"
+    },
+    {
+        "id": 1316,
+        "name": "Adea",
+        "uniquePostalCode": "317301"
+    }
+]
+
+
+GET Street Types
+
+
+
+Method: GET
+
+Endpoint: /api/v1/online/address/utils/streetTypes
+
+Response example:
+
+
+[
+    {
+        "id": 41,
+        "type": "Strada"
+    },
+    {
+        "id": 11,
+        "type": "Bulevard"
+    },
+    {
+        "id": 12,
+        "type": "Cale"
+    }
+]
+
+
+GET Floors
+
+
+
+Method: GET
+
+Endpoint: /api/v1/online/address/utils/floors
+
+Response example:
+
+
+[
+    {
+        "id": 5,
+        "floor": "Mezanin"
+    },
+    {
+        "id": 6,
+        "floor": "1"
+    },
+    {
+        "id": 7,
+        "floor": "2"
+    },
+    {
+        "id": 8,
+        "floor": "3"
+    }
+]
+
+
+Find Postal Codes
+
+
+
+Method: GET
+
+Endpoint: /api/v1/online/address/utils/postalCodes/find?cityId=8&streetName=Cris
+
+Response example:
+
+
+[
+    {
+        "id": 181,
+        "postalCode": "510146",
+        "streetTypeId": 41,
+        "streetTypeName": "Strada",
+        "streetName": "Crisanei",
+        "streetNumberRange": null
+    },
+    {
+        "id": 180,
+        "postalCode": "510208",
+        "streetTypeId": 41,
+        "streetTypeName": "Strada",
+        "streetName": "Crisan",
+        "streetNumberRange": null
+    }
+]
+
+
+GET Caen Codes
+
+
+
+Method: GET
+
+Endpoint: /api/v1/online/caencodes
+
+Response example:
+
+
+[
+    "0111",
+    "0112",
+    "0113",
+    "0114"
+]
+
+
+GET Company Types
+
+
+
+Method: GET
+
+Endpoint: /api/v1/online/companytypes
+
+Response example:
+
+
+[
+    {
+        "id": 16,
+        "type": "SRL"
+    },
+    {
+        "id": 10,
+        "type": "PFA"
+    },
+    {
+        "id": 12,
+        "type": "SA"
+    }
+]
+
+
+GET ID Types
+
+
+
+Method: GET
+
+Endpoint: /api/v1/online/idtypes
+
+Response example:
+
+
+[
+    "CI",
+    "PASSPORT"
+]
+
+
+Request Objects Description
+
+TravelProductEligibleRequest
+
+
+
+Field
+Mandatory
+Data Type
+Endpoint
+Description
+
+
+
+
+productIds
+Yes
+Array[Integer]
+/api/v1/online/products/travel
+List of travel product ids to be checked for eligibility
+
+
+policyStartDate
+Yes
+LocalDateTime (yyyy-MM-dd'T'HH:mm:ss)
+-
+Policy Start Date (Trip Start Date)
+
+
+policyEndDate
+Yes
+LocalDateTime (yyyy-MM-dd'T'HH:mm:ss)
+-
+Policy End Date (Trip End Date)
+
+
+insuredsNumber
+Yes
+Integer
+-
+Number of insured persons
+
+
+offerDetails
+Yes
+TravelComparatorOfferDetailsRequest
+-
+Trip Offer Details
+
+
+
+TravelComparatorOfferBodiesRequest
+
+
+
+Field
+Mandatory
+Data Type
+Endpoint
+Description
+
+
+
+
+orderId
+Yes
+Long
+/api/v1/online/offers/order
+Order Id
+
+
+productIds
+Yes
+Array[Integer]
+/api/v1/online/products/travel
+List of travel product ids to be checked for eligibility
+
+
+policyStartDate
+Yes
+LocalDateTime (yyyy-MM-dd'T'HH:mm:ss)
+-
+Policy Start Date (Trip Start Date)
+
+
+policyEndDate
+Yes
+LocalDateTime (yyyy-MM-dd'T'HH:mm:ss)
+-
+Policy End Date (Trip End Date)
+
+
+offerDetails
+Yes
+TravelComparatorOfferDetailsRequest
+-
+Trip Offer Details
+
+
+
+TravelComparatorOfferRequest
+
+
+
+Field
+Mandatory
+Data Type
+Endpoint
+Description
+
+
+
+
+orderId
+Yes
+Long
+/api/v1/online/offers/order
+Order Id
+
+
+productId
+Yes
+Integer
+-
+Product id for the offer
+
+
+policyStartDate
+Yes
+LocalDateTime (yyyy-MM-dd'T'HH:mm:ss)
+-
+Policy Start Date (Trip Start Date)
+
+
+policyEndDate
+Yes
+LocalDateTime (yyyy-MM-dd'T'HH:mm:ss)
+-
+Policy End Date (Trip End Date)
+
+
+offerDetails
+Yes
+TravelComparatorOfferDetailsRequest
+-
+Trip Offer Details
+
+
+productCode
+Yes
+TravelProductCodeEnum
+-
+Product Code. It comes pre-filled when retrieve request bodies is called.
+
+
+specificDetails
+No
+Array[TravelVendorSpecificDetailRequest]
+-
+Pre-filled specific details for the product like: coverages, insured amounts. It can be modified. Specific clauses can be added if there are any available for this product (check: /api/v1/online/offers/travel /comparator/utils)
+
+
+
+TravelComparatorOfferDetailsRequest
+
+
+
+Field
+Mandatory
+Data Type
+Endpoint
+Description
+
+
+
+
+travelZone
+Yes
+String
+/api/v1/online/offers/travel/comparator/utils
+Travel Zone: EUROPE, ALL_WORLD_EXCL_USA _CANADA, ALL_WORLD
+
+
+travelPurpose
+Yes
+String
+/api/v1/online/offers/travel/comparator/utils
+Travel Purpose: TOURISM, BUSINESS, WORK, STUDIES, PROFESSIONAL_DRIVER
+
+
+travelMethod
+Yes
+String
+/api/v1/online/offers/travel/comparator/utils
+Travel Method: Avion, AvionSiMasinaInchiriata, Masina, Vapor, Autocar
+
+
+destinationCountryId
+Yes
+Integer
+/api/v1/online/address/utils/countries
+Destination country Id
+
+
+residencyCountryId
+No
+Integer
+/api/v1/online/address/utils/countries
+Residency country Id, default id 185 (Romania)
+
+
+summerSports
+No
+Boolean
+-
+Summer leisure sports. Default false
+
+
+winterSports
+No
+Boolean
+-
+Winter leisure sports. Default false
+
+
+withStorno
+No
+Boolean
+-
+Storno clause. Default false
+
+
+stornoInsuredValueEUR
+No
+Decimal
+-
+Storno clause insured amount. Always EUR. Only when withStorno is TRUE
+
+
+stornoStartDate
+No
+LocalDateTime (yyyy-MM-dd'T'HH:mm:ss)
+-
+Travel Start Date. Only when withStorno is TRUE
+
+
+bookingDate
+No
+LocalDateTime (yyyy-MM-dd'T'HH:mm:ss)
+-
+Trip Booking Date. Only when withStorno is TRUE
+
+
+roadAssistance
+No
+Boolean
+-
+Road Assistance clause. Default false
+
+
+vehiclePlateNo
+No
+String
+-
+Vehicle Plate No for Road Assistance Clause
+
+
+vehicleVIN
+No
+String
+-
+Vehicle VIN for Road Assistance Clause
+
+
+vehicleFirstRegistration
+No
+LocalDateTime (yyyy-MM-dd'T'HH:mm:ss)
+-
+Vehicle First Registration for Road Assistance Clause
+
+
+isClientInRomania
+No
+Boolean
+-
+Whether the client is in Romania when issuing the travel policy. Default true
+
+
+
+PersonDetailsRequest (legalType=PF - IndividualPersonDetailsRequest)
+
+
+Field
+Mandatory
+Data type
+Endpoint
+Description
+
+
+legalType
+Yes
+LegalType (PF or PJ)
+
+-
+
+Physical person or juridical (Physical in this case)
+
+
+email
+Yes
+String
+
+-
+
+Email
+
+
+phoneNumber
+Yes
+String
+
+-
+
+Phone number
+
+
+quota
+No
+Decimal
+
+-
+
+Field ignored for Travel products
+
+
+policyPartyType
+Yes
+PolicyPartyType (CONTRACTOR or INSURED)
+
+-
+
+Whether the person is Contractor or Insured
+
+
+address
+Yes
+AddressRequestV3
+
+-
+
+Adress
+
+
+clientRepresentative
+No
+
+ClientRepresentativeRequest
+(firstName and LastName mandatory) Strings
+
+
+-
+
+The representative must be completed for PJ person or for PF child/minor person
+
+
+cif
+Yes
+Long
+
+-
+
+Romanian CNP of the physical person or identification number (id number) of the person when nationality is not Romanian (foreign person)
+
+
+firstName
+Yes
+String
+
+-
+
+First Name
+
+
+lastName
+Yes
+String
+
+-
+
+Last Name
+
+
+idType
+No
+String
+/api/v1/online/idtypes
+Document identity type
+
+
+idSerial
+No
+String
+
+-
+
+Document identity series
+
+
+idNumber
+No
+String
+
+-
+
+Document identity number
+
+
+idExpirationDate
+No
+Date (yyyy-MM-dd)
+
+-
+
+Expiration date of the identity document
+
+
+driverLicenceDate
+No
+Date (yyyy-MM-dd)
+
+-
+
+Date when driver license was obtained
+
+
+dateOfBirth
+Yes
+Date (yyyy-MM-dd)
+
+-
+
+Date of birth
+
+
+sex
+No
+Sex (M sau F)
+
+-
+
+Sex
+
+
+citizenshipId
+No
+Long
+/api/v1/online/address/utils/countries
+Citizhenship. Default "Romania"
+
+
+PersonDetailsRequest (legalType=PJ - CompanyPersonDetailsRequest)
+
+
+Field
+Mandatory
+Data type
+Endpoint
+Description
+
+
+legalType
+Yes
+LegalType (PF or PJ)
+
+-
+
+Physical person or juridical (Juridical in this case)
+
+
+email
+Yes
+String
+
+-
+
+Email
+
+
+phoneNumber
+Yes
+String
+
+-
+
+Phone number
+
+
+quota
+No
+Decimal
+
+-
+
+Field ignored for Travel products
+
+
+policyPartyType
+Yes
+PolicyPartyType (CONTRACTOR or INSURED)
+
+-
+
+Whether the person is Contractor or Insured
+
+
+address
+Yes
+AddressRequestV3
+
+-
+
+Address
+
+
+clientRepresentative
+No
+
+ClientRepresentativeRequest
+(firstName and LastName mandatory) Strings
+
+
+-
+
+The representative must be completed for PJ person or for PF child/minor person
+
+
+cif
+Yes
+String
+
+-
+
+Company CUI (only digits)
+
+
+companyName
+Yes
+String
+
+-
+
+The company name
+
+
+registrationNumber
+No
+String
+
+-
+
+Company registration number
+
+
+caenCode
+No
+String
+/api/v1/online/caencodes
+Company CAEN code
+
+
+companyTypeId
+No
+Long
+/api/v1/online/companytypes
+Company type
+
+
+AddressRequestV3
+
+
+Field
+Mandatory
+Data type
+Endpoint
+Description
+
+
+addressType
+Yes
+
+AddressType
+(HOME or MAILING)
+
+
+-
+
+Address type - "HOME"
+
+
+countryId
+Yes
+Long
+/api/v1/online/address/utils/countries
+Country
+
+
+foreignCountyName
+No
+String
+
+-
+
+Name of the county - Only when country is NOT Romania
+
+
+foreignCityName
+No
+String
+
+-
+
+Name of the city - Only when country is NOT Romania
+
+
+cityId
+Yes
+Long
+/api/v1/online/address/utils/cities?countyId=1
+City - Only when country is Romania
+
+
+postalCode
+Yes
+String
+/api/v1/online/address/utils/postalCodes/find?cityId=8&streetName=Sfa
+The postal code
+
+
+streetTypeId
+Yes
+Long
+/api/v1/online/address/utils/streetTypes
+The street type
+
+
+streetName
+Yes
+String
+
+-
+
+The street name
+
+
+streetNumber
+Yes
+String
+
+-
+
+The street number
+
+
+building
+No
+String
+
+-
+
+Building
+
+
+entrance
+No
+String
+
+-
+
+Entrance
+
+
+floorId
+No
+Long
+/api/v1/online/address/utils/floors
+Floor id
+
+
+apartment
+No
+String
+
+-
+
+Apartament
+
+
+How it works
+
+Example 1
+To understand the concept of PRE-BUILT request bodies let's take Asirom EASYTRAVEL as an example:
+Asirom EASYTRAVEL has 2 possible plans: Simplu and Sigur
+Simplu plan has only 2 available insured amounts: 30.000 EUR and 50.000 EUR
+Sigur plan has 1 available insured amount: 50.000 EUR
+When you call retrieve bodies endpoint you will get a response with 3 PRE-BUILT objects:
+
+[
+    {
+        "orderId": 535690,
+        "productId": 51,
+        "agencyId": null,
+        "policyStartDate": "2024-08-26T00:00:00",
+        "policyEndDate": "2024-09-10T00:00:00",
+        "offerDetails": {
+            "travelZone": "EUROPE",
+            "travelPurpose": "TOURISM",
+            "travelMethod": "Avion",
+            "destinationCountryId": 16,
+            "residencyCountryId": 185,
+            "summerSports": false,
+            "winterSports": false,
+            "withStorno": false,
+            "stornoInsuredValueEUR": null,
+            "stornoStartDate": null,
+            "bookingDate": null,
+            "roadAssistance": false,
+            "vehiclePlateNo": null,
+            "vehicleVIN": null,
+            "vehicleFirstRegistration": null,
+            "isClientInRomania": true,
+            "insuredHomeAddress": null
+        },
+        "productCode": "ASIROM_TRAVEL",
+        "specificDetails": [
+            {
+                "code": "TRAVEL_INSURED_AMOUNT",
+                "value": "SUMA_ASIG_30000"
+            },
+            {
+                "code": "TRAVEL_PACKAGE",
+                "value": "SIMPLU"
+            },
+            {
+                "code": "TRAVEL_TYPE",
+                "value": "CALATORIE_INDIVIDUALA"
+            }
+        ]
+    },
+    {
+        "orderId": 535690,
+        "productId": 51,
+        "agencyId": null,
+        "policyStartDate": "2024-08-26T00:00:00",
+        "policyEndDate": "2024-09-10T00:00:00",
+        "offerDetails": {
+            "travelZone": "EUROPE",
+            "travelPurpose": "TOURISM",
+            "travelMethod": "Avion",
+            "destinationCountryId": 16,
+            "residencyCountryId": 185,
+            "summerSports": false,
+            "winterSports": false,
+            "withStorno": false,
+            "stornoInsuredValueEUR": null,
+            "stornoStartDate": null,
+            "bookingDate": null,
+            "roadAssistance": false,
+            "vehiclePlateNo": null,
+            "vehicleVIN": null,
+            "vehicleFirstRegistration": null,
+            "isClientInRomania": true,
+            "insuredHomeAddress": null
+        },
+        "productCode": "ASIROM_TRAVEL",
+        "specificDetails": [
+            {
+                "code": "TRAVEL_PACKAGE",
+                "value": "SIMPLU"
+            },
+            {
+                "code": "TRAVEL_INSURED_AMOUNT",
+                "value": "SUMA_ASIG_50000"
+            },
+            {
+                "code": "TRAVEL_TYPE",
+                "value": "CALATORIE_INDIVIDUALA"
+            }
+        ]
+    },
+    {
+        "orderId": 535690,
+        "productId": 51,
+        "agencyId": null,
+        "policyStartDate": "2024-08-26T00:00:00",
+        "policyEndDate": "2024-09-10T00:00:00",
+        "offerDetails": {
+            "travelZone": "EUROPE",
+            "travelPurpose": "TOURISM",
+            "travelMethod": "Avion",
+            "destinationCountryId": 16,
+            "residencyCountryId": 185,
+            "summerSports": false,
+            "winterSports": false,
+            "withStorno": false,
+            "stornoInsuredValueEUR": null,
+            "stornoStartDate": null,
+            "bookingDate": null,
+            "roadAssistance": false,
+            "vehiclePlateNo": null,
+            "vehicleVIN": null,
+            "vehicleFirstRegistration": null,
+            "isClientInRomania": true,
+            "insuredHomeAddress": null
+        },
+        "productCode": "ASIROM_TRAVEL",
+        "specificDetails": [
+            {
+                "code": "TRAVEL_PACKAGE",
+                "value": "SIGUR"
+            },
+            {
+                "code": "TRAVEL_INSURED_AMOUNT",
+                "value": "SUMA_ASIG_50000"
+            },
+            {
+                "code": "TRAVEL_TYPE",
+                "value": "CALATORIE_INDIVIDUALA"
+            }
+        ]
+    }
+]
+
+
+As we can see in specificDetails field, travel packages/plans are different and insured amounts are also different. So by calling each of this request body individually, you will end up with 3 different offers of different prices.
+This way we make sure to provide the client with multiple choices of offers with different plans and insured amounts.
+Example 2
+To understand how specific fields work, let's consider Signal TRAVEL as an example:
+After we retrieve the request bodies we choose one of them :
+
+{
+        "orderId": 535690,
+        "productId": 353,
+        "agencyId": null,
+        "policyStartDate": "2024-08-26T00:00:00",
+        "policyEndDate": "2024-09-10T00:00:00",
+        "offerDetails": {
+            "travelZone": "EUROPE",
+            "travelPurpose": "TOURISM",
+            "travelMethod": "Avion",
+            "destinationCountryId": 16,
+            "residencyCountryId": 185,
+            "summerSports": false,
+            "winterSports": false,
+            "withStorno": false,
+            "stornoInsuredValueEUR": null,
+            "stornoStartDate": null,
+            "bookingDate": null,
+            "roadAssistance": false,
+            "vehiclePlateNo": null,
+            "vehicleVIN": null,
+            "vehicleFirstRegistration": null,
+            "isClientInRomania": true,
+            "insuredHomeAddress": null
+        },
+        "productCode": "SIGNAL_IDUNA_TRAVEL",
+        "specificDetails": [
+            {
+                "code": "TRAVEL_PACKAGE",
+                "value": "TariEuropa30000"
+            }
+        ]
+    }
+
+
+To check what optional clauses can be added to this product we call the following endpoint:
+/api/v1/online/offers/travel/comparator/utils?productId=353
+Result:
+
+"vendorSpecificDetails": [
+        {
+            "productCode": "SIGNAL_IDUNA_TRAVEL",
+            "details": [
+                {
+                    "description": "Travel Package",
+                    "name": "Pachet Calatorie",
+                    "code": "TRAVEL_PACKAGE",
+                    "type": "STRING",
+                    "acceptedValues": [
+                        {
+                            "name": "Tari Europa - 10000 EUR",
+                            "code": "TariEuropa10000"
+                        },
+                        {
+                            "name": "Tari Europa - 30000 EUR",
+                            "code": "TariEuropa30000"
+                        },
+                        {
+                            "name": "Tari Europa - 50000 EUR",
+                            "code": "TariEuropa50000"
+                        },
+                        {
+                            "name": "SUA, CANADA, ISRAEL",
+                            "code": "SuaCanadaIsrael"
+                        },
+                        {
+                            "name": "Restul Lumii",
+                            "code": "RestulLumii"
+                        },
+                        {
+                            "name": "Toata Lumea",
+                            "code": "ToataLumea"
+                        }
+                    ],
+                    "isInterval": false,
+                    "value": null,
+                    "valueTo": null,
+                    "currency": null,
+                    "toolTip": null,
+                    "mandatory": true
+                },
+                {
+                    "description": "Luggage Insured Amount: up to 2000 RON",
+                    "name": "Asigurare bagaje",
+                    "code": "LUGGAGE_INSURED_AMOUNT",
+                    "type": "INTEGER_NUMBER",
+                    "acceptedValues": null,
+                    "isInterval": true,
+                    "value": "0",
+                    "valueTo": "2000",
+                    "currency": "RON",
+                    "toolTip": null,
+                    "mandatory": false
+                }
+            ]
+        }
+    ]
+
+
+Those entries that have mandatory=true are always included by the server in the PRE-BUILT bodies.
+The rest of the entries with mandatory=false represent optional clauses that can be added to the request body and finally send the 'enhanced' request to the server to get a non-standard offer.
+Looking on the optional clauses we see that we can add Luggage clause. The request will end up looking like this:
+
+{
+       "orderId": 535690,
+       "productId": 353,
+       "agencyId": null,
+       "policyStartDate": "2024-08-26T00:00:00",
+       "policyEndDate": "2024-09-10T00:00:00",
+       "offerDetails": {
+           "travelZone": "EUROPE",
+           "travelPurpose": "TOURISM",
+           "travelMethod": "Avion",
+           "destinationCountryId": 16,
+           "residencyCountryId": 185,
+           "summerSports": false,
+           "winterSports": false,
+           "withStorno": false,
+           "stornoInsuredValueEUR": null,
+           "stornoStartDate": null,
+           "bookingDate": null,
+           "roadAssistance": false,
+           "vehiclePlateNo": null,
+           "vehicleVIN": null,
+           "vehicleFirstRegistration": null,
+           "isClientInRomania": true,
+           "insuredHomeAddress": null
+       },
+       "productCode": "SIGNAL_IDUNA_TRAVEL",
+       "specificDetails": [
+           {
+               "code": "TRAVEL_PACKAGE",
+               "value": "TariEuropa30000"
+           },
+           {
+               "code": "LUGGAGE_INSURED_AMOUNT",
+               "value": "1500"
+           }
+       ]
+   }
+
+
+Note that we've added the code and the desired amount.
+Same mechanism applies to all the products that have optional clauses/coverages.

@@ -18,7 +18,7 @@ export default function BlogPage() {
   return (
     <>
       {/* Hero */}
-      <section className="bg-gradient-to-br from-slate-900 via-slate-800 to-sky-900 py-16 sm:py-24">
+      <section className="bg-gradient-to-br from-slate-900 via-slate-800 to-blue-900 py-16 sm:py-24">
         <div className="mx-auto max-w-7xl px-4 text-center sm:px-6 lg:px-8">
           <h1 className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl">
             Blog
@@ -55,14 +55,14 @@ export default function BlogPage() {
                     </span>
                   </div>
 
-                  <h2 className="mb-2 text-lg font-bold text-slate-900 group-hover:text-sky-600 transition-colors">
+                  <h2 className="mb-2 text-lg font-bold text-slate-900 group-hover:text-[#2563EB] transition-colors">
                     {article.title}
                   </h2>
                   <p className="mb-4 flex-1 text-sm text-slate-500 leading-relaxed">
                     {article.excerpt}
                   </p>
 
-                  <span className="mt-auto flex items-center text-sm font-semibold text-sky-600 group-hover:text-sky-700 transition-colors">
+                  <span className="mt-auto flex items-center text-sm font-semibold text-[#2563EB] group-hover:text-blue-700 transition-colors">
                     Citește mai mult
                     <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
                   </span>

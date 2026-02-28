@@ -17,11 +17,13 @@ export default function TrustSignals() {
     "Generali",
     "Asirom",
     "Grawe",
+    "Uniqa",
+    "Signal Iduna",
   ];
 
   const stats = [
-    { icon: Users, value: "6+", label: "Asiguratori parteneri" },
-    { icon: FileCheck, value: "1000+", label: "Polițe emise" },
+    { icon: Users, value: "11+", label: "Asiguratori parteneri" },
+    { icon: FileCheck, value: "10.000+", label: "Polițe emise" },
     { icon: Globe, value: "100%", label: "Online" },
   ];
 

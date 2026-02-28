@@ -1,0 +1,4249 @@
+House API
+
+API Authentication is made using basicAuth (username + password) together with api_key header
+Response is always json type on all endpoints
+Swagger https://insuretech-rca-online.staging.insuretech.ro/api/v1/swagger-ui/index.html
+Test/Staging Env Base URL https://insuretech.staging.insuretech.ro
+
+Version: 1.0.0
+Last Update: 27.08.2025 11:50 AM
+
+Description
+
+House API consists of the following steps:
+
+obtaining House products
+filling the information about the good/house and check product eligibility
+create an order with contractor/insured details and also good/house details
+retrieving offer request bodies. Once the house information is sent and the desired products are chosen the API responds with all PRE-BUILT offer request bodies that can be directly used to obtain offers from the server. This helps the client to have each request in control and not be blocked by some requests that may take longer to respond to.
+send requests with the above PRE-BUILT request bodies and obtain prices for the chosen products
+download offer PDF
+choose the desired offer, choose payment method (generate payment link) and issue the policy
+download policy PDF
+
+GET House Products
+
+
+
+Method: GET
+
+
+Endpoint: /api/v1/online/products/house/facultative
+
+
+Response example:
+
+[
+    {
+      "id": 328,
+      "vendorDetails": {
+          "id": 14,
+          "name": "Signal_Iduna_Asigurari",
+          "commercialName": "Signal Iduna Asigurari",
+      },
+      "productName": "FIXL"
+     },
+    {
+      "id": 101,
+      "vendorDetails": {
+          "id": 4,
+          "name": "Generali",
+          "commercialName": "Generali",
+      },
+      "productName": "EUROCASA",
+    }
+]
+
+
+
+
+GET Utils information
+
+
+
+Method: GET
+
+Endpoint: /api/v1/online/offers/house/comparator/utils
+
+Response example:
+
+
+{
+    "installmentsNo": [  1    ],
+    "currency": [  "EUR"  ],
+    "occupationType": [
+        {
+            "name": "Nelocuit",
+            "code": "Nelocuit"
+        },
+        {
+            "name": "Permanent",
+            "code": "Permanent"
+        },
+        {
+            "name": "Temporar / Casa de vacanta",
+            "code": "Temporar"
+        }
+    ],
+    "constructionType": [
+        {
+            "name": "Casa",
+            "code": "Casa"
+        },
+        {
+            "name": "Bloc",
+            "code": "Bloc"
+        }
+    ],
+    "environmentType": [
+        {
+            "name": "Rural",
+            "code": "Rural"
+        },
+        {
+            "name": "Urban",
+            "code": "Urban"
+        }
+    ],
+    "indoorFinishesTypes": [
+        {
+            "name": "Finisaje de lux",
+            "code": "LUX",
+            "uiOrder": 4
+        },
+        {
+            "name": "Finisaje inferioare",
+            "code": "INF",
+            "uiOrder": 1
+        },
+        {
+            "name": "Finisaje superioare",
+            "code": "SUP",
+            "uiOrder": 3
+        },
+        {
+            "name": "Finisaje medii",
+            "code": "MED",
+            "uiOrder": 2
+        }
+    ],
+    "annexType": [
+        {
+            "name": "Piscina",
+            "code": "SWIMMING_POOL",
+            "toolTip": null,
+            "uiOrder": null
+        },
+        {
+            "name": "Foisor",
+            "code": "GAZEBO",
+            "toolTip": null,
+            "uiOrder": null
+        },
+        {
+            "name": "Garaj",
+            "code": "GARAGE",
+            "toolTip": null,
+            "uiOrder": null
+        },
+        {
+            "name": "Boxa",
+            "code": "CELLAR",
+            "toolTip": null,
+            "uiOrder": null
+        },
+        {
+            "name": "Imprejmuiri",
+            "code": "FENCE",
+            "toolTip": null,
+            "uiOrder": null
+        },
+        {
+            "name": "Cladire adiacenta",
+            "code": "ADJACENT_BUILDING",
+            "toolTip": null,
+            "uiOrder": null
+        },
+        {
+            "name": "Magazie",
+            "code": "WAREHOUSE",
+            "toolTip": null,
+            "uiOrder": null
+        },
+        {
+            "name": "Altele",
+            "code": "OTHER",
+            "toolTip": null,
+            "uiOrder": null
+        },
+        {
+            "name": "Gradina",
+            "code": "GARDEN",
+            "toolTip": null,
+            "uiOrder": null
+        }
+    ],
+    "vendorSpecificDetails": [.....],
+    "floodAreaDeclarationTooltip": "Cladirile se afla in zona cu risc de inundatie?",
+    "landslidesAreaDeclarationTooltip": "Cladirile se afla in zona cu risc de alunecare de teren?",
+    "avalancheAreaDeclarationTooltip": "Cladirile se afla in zona cu risc de avalanse?",
+    "constructionAuthorizationTooltip": "Cladirile au autorizatie de constructie?",
+    "constructionAuthorizationRespectedTooltip": "Au fost respectate prevederile autorizatiei de constructie?",
+    "firstRiskInsuranceTooltip": "La acoperirea pagubelor pentru cladirile asigurate se aplica principiul primului risc"
+}
+
+
+GET Utils information with vendorSpecificDetails only for specific product id
+
+
+
+Method: GET
+
+Endpoint: /api/v1/online/offers/house/comparator/utils?productId=2975
+
+Response example:
+
+
+{
+    "installmentsNo": [
+        1,
+        2,
+        4
+    ],
+    "currency": [  "RON", "EUR", "USD", "CHF"  ],
+    "occupationType": [
+        {
+            "name": "Nelocuit",
+            "code": "Nelocuit",
+            "toolTip": null,
+            "uiOrder": null
+        },
+        {
+            "name": "Permanent",
+            "code": "Permanent",
+            "toolTip": null,
+            "uiOrder": null
+        },
+        {
+            "name": "Temporar / Casa de vacanta",
+            "code": "Temporar",
+            "toolTip": null,
+            "uiOrder": null
+        }
+    ],
+    "constructionType": [
+        {
+            "name": "Casa",
+            "code": "Casa",
+            "toolTip": null,
+            "uiOrder": null
+        },
+        {
+            "name": "Bloc",
+            "code": "Bloc",
+            "toolTip": null,
+            "uiOrder": null
+        }
+    ],
+    "environmentType": [
+        {
+            "name": "Rural",
+            "code": "Rural",
+            "toolTip": null,
+            "uiOrder": null
+        },
+        {
+            "name": "Urban",
+            "code": "Urban",
+            "toolTip": null,
+            "uiOrder": null
+        }
+    ],
+    "indoorFinishesTypes": [
+        {
+            "name": "Finisaje de lux",
+            "code": "LUX",
+            "toolTip": "Pardoseli parchet de calitate superioara (masiv sau triplustratificat); placi de gresie calitate superioara sau marmura, faianta la bai si bucatarii; tencuieli interioare gletuite cu ipsos, zugraveli interioare lavabile de calitate superioara sau decorative, finisaje artistice (ex. stucco venetiano) sau tapet superior, lambriuri din lemn de calitate superioara, placaje din rigips la pereti si tavane, pereti interiori din caramizi de sticla; tamplarie interioara din lemn de calitate superioara, obiecte, armaturi sanitare si instalatii de calitate superioara (radiatoare, tevi, cabluri electrice etc.); tamplarie exterioara din lemn stratificat cu geam termopan; tencuieli exterioare din piatra artificiala, terasit, placaje ceramice sau decorative, termoizolatia; solutii moderne pentru realizarea termo si hidroizolatiei terasei sau invelitorii acoperisului.",
+            "uiOrder": 4
+        },
+        {
+            "name": "Finisaje inferioare",
+            "code": "INF",
+            "toolTip": "Pardoseli de ciment, dusumele de lemn/PVC; tencuieli interioare/exterioare cu var; tamplarie interioara/exterioara din lemn invechita.",
+            "uiOrder": 1
+        },
+        {
+            "name": "Finisaje superioare",
+            "code": "SUP",
+            "toolTip": "Pardoseli parchet laminat sau lemn masiv; placi de gresie si fainta in bai si bucatarii (calitate superioara); tencuieli interioare gletuite cu ipsos, placari cu rigips la pereti, zugraveli interioare de calitate superioara (vopsitorii lavabile sau tapet); tamplarie interioara din lemn de calitate superioara si exterioara din profile de P.V.C./aluminiu cu geam termopan, obloane/rulouri la ferestre, lambriuri de lemn de rasinoase/plastic sau placari cu rigips la pereti; tencuieli exterioare terasit sau placaje ceramice, piatra artificiala, partial stucaturi si lambriuri simple la pereti, termoizolatie, invelitoare acoperis de calitate superioara.",
+            "uiOrder": 3
+        },
+        {
+            "name": "Finisaje medii",
+            "code": "MED",
+            "toolTip": "Pardoseli de ciment, dusumele de lemn, pardoseli de gresie in baie si/sau bucatarie; tencuieli interioare/exterioare cu var, placaje de faianta in baie si/sau bucatarie, tamplarie interioara/exterioara din lemn in stare buna.",
+            "uiOrder": 2
+        }
+    ],
+    "annexType": [
+        {
+            "name": "Piscina",
+            "code": "SWIMMING_POOL",
+            "toolTip": null,
+            "uiOrder": null
+        },
+        {
+            "name": "Foisor",
+            "code": "GAZEBO",
+            "toolTip": null,
+            "uiOrder": null
+        },
+        {
+            "name": "Garaj",
+            "code": "GARAGE",
+            "toolTip": null,
+            "uiOrder": null
+        },
+        {
+            "name": "Boxa",
+            "code": "CELLAR",
+            "toolTip": null,
+            "uiOrder": null
+        },
+        {
+            "name": "Imprejmuiri",
+            "code": "FENCE",
+            "toolTip": null,
+            "uiOrder": null
+        },
+        {
+            "name": "Cladire adiacenta",
+            "code": "ADJACENT_BUILDING",
+            "toolTip": null,
+            "uiOrder": null
+        },
+        {
+            "name": "Magazie",
+            "code": "WAREHOUSE",
+            "toolTip": null,
+            "uiOrder": null
+        },
+        {
+            "name": "Altele",
+            "code": "OTHER",
+            "toolTip": null,
+            "uiOrder": null
+        },
+        {
+            "name": "Gradina",
+            "code": "GARDEN",
+            "toolTip": null,
+            "uiOrder": null
+        }
+    ],
+    "vendorSpecificDetails": [
+        {
+            "productCode": "GARANTA_GOLD_HOUSE",
+            "details": [
+                {
+                    "description": "House Destination Type",
+                    "name": "Tip destinatie constructie",
+                    "code": "HOUSE_DESTINATION_TYPE",
+                    "type": "STRING",
+                    "acceptedValues": [
+                        {
+                            "name": "Rezidentiala",
+                            "code": "Rezidentiala",
+                            "description": null
+                        },
+                        {
+                            "name": "Nerezidentiala",
+                            "code": "Nerezidentiala",
+                            "description": null
+                        },
+                        {
+                            "name": "Cu destinatie mixta",
+                            "code": "CuDestinatieMixta",
+                            "description": null
+                        }
+                    ],
+                    "isInterval": false,
+                    "value": null,
+                    "valueTo": null,
+                    "currency": null,
+                    "toolTip": null,
+                    "mandatory": false,
+                    "mandatoryDetails": null
+                }
+            ]
+        }
+    ],
+    "floodAreaDeclarationTooltip": "Cladirile se afla in zona cu risc de inundatie?",
+    "landslidesAreaDeclarationTooltip": "Cladirile se afla in zona cu risc de alunecare de teren?",
+    "avalancheAreaDeclarationTooltip": "Cladirile se afla in zona cu risc de avalanse?",
+    "constructionAuthorizationTooltip": "Cladirile au autorizatie de constructie?",
+    "constructionAuthorizationRespectedTooltip": "Au fost respectate prevederile autorizatiei de constructie?",
+    "firstRiskInsuranceTooltip": "La acoperirea pagubelor pentru cladirile asigurate se aplica principiul primului risc"
+}
+
+
+GET eligible products based on house/good information
+
+
+
+Method: GET
+
+Endpoint: /api/v1/online/offers/house/comparator/products/eligible
+
+Request example:
+
+
+{
+    "policyStartDate": "2024-12-26T00:00:00",
+    "periodMonths": 24,
+    "installmentsNo": 1,
+    "currency": "USD"       -it is optional, if it is not sent in the request the currency will be "EUR" by default
+    "productIds": [
+        1381,
+        332,
+        36,
+        37,
+        156,
+        101,
+        91,
+        90,
+        224,
+        25,
+        24,
+        328,
+        1203
+    ],
+    "offerDetails": {
+        "discount": null,
+        "discountReason": null,
+        "increase": null,
+        "increaseReason": null,
+        "mentions": null,
+        "paidConstructionType": "Bloc",
+        "constructionAuthorization": true,
+        "constructionAuthorizationRespected": true,
+        "currency": "EUR",
+        "constructionYear": 2020,
+        "noOfRooms": 4,
+        "area": 101,
+        "usableArea": 77,
+        "noOfFloors": 11,
+        "environmentType": "Urban",
+        "occupationType": "Permanent",
+        "buildingStructureTypeId": "1",
+        "apartmentInVilla": "false",
+        "constructionTypeId": "10",
+        "insuredSumTypeId": "1",
+        "seismicRiskTypeId": "1",
+        "indoorFinishesTypes": "SUP",
+        "buildingInsuredSum": 125000,
+        "technicalAssistance": true,
+        "annexes": true,
+        "annexesInsuredSum": 10000,
+        "annexType": "GARAGE",
+        "annexStructure": "beton",
+        "annexArea": 5,
+        "stolenGoods": true,
+        "civilLiability": true,
+        "stolenGoodsInsuredSum": 0,
+        "civilLiabilityInsuredSum": 4000,
+        "waterPipes": true,
+        "waterPipesInsuredSum": 1000,
+        "electricalPhenomena": true,
+        "electricalPhenomenaInsuredSum": 0,
+        "heatingSystem": true,
+        "firstRiskInsurance": true,
+        "contentInsuredSum": 0,
+        "heatingSystemInsuredSum": 500,
+        "heatingSystemYear": 2020,
+        "heatingSystemModel": "viesmann",
+        "heatingSystemDescription": "test test",
+        "cessions": null,
+        "firstHomeCessioned": false
+    },
+    "goodDetails": {
+        "goodType": "HOME",
+        "constructionYear": 2019,
+        "area": 70,
+        "usableArea": 55,
+        "noOfRooms": 2,
+        "padPropertyType": "A",
+        "environmentType": "Urban",
+        "noOfFloors": 8,
+        "noOfConstructedBuildings": 1,
+        "padBuildingIdentificationMention": "casa rosie",
+        "buildingStructureTypeId": 1,
+        "constructionTypeId": 10,
+        "insuredSumTypeId": 1,
+        "seismicRiskTypeId": 1,
+        "addressRequest": {
+            "addressType": "HOME",
+            "countryId": 185,
+            "cityId": 1,
+            "postalCode": "515100",
+            "streetTypeId": "41",
+            "streetName": "Mures",
+            "streetNumber": "7",
+            "building": "4B",
+            "entrance": "5",
+            "floorId": 8,
+            "apartment": "16"
+        }
+    }
+}
+
+
+
+
+Response example:
+
+
+[
+    {
+        "productId": 36,
+        "isEligible": true,
+        "reason": null
+    },
+    {
+        "productId": 25,
+        "isEligible": false,
+        "reason": "Produsul Omniasig Garant AmPlus nu poate fi ofertat pentru numarul de luni solicitat. Obligatoriu 12 luni"
+    },
+    {
+        "productId": 37,
+        "isEligible": true,
+        "reason": null
+    },
+    {
+        "productId": 101,
+        "isEligible": true,
+        "reason": null
+    }
+]
+
+
+Obtain building structures
+
+
+
+Method: GET
+
+Endpoint: /api/v1/online/utils/buildingStructures
+
+Response example:
+
+
+[
+    {
+        "id": 8,
+        "name": "PaiantaChirpici",
+        "description": "Paianta Chirpici"
+    },
+    {
+        "id": 1,
+        "name": "BetonPrefabricate",
+        "description": "Beton Prefabricate"
+    },
+    {
+        "id": 4,
+        "name": "CaramidaPiatra",
+        "description": "Caramida Piatra"
+    },
+    {
+        "id": 7,
+        "name": "Lemn",
+        "description": "Lemn"
+    },
+    {
+        "id": 5,
+        "name": "Metal",
+        "description": "Metal"
+    }
+]
+
+
+Obtain seismic risks
+
+
+
+Method: GET
+
+Endpoint: /api/v1/online/utils/seismicRiskTypes
+
+Response example:
+
+
+[
+    {
+        "id": 1,
+        "name": "Nu se afla pe lista",
+        "description": "Nu se afla pe lista"
+    },
+    {
+        "id": 2,
+        "name": "Nu este incadrata corespunzator",
+        "description": "Nu este incadrata corespunzator"
+    },
+    {
+        "id": 3,
+        "name": "Clasa 1 risc seismic",
+        "description": "Clasa 1 risc seismic"
+    },
+    {
+        "id": 4,
+        "name": "Urgenta 1",
+        "description": "Urgenta 1"
+    },
+    {
+        "id": 5,
+        "name": "Clasa 2 risc seismic",
+        "description": "Clasa 2 risc seismic"
+    },
+    {
+        "id": 6,
+        "name": "Urgenta 2",
+        "description": "Urgenta 2"
+    },
+    {
+        "id": 7,
+        "name": "Clasa 3 risc seismic",
+        "description": "Clasa 3 risc seismic"
+    },
+    {
+        "id": 8,
+        "name": "Urgenta 3",
+        "description": "Urgenta 3"
+    },
+    {
+        "id": 9,
+        "name": "Clasa 4 risc seismic",
+        "description": "Clasa 4 risc seismic"
+    },
+    {
+        "id": 10,
+        "name": "Urgenta 4",
+        "description": "Urgenta 4"
+    }
+]
+
+
+Obtain insured sum types
+
+
+
+Method: GET
+
+Endpoint: /api/v1/online/utils/insuredSumTypes
+
+Response example:
+
+
+[
+    {
+        "id": 1,
+        "name": "Valoare de inlocuire de nou",
+        "description": "Valoare de inlocuire de nou"
+    },
+    {
+        "id": 2,
+        "name": "Valoare de piata",
+        "description": "Valoare de piata"
+    },
+    {
+        "id": 3,
+        "name": "Valoare reala",
+        "description": "Valoare reala"
+    },
+    {
+        "id": 4,
+        "name": "Valoare evaluata de banca",
+        "description": "Valoare evaluata de banca"
+    }
+]
+
+
+Obtain construction types based on house characteristics
+
+
+
+Method: GET
+
+Endpoint: /api/v1/online/utils/constructionType?environmentType=Urban&constructionType=Bloc&occupationType=Permanent&buildingStructureTypeId=1&apartmentInVilla=false
+constructionType, environmentType, occupationType query params can be found by calling utils endpoint (/api/v1/online/offers/house/comparator/utils)
+
+Response example:
+
+
+{
+    "id": 10,
+    "name": "Apartament-locuinta permanenta in bloc in zona urbana",
+    "description": "Apartament-locuinta permanenta in bloc in zona urbana"
+}
+
+
+Create order with insureds, contractor and house/good information
+
+
+
+Method: POST
+
+Endpoint: /api/v1/online/offers/order
+
+Request example:
+
+
+{
+    "vendorProductType": "HOUSE",
+    "goodDetails": {
+        "goodType": "HOME",
+        "constructionYear": 2019,
+        "area": 70,
+        "usableArea": 55,
+        "noOfRooms": 2,
+        "padPropertyType": "A",
+        "environmentType": "Urban",
+        "noOfFloors": 8,
+        "noOfConstructedBuildings": 1,
+        "padBuildingIdentificationMention": "casa rosiea",
+        "buildingStructureTypeId": 1,
+        "constructionTypeId": 10,
+        "insuredSumTypeId": 1,
+        "seismicRiskTypeId": 1,
+        "addressRequest": {
+            "addressType": "HOME",
+            "countryId": 185,
+            "cityId": 1,
+            "postalCode": "515100",
+            "streetTypeId": "41",
+            "streetName": "Mures",
+            "streetNumber": "7",
+            "building": "4B",
+            "entrance": "5",
+            "floorId": 8,
+            "apartment": "16"
+        }
+    },
+    "contractorDetails": {
+        "legalType": "PF",
+        "email": "test@aa.com",
+        "phoneNumber": "0777777777",
+        "policyPartyType": "CONTRACTOR",
+        "cnp": 1870802116331,
+        "cif": "1870802116331",
+        "firstName": "Vlad",
+        "lastName": "Mihalcea",
+        "idType": "CI",
+        "idSerial": "VX",
+        "idNumber": "123456",
+        "dateOfBirth": "1987-08-02T00:00:00",
+        "citizenshipId": 185,
+        "nationalityId": 185,
+        "isResident": true,
+        "quota": 100,
+        "address": {
+            "addressType": "HOME",
+            "countryId": 185,
+            "cityId": 1,
+            "postalCode": "515100",
+            "streetTypeId": "41",
+            "streetName": "Mures",
+            "streetNumber": "7",
+            "building": "4B",
+            "entrance": "5",
+            "floorId": 8,
+            "apartment": "16"
+        }
+    },
+    "mainInsuredDetails": {
+        "legalType": "PF",
+        "email": "test@aa.com",
+        "phoneNumber": "0777777777",
+        "policyPartyType": "INSURED",
+        "cnp": 1870802116331,
+        "cif": "1870802116331",
+        "firstName": "Vlad",
+        "lastName": "Mihalcea",
+        "idType": "CI",
+        "idSerial": "VX",
+        "idNumber": "123456",
+        "dateOfBirth": "1987-08-02T00:00:00",
+        "citizenshipId": 185,
+        "nationalityId": 185,
+        "isResident": true,
+        "quota": 100,
+        "address": {
+            "addressType": "HOME",
+            "countryId": 185,
+            "cityId": 1,
+            "postalCode": "515100",
+            "streetTypeId": "41",
+            "streetName": "Mures",
+            "streetNumber": "7",
+            "building": "4B",
+            "entrance": "5",
+            "floorId": 8,
+            "apartment": "16"
+        }
+    },
+    "otherInsuredsDetails":[],
+    "isContractorSameAsMainInsured": true
+}
+
+
+
+
+Response example:
+
+
+{
+    "id": 298,
+    "productType": "HOUSE"
+}
+
+
+Retrieve Cession Banks
+
+
+
+Method: GET
+
+Endpoint: /api/v1/online/paid/pad/cesionari
+
+Response example:
+
+
+{
+    "cesionari": [
+        {
+            "isForeignPerson": false,
+            "cif": "361579",
+            "legalType": "PJ",
+            "name": "BRD - Groupe Societe Generale S.A.",
+            "foreignPerson": false
+        },
+        {
+            "isForeignPerson": false,
+            "cif": "361757",
+            "legalType": "PJ",
+            "name": "BANCA COMERCIALA ROMANA S.A.",
+            "foreignPerson": false
+        },
+        {
+            "isForeignPerson": false,
+            "cif": "361820",
+            "legalType": "PJ",
+            "name": "RAIFFEISEN BANK SA",
+            "foreignPerson": false
+        }
+]
+}
+
+
+Retrieve Request Bodies
+
+
+
+Method: POST
+
+Endpoint: /api/v1/online/offers/house/comparator/bodies
+To obtain PAD offer flag requestPAD must be true and padPolicyStartDate and padPolicyEndDate must be provided. If a PAD policy is already issued then padPreviousPolicySeries and padPreviousPolicyNumber must be provided
+
+Request example:
+
+
+{
+    "orderId": 298,
+    "productIds": [36],
+    "policyStartDate": "2024-12-26T10:06:05",
+    "periodMonths": 12,
+    "currency": "USD"       -it is optional, if it is not sent in the request the currency will be "EUR" by default
+    "installmentsNo": 1,
+    "requestPAD": true,
+    "padPolicyStartDate": "2024-12-29T10:06:05",
+    "padPolicyEndDate": "2025-12-28T10:06:05",
+    "padPreviousPolicySeries": null,
+    "padPreviousPolicyNumber": null,
+    "offerDetails": {
+        "occupationType": "Permanent",
+        "indoorFinishesTypes": "SUP",
+        "lastFloorApartment": false,
+        "buildingInsuredSum": 120000,
+        "contentInsuredSum": 12000,
+        "annexesInsuredSum": 1000,
+        "annexType": "GARAGE",
+        "annexArea": 50,
+        "stolenGoodsInsuredSum": 1000,
+        "civilLiabilityInsuredSum": 1000,
+        "waterPipesInsuredSum": 1000,
+        "electricalPhenomenaInsuredSum": 1000,
+        "discount": null,
+        "discountReason": null,
+        "increase": null,
+        "increaseReason": null,
+        "floodAreaDeclaration": false,
+        "landslidesAreaDeclaration": false,
+        "avalancheAreaDeclaration": false,
+        "constructionAuthorization": true,
+        "constructionAuthorizationRespected": true,
+        "mentions": "MENTIUNI TEST",
+        "technicalAssistance": true,
+        "firstRiskInsurance": true,
+        "hasAlarmSystem": false,
+        "hasFireDetection": false
+    }
+}
+
+
+
+
+Response example:
+
+
+[
+    {
+        "orderId": 298,
+        "productId": 36,
+        "agencyId": null,
+        "policyStartDate": "2024-12-26T10:06:05",
+        "periodMonths": 12,
+        "installmentsNo": 1,
+        "requestPAD": false,
+        "padPreviousPolicySeries": null,
+        "padPreviousPolicyNumber": null,
+        "padPolicyStartDate": "2024-12-29T10:06:05",
+        "padPolicyEndDate": "2025-12-28T10:06:05",
+        "offerDetails": {
+            "cessionMentions": null,
+            "cessions": null,
+            "cessionBegin": null,
+            "cessionEnd": null,
+            "cessionRateMFP": null,
+            "firstHomeCessioned": false,
+            "cessionAmount": null,
+            "indoorFinishesTypes": "SUP",
+            "occupationType": "Permanent",
+            "lastFloorApartment": false,
+            "buildingInsuredSum": 120000,
+            "contentInsuredSum": 12000,
+            "annexesInsuredSum": 1000,
+            "annexType": "GARAGE",
+            "annexStructure": null,
+            "annexArea": 50,
+            "stolenGoodsInsuredSum": 1000,
+            "civilLiabilityInsuredSum": 1000,
+            "waterPipesInsuredSum": 1000,
+            "electricalPhenomenaInsuredSum": 1000,
+            "heatingSystemInsuredSum": null,
+            "heatingSystemModel": null,
+            "heatingSystemYear": null,
+            "heatingSystemDescription": null,
+            "discount": null,
+            "discountReason": null,
+            "increase": null,
+            "increaseReason": null,
+            "hasAlarmSystem": false,
+            "hasFireDetection": false,
+            "floodAreaDeclaration": false,
+            "landslidesAreaDeclaration": false,
+            "avalancheAreaDeclaration": false,
+            "constructionAuthorization": true,
+            "constructionAuthorizationRespected": true,
+            "mentions": "MENTIUNI TEST",
+            "technicalAssistance": true,
+            "firstRiskInsurance": true
+        },
+        "productCode": "ASIROM_CAMINUL_MEU_HOUSE",
+        "specificDetails": [
+            {
+                "code": "PORTABLE_GOODS_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "TECHNICAL_ASSISTANCE",
+                "value": "BASIC"
+            },
+            {
+                "code": "GOODS_VALUE_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "INDOOR_INSTALLATIONS_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "THIRD_PARTY_COVERAGE_TERRITORIAL_EXPANSION",
+                "value": false
+            },
+            {
+                "code": "BUILDING_IN_CONSTRUCTION_COVERAGE",
+                "value": false
+            },
+            {
+                "code": "HOUSE_PACKAGE",
+                "value": "ACC_IMOBIL_TOTALA"
+            },
+            {
+                "code": "STOLEN_CONSTRUCTION_PARTS_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "PERISHABLE_GOODS_BREAKAGE_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "TENANT_LIABILITY_COVERAGE_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "LOSE_RENT_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "GARDEN_COVERAGE_INSURED_SUM",
+                "value": 0
+            }
+        ],
+        "saveError": true
+    },
+    {
+        "orderId": 298,
+        "productId": 1242,
+        "agencyId": null,
+        "policyStartDate": "2024-12-26T10:06:05",
+        "periodMonths": 12,
+        "installmentsNo": 1,
+        "requestPAD": true,
+        "padPreviousPolicySeries": null,
+        "padPreviousPolicyNumber": null,
+        "padPolicyStartDate": "2024-12-29T10:06:05",
+        "padPolicyEndDate": "2025-12-28T10:06:05",
+        "offerDetails": {
+            "cessionMentions": null,
+            "cessions": null,
+            "cessionBegin": null,
+            "cessionEnd": null,
+            "cessionRateMFP": null,
+            "firstHomeCessioned": false,
+            "cessionAmount": null,
+            "indoorFinishesTypes": "SUP",
+            "occupationType": "Permanent",
+            "lastFloorApartment": false,
+            "buildingInsuredSum": 120000,
+            "contentInsuredSum": 12000,
+            "annexesInsuredSum": 1000,
+            "annexType": "GARAGE",
+            "annexStructure": null,
+            "annexArea": 50,
+            "stolenGoodsInsuredSum": 1000,
+            "civilLiabilityInsuredSum": 1000,
+            "waterPipesInsuredSum": 1000,
+            "electricalPhenomenaInsuredSum": 1000,
+            "heatingSystemInsuredSum": null,
+            "heatingSystemModel": null,
+            "heatingSystemYear": null,
+            "heatingSystemDescription": null,
+            "discount": null,
+            "discountReason": null,
+            "increase": null,
+            "increaseReason": null,
+            "hasAlarmSystem": false,
+            "hasFireDetection": false,
+            "floodAreaDeclaration": false,
+            "landslidesAreaDeclaration": false,
+            "avalancheAreaDeclaration": false,
+            "constructionAuthorization": true,
+            "constructionAuthorizationRespected": true,
+            "mentions": "MENTIUNI TEST",
+            "technicalAssistance": true,
+            "firstRiskInsurance": true,
+            "paidConstructionType": null,
+            "apartmentInVilla": false
+        },
+        "productCode": "PAID_PAD_A",
+        "specificDetails": null,
+        "saveError": true
+    }
+]
+
+
+Request Offer based on previously retrieved body for Asirom Caminul Meu product
+
+
+
+Method: POST
+
+Endpoint: /api/v1/online/offers/house/comparator
+
+Request example:
+
+
+{
+        "orderId": 298,
+        "productId": 36,
+        "agencyId": null,
+        "policyStartDate": "2024-12-26T10:06:05",
+        "periodMonths": 12,
+        "currency": "USD"       -it is optional, if it is not sent in the request the currency will be "EUR" by default
+        "installmentsNo": 1,
+        "requestPAD": false,
+        "padPreviousPolicySeries": null,
+        "padPreviousPolicyNumber": null,
+        "padPolicyStartDate": "2024-12-29T10:06:05",
+        "padPolicyEndDate": "2025-12-28T10:06:05",
+        "offerDetails": {
+            "cessionMentions": null,
+            "cessions": null,
+            "cessionBegin": null,
+            "cessionEnd": null,
+            "cessionRateMFP": null,
+            "firstHomeCessioned": false,
+            "cessionAmount": null,
+            "indoorFinishesTypes": "SUP",
+            "occupationType": "Permanent",
+            "lastFloorApartment": false,
+            "buildingInsuredSum": 120000,
+            "contentInsuredSum": 12000,
+            "annexesInsuredSum": 1000,
+            "annexType": "GARAGE",
+            "annexStructure": null,
+            "annexArea": 50,
+            "stolenGoodsInsuredSum": 1000,
+            "civilLiabilityInsuredSum": 1000,
+            "waterPipesInsuredSum": 1000,
+            "electricalPhenomenaInsuredSum": 1000,
+            "heatingSystemInsuredSum": null,
+            "heatingSystemModel": null,
+            "heatingSystemYear": null,
+            "heatingSystemDescription": null,
+            "discount": null,
+            "discountReason": null,
+            "increase": null,
+            "increaseReason": null,
+            "hasAlarmSystem": false,
+            "hasFireDetection": false,
+            "floodAreaDeclaration": false,
+            "landslidesAreaDeclaration": false,
+            "avalancheAreaDeclaration": false,
+            "constructionAuthorization": true,
+            "constructionAuthorizationRespected": true,
+            "mentions": "MENTIUNI TEST",
+            "technicalAssistance": true,
+            "firstRiskInsurance": true
+        },
+        "productCode": "ASIROM_CAMINUL_MEU_HOUSE",
+        "specificDetails": [
+            {
+                "code": "PORTABLE_GOODS_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "TECHNICAL_ASSISTANCE",
+                "value": "BASIC"
+            },
+            {
+                "code": "GOODS_VALUE_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "INDOOR_INSTALLATIONS_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "THIRD_PARTY_COVERAGE_TERRITORIAL_EXPANSION",
+                "value": false
+            },
+            {
+                "code": "BUILDING_IN_CONSTRUCTION_COVERAGE",
+                "value": false
+            },
+            {
+                "code": "HOUSE_PACKAGE",
+                "value": "ACC_IMOBIL_TOTALA"
+            },
+            {
+                "code": "STOLEN_CONSTRUCTION_PARTS_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "PERISHABLE_GOODS_BREAKAGE_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "TENANT_LIABILITY_COVERAGE_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "LOSE_RENT_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "GARDEN_COVERAGE_INSURED_SUM",
+                "value": 0
+            }
+        ],
+        "saveError": true
+    }
+
+
+
+
+Response example:
+
+
+{
+    "id": 1954,
+    "series": null,
+    "number": "AA24142H10",
+    "orderId": 298,
+    "policyStartDate": "2024-12-26T00:00:00",
+    "policyEndDate": "2025-12-25T23:59:59",
+    "policyPremium": 113.72,
+    "currency": "EUR",
+    "installments": [
+        {
+            "number": 1,
+            "year": 1,
+            "amount": 113.72,
+            "amountInRON": null,
+            "currency": "EUR",
+            "dueDate": "2024-12-24T00:00:00"
+        }
+    ],
+    "error": false,
+    "message": "Mesajul a fost prelucrat cu succes. | MENTIUNI TEST Suma asigurata recomandata este 112000 EUR. Intervalul recomandat pentru stabilirea sumei asigurate este de -50% si +100% fata de suma recomandata, pentru evitarea subasigurarii, respectiv a supraasigurarii.",
+    "periodDays": null,
+    "periodMonths": 12,
+    "periodYears": null,
+    "policyInstallmentsNo": 1,
+    "installmentFrequency": null,
+    "status": null,
+    "productDetails": {
+        "id": 36,
+        "vendorDetails": {
+            "id": 1,
+            "name": "Asirom",
+            "commercialName": "Asirom"
+        },
+        "productName": "CAMINUL MEU",
+        "productCode": "ASIROM_CAMINUL_MEU_HOUSE",
+        "productSubPackage": "Totala"
+    },
+    "insuredAmount": "120000",
+    "contentAmount": "12000",
+    "insuredAmountCurrency": "EUR",
+    "contentAmountCurrency": "EUR",
+    "specificDetails": [
+        {
+            "code": "PORTABLE_GOODS_INSURED_SUM",
+            "value": 0
+        },
+        {
+            "code": "BUILDING_IN_CONSTRUCTION_COVERAGE",
+            "value": false
+        },
+        {
+            "code": "STOLEN_CONSTRUCTION_PARTS_INSURED_SUM",
+            "value": 0
+        },
+        {
+            "code": "GARDEN_COVERAGE_INSURED_SUM",
+            "value": 0
+        },
+        {
+            "code": "TECHNICAL_ASSISTANCE",
+            "value": "BASIC"
+        },
+        {
+            "code": "PERISHABLE_GOODS_BREAKAGE_INSURED_SUM",
+            "value": 0
+        },
+        {
+            "code": "HOUSE_PACKAGE",
+            "value": "ACC_IMOBIL_TOTALA"
+        },
+        {
+            "code": "THIRD_PARTY_COVERAGE_TERRITORIAL_EXPANSION",
+            "value": false
+        },
+        {
+            "code": "TENANT_LIABILITY_COVERAGE_INSURED_SUM",
+            "value": 0
+        },
+        {
+            "code": "LOSE_RENT_INSURED_SUM",
+            "value": 0
+        },
+        {
+            "code": "GOODS_VALUE_INSURED_SUM",
+            "value": 0
+        },
+        {
+            "code": "INDOOR_INSTALLATIONS_INSURED_SUM",
+            "value": 0
+        }
+    ],
+    "extraProducts": null
+}
+
+
+Request Offer based on previously retrieved body for PAID PAD
+
+
+
+Method: POST
+
+Endpoint: /api/v1/online/offers/house/comparator
+
+Request example:
+
+
+{
+        "orderId": 298,
+        "productId": 1242,
+        "agencyId": null,
+        "policyStartDate": "2024-12-26T10:06:05",
+        "periodMonths": 12,
+        "currency": "USD"       -it is optional, if it is not sent in the request the currency will be "EUR" by default
+        "installmentsNo": 1,
+        "requestPAD": true,
+        "padPreviousPolicySeries": null,
+        "padPreviousPolicyNumber": null,
+        "padPolicyStartDate": "2024-12-29T10:06:05",
+        "padPolicyEndDate": "2025-12-28T10:06:05",
+        "offerDetails": {
+            "cessionMentions": null,
+            "cessions": null,
+            "cessionBegin": null,
+            "cessionEnd": null,
+            "cessionRateMFP": null,
+            "firstHomeCessioned": false,
+            "cessionAmount": null,
+            "indoorFinishesTypes": "SUP",
+            "occupationType": "Permanent",
+            "lastFloorApartment": false,
+            "buildingInsuredSum": 120000,
+            "contentInsuredSum": 12000,
+            "annexesInsuredSum": 1000,
+            "annexType": "GARAGE",
+            "annexStructure": null,
+            "annexArea": 50,
+            "stolenGoodsInsuredSum": 1000,
+            "civilLiabilityInsuredSum": 1000,
+            "waterPipesInsuredSum": 1000,
+            "electricalPhenomenaInsuredSum": 1000,
+            "heatingSystemInsuredSum": null,
+            "heatingSystemModel": null,
+            "heatingSystemYear": null,
+            "heatingSystemDescription": null,
+            "discount": null,
+            "discountReason": null,
+            "increase": null,
+            "increaseReason": null,
+            "hasAlarmSystem": false,
+            "hasFireDetection": false,
+            "floodAreaDeclaration": false,
+            "landslidesAreaDeclaration": false,
+            "avalancheAreaDeclaration": false,
+            "constructionAuthorization": true,
+            "constructionAuthorizationRespected": true,
+            "mentions": "MENTIUNI TEST",
+            "technicalAssistance": true,
+            "firstRiskInsurance": true,
+            "paidConstructionType": null,
+            "apartmentInVilla": false
+        },
+        "productCode": "PAID_PAD_A",
+        "specificDetails": null,
+        "saveError": true
+    }
+
+
+
+
+Response example:
+
+
+{
+    "id": 1953,
+    "series": null,
+    "number": "00199036731",
+    "orderId": 298,
+    "policyStartDate": "2024-12-29T10:06:05",
+    "policyEndDate": "2025-12-28T10:06:05",
+    "policyPremium": 130.00,
+    "currency": "RON",
+    "installments": [
+        {
+            "number": 1,
+            "year": 1,
+            "amount": 130.0,
+            "amountInRON": null,
+            "currency": "RON",
+            "dueDate": "2024-12-24T00:00:00"
+        }
+    ],
+    "error": false,
+    "message": "",
+    "periodDays": null,
+    "periodMonths": null,
+    "periodYears": null,
+    "policyInstallmentsNo": 1,
+    "installmentFrequency": null,
+    "status": null,
+    "productDetails": {
+        "id": 1242,
+        "vendorDetails": {
+            "id": 30,
+            "name": "Paid",
+            "commercialName": "PAID",
+        },
+        "productName": "PAD-A",
+        "productCode": null,
+        "productSubPackage": null
+    },
+    "offerDetails": null
+}
+
+
+Emit Policy without PAD
+
+
+
+Method: POST
+
+Endpoint: /api/v1/online/policies
+
+Request example:
+
+
+{
+    "offerId": 1950,
+    "padOfferId": null,
+    "paymentMethodType": "CardOnline"
+}
+
+
+
+
+Response example:
+
+
+{
+    "orderId": 297,
+    "offerId": 1950,
+    "policyId": 325,
+    "padPolicyId": null,
+    "receiptId": null,
+    "receiptNumber": null,
+    "series": "AL",
+    "number": "000103305",
+    "policyIssueDate": "2024-12-24T10:21:52",
+    "policyStartDate": "2024-12-26T00:00:00",
+    "policyEndDate": "2025-12-25T23:59:59",
+    "error": false,
+    "message": null,
+    "productId": 36,
+    "vendorName": "Asirom",
+    "currency": "EUR"
+}
+
+
+Emit Policy with PAD
+
+
+
+Method: POST
+
+Endpoint: /api/v1/online/policies
+
+Request example:
+
+
+{
+    "offerId": 1950,
+    "padOfferId": 1951,
+    "paymentMethodType": "CardOnline"
+}
+
+
+
+
+Response example:
+
+
+{
+    "orderId": 297,
+    "offerId": 1950,
+    "policyId": 325,
+    "padPolicyId": 324,
+    "receiptId": null,
+    "receiptNumber": null,
+    "series": "AL",
+    "number": "000103305",
+    "policyIssueDate": "2024-12-24T10:21:52",
+    "policyStartDate": "2024-12-26T00:00:00",
+    "policyEndDate": "2025-12-25T23:59:59",
+    "error": false,
+    "message": null,
+    "productId": 36,
+    "vendorName": "Asirom",
+    "currency": "EUR"
+}
+
+
+Download Offer PDF Document
+
+
+
+Method: GET
+
+Endpoint: /api/v1/online/offers/{offerId}/document
+
+Request example:
+
+
+POST /api/v1/online/offers/6535564/document
+
+
+
+
+Response example:
+
+
+{
+    "url": "https://amazonaws.com/documentType......",
+    "expirationDate": "2024-09-02T13:27:07.599984382"
+}
+
+
+Download Policy PDF Document
+
+
+
+Method: GET
+
+Endpoint: /api/v1/online/policies/{policyId}/document
+
+Request example:
+
+
+POST /api/v1/online/policies/666613/document
+
+
+
+
+Response example:
+
+
+{
+    "url": "https://amazonaws.com/documentType......",
+    "expirationDate": "2024-09-02T13:27:07.599984382"
+}
+
+
+GET Offer Details
+
+
+
+Method: GET
+
+Endpoint: /api/v1/online/offers/house/{offerId}/details
+
+Request example:
+
+
+GET /api/v1/online/offers/house/6535564/details
+
+
+
+
+Response example:
+
+
+{
+    "id": 1949,
+    "series": null,
+    "number": "AA24142G3K",
+    "orderId": 296,
+    "policyStartDate": "2024-12-26T00:00:00",
+    "policyEndDate": "2025-12-25T23:59:59",
+    "policyPremium": 66.50,
+    "currency": "EUR",
+    "installments": [
+        {
+            "number": 1,
+            "year": 1,
+            "amount": 66.50,
+            "amountInRON": null,
+            "currency": "EUR",
+            "dueDate": "2024-12-24T00:00:00"
+        }
+    ],
+    "error": false,
+    "message": "Mesajul a fost prelucrat cu succes. | MENTIUNI TEST Suma asigurata recomandata este 112000 EUR. Intervalul recomandat pentru stabilirea sumei asigurate este de -50% si +100% fata de suma recomandata, pentru evitarea subasigurarii, respectiv a supraasigurarii.",
+    "periodDays": null,
+    "periodMonths": 12,
+    "periodYears": null,
+    "policyInstallmentsNo": 1,
+    "installmentFrequency": null,
+    "status": null,
+    "productDetails": {
+        "id": 36,
+        "vendorDetails": {
+            "id": 1,
+            "name": "Asirom",
+            "commercialName": "Asirom"
+        },
+        "productName": "CAMINUL MEU",
+        "productCode": "ASIROM_CAMINUL_MEU_HOUSE",
+        "productSubPackage": "Standard"
+    },
+    "insuredAmount": "120000",
+    "contentAmount": "12000",
+    "insuredAmountCurrency": "EUR",
+    "contentAmountCurrency": "EUR",
+    "specificDetails": [
+        {
+            "code": "HOUSE_PACKAGE",
+            "value": "ACC_IMOBIL_STANDARD"
+        },
+        {
+            "code": "STOLEN_CONSTRUCTION_PARTS_INSURED_SUM",
+            "value": 0
+        },
+        {
+            "code": "BUILDING_IN_CONSTRUCTION_COVERAGE",
+            "value": false
+        },
+        {
+            "code": "THIRD_PARTY_COVERAGE_TERRITORIAL_EXPANSION",
+            "value": false
+        },
+        {
+            "code": "PORTABLE_GOODS_INSURED_SUM",
+            "value": 0
+        },
+        {
+            "code": "PERISHABLE_GOODS_BREAKAGE_INSURED_SUM",
+            "value": 0
+        },
+        {
+            "code": "LOSE_RENT_INSURED_SUM",
+            "value": 0
+        },
+        {
+            "code": "TENANT_LIABILITY_COVERAGE_INSURED_SUM",
+            "value": 0
+        },
+        {
+            "code": "INDOOR_INSTALLATIONS_INSURED_SUM",
+            "value": 0
+        },
+        {
+            "code": "GARDEN_COVERAGE_INSURED_SUM",
+            "value": 0
+        },
+        {
+            "code": "GOODS_VALUE_INSURED_SUM",
+            "value": 0
+        },
+        {
+            "code": "TECHNICAL_ASSISTANCE",
+            "value": "BASIC"
+        }
+    ],
+    "extraProducts": [
+        {
+            "vendorDetails": {
+                "id": 30,
+                "name": "Paid",
+                "commercialName": "PAID"
+            },
+            "offersDetails": {
+                "PAD_A": [
+                    {
+                        "offerId": 1948,
+                        "offerNumber": "00199036715",
+                        "firstInstallmentPremium": 130.0,
+                        "policyPremium": 130.00,
+                        "periodMonths": null,
+                        "periodYears": null,
+                        "policyStartDate": "2024-12-29T10:06:05",
+                        "policyEndDate": "2025-12-28T10:06:05",
+                        "productDetails": {
+                            "id": 1242,
+                            "vendorDetails": {
+                                "id": 30,
+                                "name": "Paid",
+                                "commercialName": "PAID"
+                            },
+                            "productName": "PAD-A",
+                            "productCode": "PAD_A",
+                            "productSubPackage": null
+                        },
+                        "previousPolicySeries": null,
+                        "previousPolicyNumber": null
+                    }
+                ]
+            }
+        }
+    ]
+}
+
+
+GET Offers on Order
+
+
+
+Method: GET
+
+Endpoint: /api/v1/online/offers/house/order/{orderId}
+
+Request example:
+
+
+GET /api/v1/online/offers/house/order/298
+
+
+
+
+Response example:
+
+
+[
+    {
+        "id": 1953,
+        "series": null,
+        "number": "00199036731",
+        "orderId": 298,
+        "policyStartDate": "2024-12-29T10:06:05",
+        "policyEndDate": "2025-12-28T10:06:05",
+        "policyPremium": 130.00,
+        "currency": "RON",
+        "installments": [
+            {
+                "number": 1,
+                "year": 1,
+                "amount": 130.0,
+                "amountInRON": null,
+                "currency": "RON",
+                "dueDate": "2024-12-24T00:00:00"
+            }
+        ],
+        "error": false,
+        "message": "",
+        "periodDays": null,
+        "periodMonths": null,
+        "periodYears": null,
+        "policyInstallmentsNo": 1,
+        "installmentFrequency": null,
+        "status": null,
+        "productDetails": {
+            "id": 1242,
+            "vendorDetails": {
+                "id": 30,
+                "name": "Paid",
+                "commercialName": "PAID"
+            },
+            "productName": "PAD-A",
+            "productCode": "PAID_PAD_A",
+            "productSubPackage": null
+        },
+        "insuredAmount": null,
+        "contentAmount": null,
+        "insuredAmountCurrency": "EUR",
+        "contentAmountCurrency": "EUR",
+        "specificDetails": null,
+        "extraProducts": null
+    },
+    {
+        "id": 1952,
+        "series": null,
+        "number": "AA24142GG0",
+        "orderId": 298,
+        "policyStartDate": "2024-12-26T00:00:00",
+        "policyEndDate": "2025-12-25T23:59:59",
+        "policyPremium": 66.50,
+        "currency": "EUR",
+        "installments": [
+            {
+                "number": 1,
+                "year": 1,
+                "amount": 66.50,
+                "amountInRON": null,
+                "currency": "EUR",
+                "dueDate": "2024-12-24T00:00:00"
+            }
+        ],
+        "error": false,
+        "message": "Mesajul a fost prelucrat cu succes. | MENTIUNI TEST Suma asigurata recomandata este 112000 EUR. Intervalul recomandat pentru stabilirea sumei asigurate este de -50% si +100% fata de suma recomandata, pentru evitarea subasigurarii, respectiv a supraasigurarii.",
+        "periodDays": null,
+        "periodMonths": 12,
+        "periodYears": null,
+        "policyInstallmentsNo": 1,
+        "installmentFrequency": null,
+        "status": null,
+        "productDetails": {
+            "id": 36,
+            "vendorDetails": {
+                "id": 1,
+                "name": "Asirom",
+                "commercialName": "Asirom"
+            },
+            "productName": "CAMINUL MEU",
+            "productCode": "ASIROM_CAMINUL_MEU_HOUSE",
+            "productSubPackage": "Standard"
+        },
+        "insuredAmount": "120000",
+        "contentAmount": "12000",
+        "insuredAmountCurrency": "EUR",
+        "contentAmountCurrency": "EUR",
+        "specificDetails": [
+            {
+                "code": "BUILDING_IN_CONSTRUCTION_COVERAGE",
+                "value": false
+            },
+            {
+                "code": "STOLEN_CONSTRUCTION_PARTS_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "HOUSE_PACKAGE",
+                "value": "ACC_IMOBIL_STANDARD"
+            },
+            {
+                "code": "PORTABLE_GOODS_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "THIRD_PARTY_COVERAGE_TERRITORIAL_EXPANSION",
+                "value": false
+            },
+            {
+                "code": "PERISHABLE_GOODS_BREAKAGE_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "TENANT_LIABILITY_COVERAGE_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "LOSE_RENT_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "INDOOR_INSTALLATIONS_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "GARDEN_COVERAGE_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "GOODS_VALUE_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "TECHNICAL_ASSISTANCE",
+                "value": "BASIC"
+            }
+        ],
+        "extraProducts": [
+            {
+                "vendorDetails": {
+                    "id": 30,
+                    "name": "Paid",
+                    "commercialName": "PAID"
+                },
+                "offersDetails": {
+                    "PAD_A": [
+                        {
+                            "offerId": 1953,
+                            "offerNumber": "00199036731",
+                            "firstInstallmentPremium": 130.0,
+                            "policyPremium": 130.00,
+                            "periodMonths": null,
+                            "periodYears": null,
+                            "policyStartDate": "2024-12-29T10:06:05",
+                            "policyEndDate": "2025-12-28T10:06:05",
+                            "productDetails": {
+                                "id": 1242,
+                                "vendorDetails": {
+                                    "id": 30,
+                                    "name": "Paid",
+                                    "commercialName": "PAID"
+                                },
+                                "productName": "PAD-A",
+                                "productCode": "PAD_A",
+                                "productSubPackage": null
+                            },
+                            "previousPolicySeries": null,
+                            "previousPolicyNumber": null
+                        }
+                    ]
+                }
+            }
+        ]
+    },
+    {
+        "id": 1954,
+        "series": null,
+        "number": "AA24142H10",
+        "orderId": 298,
+        "policyStartDate": "2024-12-26T00:00:00",
+        "policyEndDate": "2025-12-25T23:59:59",
+        "policyPremium": 113.72,
+        "currency": "EUR",
+        "installments": [
+            {
+                "number": 1,
+                "year": 1,
+                "amount": 113.72,
+                "amountInRON": null,
+                "currency": "EUR",
+                "dueDate": "2024-12-24T00:00:00"
+            }
+        ],
+        "error": false,
+        "message": "Mesajul a fost prelucrat cu succes. | MENTIUNI TEST Suma asigurata recomandata este 112000 EUR. Intervalul recomandat pentru stabilirea sumei asigurate este de -50% si +100% fata de suma recomandata, pentru evitarea subasigurarii, respectiv a supraasigurarii.",
+        "periodDays": null,
+        "periodMonths": 12,
+        "periodYears": null,
+        "policyInstallmentsNo": 1,
+        "installmentFrequency": null,
+        "status": null,
+        "productDetails": {
+            "id": 36,
+            "vendorDetails": {
+                "id": 1,
+                "name": "Asirom",
+                "commercialName": "Asirom"
+            },
+            "productName": "CAMINUL MEU",
+            "productCode": "ASIROM_CAMINUL_MEU_HOUSE",
+            "productSubPackage": "Totala"
+        },
+        "insuredAmount": "120000",
+        "contentAmount": "12000",
+        "insuredAmountCurrency": "EUR",
+        "contentAmountCurrency": "EUR",
+        "specificDetails": [
+            {
+                "code": "HOUSE_PACKAGE",
+                "value": "ACC_IMOBIL_TOTALA"
+            },
+            {
+                "code": "BUILDING_IN_CONSTRUCTION_COVERAGE",
+                "value": false
+            },
+            {
+                "code": "STOLEN_CONSTRUCTION_PARTS_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "PORTABLE_GOODS_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "THIRD_PARTY_COVERAGE_TERRITORIAL_EXPANSION",
+                "value": false
+            },
+            {
+                "code": "PERISHABLE_GOODS_BREAKAGE_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "TENANT_LIABILITY_COVERAGE_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "LOSE_RENT_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "GARDEN_COVERAGE_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "INDOOR_INSTALLATIONS_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "GOODS_VALUE_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "TECHNICAL_ASSISTANCE",
+                "value": "BASIC"
+            }
+        ],
+        "extraProducts": [
+            {
+                "vendorDetails": {
+                    "id": 30,
+                    "name": "Paid",
+                    "commercialName": "PAID"
+                },
+                "offersDetails": {
+                    "PAD_A": [
+                        {
+                            "offerId": 1953,
+                            "offerNumber": "00199036731",
+                            "firstInstallmentPremium": 130.0,
+                            "policyPremium": 130.00,
+                            "periodMonths": null,
+                            "periodYears": null,
+                            "policyStartDate": "2024-12-29T10:06:05",
+                            "policyEndDate": "2025-12-28T10:06:05",
+                            "productDetails": {
+                                "id": 1242,
+                                "vendorDetails": {
+                                    "id": 30,
+                                    "name": "Paid",
+                                    "commercialName": "PAID"
+                                },
+                                "productName": "PAD-A",
+                                "productCode": "PAD_A",
+                                "productSubPackage": null
+                            },
+                            "previousPolicySeries": null,
+                            "previousPolicyNumber": null
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+]
+
+
+Retrieve Payment Link for Card Online
+
+
+
+Method: POST
+
+Endpoint: /api/v1/online/offers/payment
+
+Request example:
+
+
+{
+    "offerId": 1952,
+    "additionalProductsOfferIds": [1953], //pad
+    "redirectURL": "https://www.google.ro?myquery=3"
+}
+
+
+
+
+Response example:
+
+
+200 OK - https://insuretech.staging.insuretech.ro/api/v1/online/broker/payments/pub/pay?token=H4sIAAAAAAAA%2FzMyMLI0NAAAqGZNyAYAAAA%3D
+
+
+Check Payment Status for Card Online
+
+
+
+Method: POST
+
+Endpoint: /api/v1/online/offers/payment/check
+
+Request example:
+
+
+{
+    "offerIds": [1952,1953]
+}
+
+
+
+
+Response example:
+
+
+[
+    {
+        "offerId": 1952,
+        "success": true,
+        "message": "Plata confirmata!"
+    },
+    {
+        "offerId": 1953,
+        "success": true,
+        "message": "Plata confirmata!"
+    }
+]
+
+
+Download Receipt PDF (for payment method Cash ONLY)
+
+
+
+Method: GET
+
+Endpoint: /api/v1/online/payments/receipt/69122/link
+
+Request example:
+
+
+POST /api/v1/online/payments/receipt/69122/link
+
+
+
+
+Response example:
+
+
+200 OK - https://insuretech.staging.insuretech.ro/api/v1/documents/pub/payments/receipt/online?token=S8nI7aXuMEHyEAoOTEre1q6hV0csbeqntw32GIQbU3rfzJb6QA==
+
+
+GET countries
+
+
+
+Method: GET
+
+Endpoint: /api/v1/online/address/utils/countries
+
+Response example:
+
+
+[
+    {
+        "id": 1,
+        "code": "AF",
+        "name": "Afganistan"
+    },
+    {
+        "id": 2,
+        "code": "ZA",
+        "name": "Africa de Sud"
+    }
+]
+
+
+GET counties
+
+
+
+Method: GET
+
+Endpoint: /api/v1/online/address/utils/counties
+
+Response example:
+
+
+[
+    {
+        "id": 29,
+        "code": "AB",
+        "name": "Alba"
+    },
+    {
+        "id": 15,
+        "code": "AR",
+        "name": "Arad"
+    }
+]
+
+
+GET cities
+
+
+
+Method: GET
+
+Endpoint: /api/v1/online/address/utils/cities?countyId={countyId}
+
+Request example:
+
+
+GET /api/v1/online/address/utils/cities?countyId=15
+
+
+
+
+Response example:
+
+
+[
+    {
+        "id": 1315,
+        "name": "Aciuta",
+        "uniquePostalCode": "317261"
+    },
+    {
+        "id": 1316,
+        "name": "Adea",
+        "uniquePostalCode": "317301"
+    }
+]
+
+
+GET Street Types
+
+
+
+Method: GET
+
+Endpoint: /api/v1/online/address/utils/streetTypes
+
+Response example:
+
+
+[
+    {
+        "id": 41,
+        "type": "Strada"
+    },
+    {
+        "id": 11,
+        "type": "Bulevard"
+    },
+    {
+        "id": 12,
+        "type": "Cale"
+    }
+]
+
+
+GET Floors
+
+
+
+Method: GET
+
+Endpoint: /api/v1/online/address/utils/floors
+
+Response example:
+
+
+[
+    {
+        "id": 5,
+        "floor": "Mezanin"
+    },
+    {
+        "id": 6,
+        "floor": "1"
+    },
+    {
+        "id": 7,
+        "floor": "2"
+    },
+    {
+        "id": 8,
+        "floor": "3"
+    }
+]
+
+
+Find Postal Codes
+
+
+
+Method: GET
+
+Endpoint: /api/v1/online/address/utils/postalCodes/find?cityId=8&streetName=Cris
+
+Response example:
+
+
+[
+    {
+        "id": 181,
+        "postalCode": "510146",
+        "streetTypeId": 41,
+        "streetTypeName": "Strada",
+        "streetName": "Crisanei",
+        "streetNumberRange": null
+    },
+    {
+        "id": 180,
+        "postalCode": "510208",
+        "streetTypeId": 41,
+        "streetTypeName": "Strada",
+        "streetName": "Crisan",
+        "streetNumberRange": null
+    }
+]
+
+
+GET Caen Codes
+
+
+
+Method: GET
+
+Endpoint: /api/v1/online/caencodes
+
+Response example:
+
+
+[
+    "0111",
+    "0112",
+    "0113",
+    "0114"
+]
+
+
+GET Company Types
+
+
+
+Method: GET
+
+Endpoint: /api/v1/online/companytypes
+
+Response example:
+
+
+[
+    {
+        "id": 16,
+        "type": "SRL"
+    },
+    {
+        "id": 10,
+        "type": "PFA"
+    },
+    {
+        "id": 12,
+        "type": "SA"
+    }
+]
+
+
+GET ID Types
+
+
+
+Method: GET
+
+Endpoint: /api/v1/online/idtypes
+
+Response example:
+
+
+[
+    "CI",
+    "PASSPORT"
+]
+
+
+Request Objects Description
+
+HouseProductEligibleRequest
+
+
+
+Field
+Mandatory
+Data Type
+Endpoint
+Description
+
+
+
+
+productIds
+Yes
+Array[Integer]
+/api/v1/online/products/house/facultative
+List of house product ids to be checked for eligibility
+
+
+policyStartDate
+Yes
+LocalDateTime (yyyy-MM-dd'T'HH:mm:ss)
+-
+Policy Start Date (Start Date)
+
+
+policyEndDate
+Yes
+LocalDateTime (yyyy-MM-dd'T'HH:mm:ss)
+-
+Policy End Date (End Date)
+
+
+periodMonths
+Yes
+Integer
+-
+Period in months
+
+
+installmentsNo
+Yes
+Integer
+-
+Number of installments (only 1 is accepted for online)
+
+
+currency
+No
+String
+-
+Currency (if it is not sent in the request the currency will be "EUR" by default)
+
+
+offerDetails
+Yes
+HouseComparatorOfferDetailsRequest
+-
+House Offer Details
+
+
+goodDetails
+Yes
+HomeGoodRequest
+-
+House Details
+
+
+
+HomeGoodRequest
+
+
+
+Field
+Mandatory
+Data Type
+Endpoint
+Description
+
+
+
+
+goodType
+Yes
+HOME
+-
+Home good type (accepted value: HOME)
+
+
+constructionYear
+Yes
+Integer
+-
+Construction year
+
+
+usableArea
+Yes
+Decimal
+-
+Usable area
+
+
+area
+Yes
+Decimal
+-
+Area
+
+
+noOfRooms
+Yes
+Integer
+-
+Number of rooms
+
+
+padPropertyType
+Yes
+PadPropertyType
+-
+PAD type A or B
+
+
+buildingStructureTypeId
+Yes
+Integer
+api/v1/online/utils/buildingStructures
+building structure type id
+
+
+constructionTypeId
+Yes
+Integer
+api/v1/online/utils/constructionType
+construction type id
+
+
+environmentType
+Yes
+String
+-
+Environment: Urban or Rural
+
+
+environmentType
+Yes
+String
+api/v1/online/offers/house/comparator/utils
+Environment: Urban or Rural
+
+
+noOfFloors
+Yes
+Integer
+-
+Number of floors
+
+
+noOfConstructedBuildings
+Yes
+Integer
+-
+Number of constructed buildings (default 1)
+
+
+padBuildingIdentificationMention
+Yes
+String
+-
+Building identification for PAD policy
+
+
+insuredSumTypeId
+Yes
+Integer
+api/v1/online/utils/insuredSumTypes
+insured sum type id
+
+
+seismicRiskTypeId
+Yes
+Integer
+api/v1/online/utils/seismicRiskTypes
+seismic risk type id
+
+
+addressRequest
+Yes
+AddressRequestV3
+-
+Address request object (AddressRequestV3)
+
+
+
+HouseComparatorOfferDetailsRequest
+
+
+
+Field
+Mandatory
+Data Type
+Endpoint
+Description
+
+
+
+
+cessionMentions
+No
+String
+-
+Mentions for the bank cession
+
+
+cessions
+No
+Array[CesionarRequest]
+-
+List of cession banks
+
+
+cessionBegin
+No
+LocalDateTime : yyyy-MM-dd'T'HH:mm:ss
+-
+When the cession begins
+
+
+cessionEnd
+No
+LocalDateTime : yyyy-MM-dd'T'HH:mm:ss
+-
+When the cession ends
+
+
+firstHomeCessioned
+No
+Boolean
+-
+If house was bought through FirstHome program
+
+
+cessionRateMFP
+No
+Integer
+-
+Percentage of the cession owned by Finance Ministry when bought through FirstHome program
+
+
+cessionAmount
+No
+Integer
+-
+Cession amount. Mandatory only when house was bought through FirstHome program
+
+
+indoorFinishesTypes
+Yes
+String
+api/v1/online/offers/house/comparator/utils
+Indoor finishes type: INF, MED, SUP, LUX
+
+
+occupationType
+Yes
+String
+api/v1/online/offers/house/comparator/utils
+Occupation type : Permanent or Temporar
+
+
+lastFloorApartment
+No
+Boolean
+-
+If it's a last floor apartment. Default false
+
+
+buildingInsuredSum
+Yes
+Decimal
+-
+Desired building insured sum
+
+
+contentInsuredSum
+No
+Decimal
+-
+Desired content insured sum
+
+
+annexesInsuredSum
+No
+Decimal
+-
+Desired annex insured sum
+
+
+annexType
+Yes
+HouseAnnexType
+-
+Annex type. Mandatory when annexesInsuredSum > 0
+
+
+annexStructure
+Yes
+String
+-
+Annex structure. Mandatory when annexesInsuredSum > 0
+
+
+annexArea
+Yes
+Decimal
+-
+Annex area. Mandatory when annexesInsuredSum > 0
+
+
+stolenGoodsInsuredSum
+No
+Decimal
+-
+Desired stolen goods insured sum
+
+
+civilLiabilityInsuredSum
+No
+Decimal
+-
+Desired civil liability insured sum
+
+
+waterPipesInsuredSum
+No
+Decimal
+-
+Desired water pipes insured sum
+
+
+electricalPhenomenaInsuredSum
+No
+Decimal
+-
+Desired electrical phenomena insured sum
+
+
+heatingSystemInsuredSum
+No
+Decimal
+-
+Desired heating system insured sum
+
+
+heatingSystemModel
+Yes
+String
+-
+Heating system model. Mandatory when heatingSystemInsuredSum > 0
+
+
+heatingSystemYear
+Yes
+Integer
+-
+Heating system year. Mandatory when heatingSystemInsuredSum > 0
+
+
+heatingSystemDescription
+Yes
+String
+-
+Heating system description. Mandatory when heatingSystemInsuredSum > 0
+
+
+discount
+No
+Decimal
+-
+Desired discount percentage
+
+
+discountReason
+Yes
+String
+-
+Discount reason. Mandatory when discount > 0
+
+
+increase
+No
+Decimal
+-
+Desired increase percentage
+
+
+increaseReason
+Yes
+String
+-
+Increase reason. Mandatory when increase > 0
+
+
+hasAlarmSystem
+No
+Boolean
+-
+If house has alarm system. Default false
+
+
+hasFireDetection
+No
+Boolean
+-
+If house has fire detection system. Default false
+
+
+floodAreaDeclaration
+No
+Boolean
+-
+If house is in an area with flood risk. Default false
+
+
+landslidesAreaDeclaration
+No
+Boolean
+-
+If house is in an area with landslide risk. Default false
+
+
+avalancheAreaDeclaration
+No
+Boolean
+-
+If house is in an area with avalanche risk. Default false
+
+
+constructionAuthorization
+No
+Boolean
+-
+If house has construction authorization. Default true
+
+
+constructionAuthorizationRespected
+No
+Boolean
+-
+If house has respected the construction authorization. Default true
+
+
+mentions
+No
+String
+-
+Mentions to be displayed on insurer policy PDF
+
+
+technicalAssistance
+No
+Boolean
+-
+If emergency technical assistance coverage is chosen for the house. Default false
+
+
+firstRiskInsurance
+No
+Boolean
+-
+If the house is insured at first risk. Default true
+
+
+
+HouseComparatorOfferBodiesRequest
+
+
+
+Field
+Mandatory
+Data Type
+Endpoint
+Description
+
+
+
+
+orderId
+Yes
+Long
+/api/v1/online/offers/order
+Order Id
+
+
+productIds
+Yes
+Array[Integer]
+/api/v1/online/products/house/facultative
+List of house product ids to be checked for eligibility
+
+
+policyStartDate
+Yes
+LocalDateTime (yyyy-MM-dd'T'HH:mm:ss)
+-
+Policy Start Date (Trip Start Date)
+
+
+periodMonths
+Yes
+Integer
+-
+Period in months
+
+
+installmentsNo
+Yes
+Integer
+-
+Number of installments: always 1 for online requests
+
+
+currency
+No
+String
+-
+Currency (if it is not sent in the request the currency will be "EUR" by default)
+
+
+requestPAD
+Yes
+Boolean
+-
+True to obtain PAD offers, false otherwise. Default false
+
+
+padPreviousPolicySeries
+No
+String
+-
+If a PAD policy is already present, the old policy series must be provided
+
+
+padPreviousPolicyNumber
+No
+String
+-
+If a PAD policy is already present, the old policy number must be provided
+
+
+padPolicyStartDate
+Yes
+LocalDateTime (yyyy-MM-dd'T'HH:mm:ss)
+-
+PAD policy start date. Mandatory when requestPAD=true. Start date must be always T+5
+
+
+padPolicyEndDate
+Yes
+LocalDateTime (yyyy-MM-dd'T'HH:mm:ss)
+-
+PAD policy end date. Mandatory when requestPAD=true. End date must be always (start_date + 1 year) - 1 day
+
+
+offerDetails
+Yes
+HouseComparatorOfferDetailsRequest
+-
+House Offer Details
+
+
+
+HouseComparatorOfferRequest
+
+
+
+Field
+Mandatory
+Data Type
+Endpoint
+Description
+
+
+
+
+orderId
+Yes
+Long
+/api/v1/online/offers/order
+Order Id
+
+
+productId
+Yes
+Integer
+-
+Product id for the offer
+
+
+policyStartDate
+Yes
+LocalDateTime (yyyy-MM-dd'T'HH:mm:ss)
+-
+Policy Start Date (Trip Start Date)
+
+
+periodMonths
+Yes
+Integer
+-
+Period in months
+
+
+installmentsNo
+Yes
+Integer
+-
+Number of installments: always 1 for online requests
+
+
+currency
+No
+String
+-
+Currency (if it is not sent in the request the currency will be "EUR" by default)
+
+
+requestPAD
+Yes
+Boolean
+-
+True to obtain PAD offers, false otherwise. Default false
+
+
+padPreviousPolicySeries
+No
+String
+-
+If a PAD policy is already present, the old policy series must be provided
+
+
+padPreviousPolicyNumber
+No
+String
+-
+If a PAD policy is already present, the old policy number must be provided
+
+
+padPolicyStartDate
+Yes
+LocalDateTime (yyyy-MM-dd'T'HH:mm:ss)
+-
+PAD policy start date. Mandatory when requestPAD=true. Start date must be always T+5
+
+
+padPolicyEndDate
+Yes
+LocalDateTime (yyyy-MM-dd'T'HH:mm:ss)
+-
+PAD policy end date. Mandatory when requestPAD=true. End date must be always (start_date + 1 year) - 1 day
+
+
+offerDetails
+Yes
+HouseComparatorOfferDetailsRequest
+-
+House Offer Details
+
+
+productCode
+Yes
+HouseProductCodeEnum
+-
+Product Code. It comes pre-filled when retrieve request bodies is called.
+
+
+specificDetails
+No
+Array[HouseVendorSpecificDetailRequest]
+-
+Pre-filled specific details for the product like: coverages, insured amounts. It can be modified. Specific clauses can be added if there are any available for this product (check: /api/v1/online/offers/house /comparator/utils)
+
+
+
+PersonDetailsRequest (legalType=PF - IndividualPersonDetailsRequest)
+
+
+Field
+Mandatory
+Data type
+Endpoint
+Description
+
+
+legalType
+Yes
+LegalType (PF or PJ)
+
+-
+
+Physical person or juridical (Physical in this case)
+
+
+email
+Yes
+String
+
+-
+
+Email
+
+
+phoneNumber
+Yes
+String
+
+-
+
+Phone number
+
+
+quota
+Yes
+Decimal
+
+-
+
+Field mandatory for HOUSE products
+
+
+policyPartyType
+Yes
+PolicyPartyType (CONTRACTOR or INSURED)
+
+-
+
+Whether the person is Contractor or Insured
+
+
+address
+Yes
+AddressRequestV3
+
+-
+
+Adress
+
+
+clientRepresentative
+No
+
+ClientRepresentativeRequest
+(firstName and LastName mandatory) Strings
+
+
+-
+
+The representative must be completed for PJ person or for PF child/minor person
+
+
+cif
+Yes
+Long
+
+-
+
+Romanian CNP of the physical person or identification number (id number) of the person when nationality is not Romanian (foreign person)
+
+
+firstName
+Yes
+String
+
+-
+
+First Name
+
+
+lastName
+Yes
+String
+
+-
+
+Last Name
+
+
+idType
+No
+String
+/api/v1/online/idtypes
+Document identity type
+
+
+idSerial
+No
+String
+
+-
+
+Document identity series
+
+
+idNumber
+No
+String
+
+-
+
+Document identity number
+
+
+idExpirationDate
+No
+Date (yyyy-MM-dd)
+
+-
+
+Expiration date of the identity document
+
+
+driverLicenceDate
+No
+Date (yyyy-MM-dd)
+
+-
+
+Date when driver license was obtained
+
+
+dateOfBirth
+Yes
+Date (yyyy-MM-dd)
+
+-
+
+Date of birth
+
+
+sex
+No
+Sex (M sau F)
+
+-
+
+Sex
+
+
+citizenshipId
+No
+Long
+/api/v1/online/address/utils/countries
+Citizhenship. Default "Romania"
+
+
+PersonDetailsRequest (legalType=PJ - CompanyPersonDetailsRequest)
+
+
+Field
+Mandatory
+Data type
+Endpoint
+Description
+
+
+legalType
+Yes
+LegalType (PF or PJ)
+
+-
+
+Physical person or juridical (Juridical in this case)
+
+
+email
+Yes
+String
+
+-
+
+Email
+
+
+phoneNumber
+Yes
+String
+
+-
+
+Phone number
+
+
+quota
+Yes
+Decimal
+
+-
+
+Field mandatory for HOUSE products
+
+
+policyPartyType
+Yes
+PolicyPartyType (CONTRACTOR or INSURED)
+
+-
+
+Whether the person is Contractor or Insured
+
+
+address
+Yes
+AddressRequestV3
+
+-
+
+Address
+
+
+clientRepresentative
+No
+
+ClientRepresentativeRequest
+(firstName and LastName mandatory) Strings
+
+
+-
+
+The representative must be completed for PJ person or for PF child/minor person
+
+
+cif
+Yes
+String
+
+-
+
+Company CUI (only digits)
+
+
+companyName
+Yes
+String
+
+-
+
+The company name
+
+
+registrationNumber
+No
+String
+
+-
+
+Company registration number
+
+
+caenCode
+No
+String
+/api/v1/online/caencodes
+Company CAEN code
+
+
+companyTypeId
+No
+Long
+/api/v1/online/companytypes
+Company type
+
+
+AddressRequestV3
+
+
+Field
+Mandatory
+Data type
+Endpoint
+Description
+
+
+addressType
+Yes
+
+AddressType
+(HOME or MAILING)
+
+
+-
+
+Address type - "HOME"
+
+
+countryId
+Yes
+Long
+/api/v1/online/address/utils/countries
+Country
+
+
+foreignCountyName
+No
+String
+
+-
+
+Name of the county - Only when country is NOT Romania
+
+
+foreignCityName
+No
+String
+
+-
+
+Name of the city - Only when country is NOT Romania
+
+
+cityId
+Yes
+Long
+/api/v1/online/address/utils/cities?countyId=1
+City - Only when country is Romania
+
+
+postalCode
+Yes
+String
+/api/v1/online/address/utils/postalCodes/find?cityId=8&streetName=Sfa
+The postal code
+
+
+streetTypeId
+Yes
+Long
+/api/v1/online/address/utils/streetTypes
+The street type
+
+
+streetName
+Yes
+String
+
+-
+
+The street name
+
+
+streetNumber
+Yes
+String
+
+-
+
+The street number
+
+
+building
+No
+String
+
+-
+
+Building
+
+
+entrance
+No
+String
+
+-
+
+Entrance
+
+
+floorId
+No
+Long
+/api/v1/online/address/utils/floors
+Floor id
+
+
+apartment
+No
+String
+
+-
+
+Apartament
+
+
+How it works
+
+Example 1
+To understand the concept of PRE-BUILT request bodies let's take Asirom CAMINUL_MEU as an example:
+Asirom CAMINUL_MEU has 3 possible plans: STANDARD, CATASTROFICA and TOTALA
+When you call retrieve bodies endpoint you will get a response with 3 PRE-BUILT objects and a PAD pre-build object if requestPAD = true was asked:
+
+[
+    {
+        "orderId": 298,
+        "productId": 36,
+        "agencyId": null,
+        "policyStartDate": "2024-12-26T10:06:05",
+        "periodMonths": 12,
+        "installmentsNo": 1,
+        "currency": "EUR",
+        "requestPAD": false,
+        "padPreviousPolicySeries": null,
+        "padPreviousPolicyNumber": null,
+        "padPolicyStartDate": "2024-12-29T10:06:05",
+        "padPolicyEndDate": "2025-12-28T10:06:05",
+        "offerDetails": {
+            "cessionMentions": null,
+            "cessions": null,
+            "cessionBegin": null,
+            "cessionEnd": null,
+            "cessionRateMFP": null,
+            "firstHomeCessioned": false,
+            "cessionAmount": null,
+            "indoorFinishesTypes": "SUP",
+            "occupationType": "Permanent",
+            "lastFloorApartment": false,
+            "buildingInsuredSum": 120000,
+            "contentInsuredSum": 12000,
+            "annexesInsuredSum": 1000,
+            "annexType": "GARAGE",
+            "annexStructure": null,
+            "annexArea": 50,
+            "stolenGoodsInsuredSum": 1000,
+            "civilLiabilityInsuredSum": 1000,
+            "waterPipesInsuredSum": 1000,
+            "electricalPhenomenaInsuredSum": 1000,
+            "heatingSystemInsuredSum": null,
+            "heatingSystemModel": null,
+            "heatingSystemYear": null,
+            "heatingSystemDescription": null,
+            "discount": null,
+            "discountReason": null,
+            "increase": null,
+            "increaseReason": null,
+            "hasAlarmSystem": false,
+            "hasFireDetection": false,
+            "floodAreaDeclaration": false,
+            "landslidesAreaDeclaration": false,
+            "avalancheAreaDeclaration": false,
+            "constructionAuthorization": true,
+            "constructionAuthorizationRespected": true,
+            "mentions": "MENTIUNI TEST",
+            "technicalAssistance": true,
+            "firstRiskInsurance": true,
+            "paidConstructionType": null,
+            "apartmentInVilla": false
+        },
+        "productCode": "ASIROM_CAMINUL_MEU_HOUSE",
+        "specificDetails": [
+            {
+                "code": "PORTABLE_GOODS_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "TECHNICAL_ASSISTANCE",
+                "value": "BASIC"
+            },
+            {
+                "code": "GOODS_VALUE_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "INDOOR_INSTALLATIONS_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "THIRD_PARTY_COVERAGE_TERRITORIAL_EXPANSION",
+                "value": false
+            },
+            {
+                "code": "BUILDING_IN_CONSTRUCTION_COVERAGE",
+                "value": false
+            },
+            {
+                "code": "STOLEN_CONSTRUCTION_PARTS_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "PERISHABLE_GOODS_BREAKAGE_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "TENANT_LIABILITY_COVERAGE_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "LOSE_RENT_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "HOUSE_PACKAGE",
+                "value": "ACC_IMOBIL_STANDARD"
+            },
+            {
+                "code": "GARDEN_COVERAGE_INSURED_SUM",
+                "value": 0
+            }
+        ],
+        "saveError": true
+    },
+    {
+        "orderId": 298,
+        "productId": 36,
+        "agencyId": null,
+        "policyStartDate": "2024-12-26T10:06:05",
+        "periodMonths": 12,
+        "installmentsNo": 1,
+        "currency": "EUR",
+        "requestPAD": false,
+        "padPreviousPolicySeries": null,
+        "padPreviousPolicyNumber": null,
+        "padPolicyStartDate": "2024-12-29T10:06:05",
+        "padPolicyEndDate": "2025-12-28T10:06:05",
+        "offerDetails": {
+            "cessionMentions": null,
+            "cessions": null,
+            "cessionBegin": null,
+            "cessionEnd": null,
+            "cessionRateMFP": null,
+            "firstHomeCessioned": false,
+            "cessionAmount": null,
+            "indoorFinishesTypes": "SUP",
+            "occupationType": "Permanent",
+            "lastFloorApartment": false,
+            "buildingInsuredSum": 120000,
+            "contentInsuredSum": 12000,
+            "annexesInsuredSum": 1000,
+            "annexType": "GARAGE",
+            "annexStructure": null,
+            "annexArea": 50,
+            "stolenGoodsInsuredSum": 1000,
+            "civilLiabilityInsuredSum": 1000,
+            "waterPipesInsuredSum": 1000,
+            "electricalPhenomenaInsuredSum": 1000,
+            "heatingSystemInsuredSum": null,
+            "heatingSystemModel": null,
+            "heatingSystemYear": null,
+            "heatingSystemDescription": null,
+            "discount": null,
+            "discountReason": null,
+            "increase": null,
+            "increaseReason": null,
+            "hasAlarmSystem": false,
+            "hasFireDetection": false,
+            "floodAreaDeclaration": false,
+            "landslidesAreaDeclaration": false,
+            "avalancheAreaDeclaration": false,
+            "constructionAuthorization": true,
+            "constructionAuthorizationRespected": true,
+            "mentions": "MENTIUNI TEST",
+            "technicalAssistance": true,
+            "firstRiskInsurance": true,
+            "paidConstructionType": null,
+            "apartmentInVilla": false
+        },
+        "productCode": "ASIROM_CAMINUL_MEU_HOUSE",
+        "specificDetails": [
+            {
+                "code": "PORTABLE_GOODS_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "HOUSE_PACKAGE",
+                "value": "ACC_IMOBIL_CATASTROFICA"
+            },
+            {
+                "code": "TECHNICAL_ASSISTANCE",
+                "value": "BASIC"
+            },
+            {
+                "code": "GOODS_VALUE_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "INDOOR_INSTALLATIONS_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "THIRD_PARTY_COVERAGE_TERRITORIAL_EXPANSION",
+                "value": false
+            },
+            {
+                "code": "BUILDING_IN_CONSTRUCTION_COVERAGE",
+                "value": false
+            },
+            {
+                "code": "STOLEN_CONSTRUCTION_PARTS_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "PERISHABLE_GOODS_BREAKAGE_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "TENANT_LIABILITY_COVERAGE_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "LOSE_RENT_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "GARDEN_COVERAGE_INSURED_SUM",
+                "value": 0
+            }
+        ],
+        "saveError": true
+    },
+    {
+        "orderId": 298,
+        "productId": 36,
+        "agencyId": null,
+        "policyStartDate": "2024-12-26T10:06:05",
+        "periodMonths": 12,
+        "installmentsNo": 1,
+        "currency": "EUR",
+        "requestPAD": false,
+        "padPreviousPolicySeries": null,
+        "padPreviousPolicyNumber": null,
+        "padPolicyStartDate": "2024-12-29T10:06:05",
+        "padPolicyEndDate": "2025-12-28T10:06:05",
+        "offerDetails": {
+            "cessionMentions": null,
+            "cessions": null,
+            "cessionBegin": null,
+            "cessionEnd": null,
+            "cessionRateMFP": null,
+            "firstHomeCessioned": false,
+            "cessionAmount": null,
+            "indoorFinishesTypes": "SUP",
+            "occupationType": "Permanent",
+            "lastFloorApartment": false,
+            "buildingInsuredSum": 120000,
+            "contentInsuredSum": 12000,
+            "annexesInsuredSum": 1000,
+            "annexType": "GARAGE",
+            "annexStructure": null,
+            "annexArea": 50,
+            "stolenGoodsInsuredSum": 1000,
+            "civilLiabilityInsuredSum": 1000,
+            "waterPipesInsuredSum": 1000,
+            "electricalPhenomenaInsuredSum": 1000,
+            "heatingSystemInsuredSum": null,
+            "heatingSystemModel": null,
+            "heatingSystemYear": null,
+            "heatingSystemDescription": null,
+            "discount": null,
+            "discountReason": null,
+            "increase": null,
+            "increaseReason": null,
+            "hasAlarmSystem": false,
+            "hasFireDetection": false,
+            "floodAreaDeclaration": false,
+            "landslidesAreaDeclaration": false,
+            "avalancheAreaDeclaration": false,
+            "constructionAuthorization": true,
+            "constructionAuthorizationRespected": true,
+            "mentions": "MENTIUNI TEST",
+            "technicalAssistance": true,
+            "firstRiskInsurance": true,
+            "paidConstructionType": null,
+            "apartmentInVilla": false
+        },
+        "productCode": "ASIROM_CAMINUL_MEU_HOUSE",
+        "specificDetails": [
+            {
+                "code": "PORTABLE_GOODS_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "TECHNICAL_ASSISTANCE",
+                "value": "BASIC"
+            },
+            {
+                "code": "GOODS_VALUE_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "INDOOR_INSTALLATIONS_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "THIRD_PARTY_COVERAGE_TERRITORIAL_EXPANSION",
+                "value": false
+            },
+            {
+                "code": "BUILDING_IN_CONSTRUCTION_COVERAGE",
+                "value": false
+            },
+            {
+                "code": "HOUSE_PACKAGE",
+                "value": "ACC_IMOBIL_TOTALA"
+            },
+            {
+                "code": "STOLEN_CONSTRUCTION_PARTS_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "PERISHABLE_GOODS_BREAKAGE_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "TENANT_LIABILITY_COVERAGE_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "LOSE_RENT_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "GARDEN_COVERAGE_INSURED_SUM",
+                "value": 0
+            }
+        ],
+        "saveError": true
+    },
+{
+        "orderId": 298,
+        "productId": 1242,
+        "agencyId": null,
+        "policyStartDate": "2024-12-26T10:06:05",
+        "periodMonths": 12,
+        "installmentsNo": 1,
+        "currency": "EUR",
+        "requestPAD": true,
+        "padPreviousPolicySeries": null,
+        "padPreviousPolicyNumber": null,
+        "padPolicyStartDate": "2024-12-29T10:06:05",
+        "padPolicyEndDate": "2025-12-28T10:06:05",
+        "offerDetails": {
+            "cessionMentions": null,
+            "cessions": null,
+            "cessionBegin": null,
+            "cessionEnd": null,
+            "cessionRateMFP": null,
+            "firstHomeCessioned": false,
+            "cessionAmount": null,
+            "indoorFinishesTypes": "SUP",
+            "occupationType": "Permanent",
+            "lastFloorApartment": false,
+            "buildingInsuredSum": 120000,
+            "contentInsuredSum": 12000,
+            "annexesInsuredSum": 1000,
+            "annexType": "GARAGE",
+            "annexStructure": null,
+            "annexArea": 50,
+            "stolenGoodsInsuredSum": 1000,
+            "civilLiabilityInsuredSum": 1000,
+            "waterPipesInsuredSum": 1000,
+            "electricalPhenomenaInsuredSum": 1000,
+            "heatingSystemInsuredSum": null,
+            "heatingSystemModel": null,
+            "heatingSystemYear": null,
+            "heatingSystemDescription": null,
+            "discount": null,
+            "discountReason": null,
+            "increase": null,
+            "increaseReason": null,
+            "hasAlarmSystem": false,
+            "hasFireDetection": false,
+            "floodAreaDeclaration": false,
+            "landslidesAreaDeclaration": false,
+            "avalancheAreaDeclaration": false,
+            "constructionAuthorization": true,
+            "constructionAuthorizationRespected": true,
+            "mentions": "MENTIUNI TEST",
+            "technicalAssistance": true,
+            "firstRiskInsurance": true,
+            "paidConstructionType": null,
+            "apartmentInVilla": false
+        },
+        "productCode": "PAID_PAD_A",
+        "specificDetails": null,
+        "saveError": true
+    }
+]
+
+
+As we can see in specificDetails field, house packages are different. So by calling each of this request body individually, you will end up with 3 different offers of different prices.
+Also by calling the PAD related request body you will get an offer for PAD.
+This way we make sure to provide the client with multiple choices of offers with different plans and coverages.
+Example 2
+To understand how specific fields work, let's consider one request body from above as an example:
+After we retrieve the request bodies we get :
+
+{
+        "orderId": 298,
+        "productId": 36,
+        "agencyId": null,
+        "policyStartDate": "2024-12-26T10:06:05",
+        "periodMonths": 12,
+        "installmentsNo": 1,
+        "currency": "EUR",
+        "requestPAD": false,
+        "padPreviousPolicySeries": null,
+        "padPreviousPolicyNumber": null,
+        "padPolicyStartDate": "2024-12-29T10:06:05",
+        "padPolicyEndDate": "2025-12-28T10:06:05",
+        "offerDetails": {
+            "cessionMentions": null,
+            "cessions": null,
+            "cessionBegin": null,
+            "cessionEnd": null,
+            "cessionRateMFP": null,
+            "firstHomeCessioned": false,
+            "cessionAmount": null,
+            "indoorFinishesTypes": "SUP",
+            "occupationType": "Permanent",
+            "lastFloorApartment": false,
+            "buildingInsuredSum": 120000,
+            "contentInsuredSum": 12000,
+            "annexesInsuredSum": 1000,
+            "annexType": "GARAGE",
+            "annexStructure": null,
+            "annexArea": 50,
+            "stolenGoodsInsuredSum": 1000,
+            "civilLiabilityInsuredSum": 1000,
+            "waterPipesInsuredSum": 1000,
+            "electricalPhenomenaInsuredSum": 1000,
+            "heatingSystemInsuredSum": null,
+            "heatingSystemModel": null,
+            "heatingSystemYear": null,
+            "heatingSystemDescription": null,
+            "discount": null,
+            "discountReason": null,
+            "increase": null,
+            "increaseReason": null,
+            "hasAlarmSystem": false,
+            "hasFireDetection": false,
+            "floodAreaDeclaration": false,
+            "landslidesAreaDeclaration": false,
+            "avalancheAreaDeclaration": false,
+            "constructionAuthorization": true,
+            "constructionAuthorizationRespected": true,
+            "mentions": "MENTIUNI TEST",
+            "technicalAssistance": true,
+            "firstRiskInsurance": true,
+            "paidConstructionType": null,
+            "apartmentInVilla": false
+        },
+        "productCode": "ASIROM_CAMINUL_MEU_HOUSE",
+        "specificDetails": [
+            {
+                "code": "PORTABLE_GOODS_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "TECHNICAL_ASSISTANCE",
+                "value": "BASIC"
+            },
+            {
+                "code": "GOODS_VALUE_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "INDOOR_INSTALLATIONS_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "THIRD_PARTY_COVERAGE_TERRITORIAL_EXPANSION",
+                "value": false
+            },
+            {
+                "code": "BUILDING_IN_CONSTRUCTION_COVERAGE",
+                "value": false
+            },
+            {
+                "code": "HOUSE_PACKAGE",
+                "value": "ACC_IMOBIL_TOTALA"
+            },
+            {
+                "code": "STOLEN_CONSTRUCTION_PARTS_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "PERISHABLE_GOODS_BREAKAGE_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "TENANT_LIABILITY_COVERAGE_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "LOSE_RENT_INSURED_SUM",
+                "value": 0
+            },
+            {
+                "code": "GARDEN_COVERAGE_INSURED_SUM",
+                "value": 0
+            }
+        ],
+        "saveError": true
+    }
+
+
+To check what optional clauses can be added to this product we call the following endpoint:
+/api/v1/online/offers/house/comparator/utils?productId=your_product_id
+Result:
+
+"vendorSpecificDetails": [
+        {
+      "productCode": "ASIROM_CAMINUL_MEU_HOUSE",
+      "details": [
+        {
+          "description": "House Package",
+          "name": "Pachet asigurare",
+          "code": "HOUSE_PACKAGE",
+          "type": "STRING",
+          "acceptedValues": [
+            {
+              "name": "STANDARD",
+              "code": "ACC_IMOBIL_STANDARD",
+              "description": "Incendiu, trăsnet – efecte directe, explozie, căderea unui aparat de zbor"
+            },
+            {
+              "name": "CATASTROFICĂ",
+              "code": "ACC_IMOBIL_CATASTROFICA",
+              "description": "Acoperire Standard + Cutremur de pământ, inundaţie, alunecare / prăbuşire de teren"
+            },
+            {
+              "name": "TOTALĂ",
+              "code": "ACC_IMOBIL_TOTALA",
+              "description": "Acoperire Catastrofică + Furtună, uragan, tornadă, vijelie, grindină – efecte directe, ploaie torenţială, cădere accidentală de corpuri pe clădirea asigurată, coliziunea cu un vehicul care nu aparţine Asiguratului, daune provocate de animale, greutatea stratului de zăpadă / gheţii, avalanşe de zăpadă, boom sonic, greve, revolte, tulburări civile, vandalism."
+            }
+          ],
+          "isInterval": false,
+          "mandatory": true
+        },
+        {
+          "description": "Asistenta Tehnica la Domiciliu",
+          "name": "Asistenta Tehnica la Domiciliu",
+          "code": "TECHNICAL_ASSISTANCE",
+          "type": "STRING",
+          "acceptedValues": [
+            {
+              "name": "Basic - 100 EUR",
+              "code": "BASIC"
+            },
+            {
+              "name": "Standard - 400 EUR",
+              "code": "STANDARD"
+            },
+            {
+              "name": "Premium - 800 EUR",
+              "code": "PREMIUM"
+            }
+          ],
+          "isInterval": false,
+          "mandatory": false
+        },
+        {
+          "description": "Acoperire Răspunderea civilă - Extindere valabilitate teritorială. Egala cu Suma asigurata Răspundere civilă faţă de terţi. Se poate acorda doar daca exista Răspundere civilă faţă de terţi",
+          "name": "Acoperire Răspunderea civilă - Extindere valabilitate teritorială",
+          "code": "THIRD_PARTY_COVERAGE_TERRITORIAL_EXPANSION",
+          "type": "BOOLEAN",
+          "acceptedValues": [
+            {
+              "name": "Da",
+              "code": true
+            },
+            {
+              "name": "Nu",
+              "code": false
+            }
+          ],
+          "isInterval": false,
+          "mandatory": false
+        },
+        {
+          "description": "Acoperire Asigurarea clădirilor în timpul construcţiei / la care se execută lucrări de extindere. Nu se pot adauga simultan si alte acoperiri suplimentare",
+          "name": "Acoperire Asigurarea clădirilor în timpul construcţiei ",
+          "code": "BUILDING_IN_CONSTRUCTION_COVERAGE",
+          "type": "BOOLEAN",
+          "acceptedValues": [
+            {
+              "name": "Da",
+              "code": true
+            },
+            {
+              "name": "Nu",
+              "code": false
+            }
+          ],
+          "isInterval": false,
+          "mandatory": false
+        },
+        {
+          "description": "Furt prin efracţie şi acte de tâlhărie elemente de construcţie",
+          "name": "Valoare asigurata Furt prin efracţie şi acte de tâlhărie elemente de construcţie",
+          "code": "STOLEN_CONSTRUCTION_PARTS_INSURED_SUM",
+          "type": "INTEGER_NUMBER",
+          "value": null,
+          "valueTo": null,
+          "currency": null,
+          "isInterval": false,
+          "mandatory": false
+        },
+        {
+          "description": "Asigurarea bunurilor de valoare. (Oferta va fi blocata. Necesita aprobare Asirom.)",
+          "name": "Valoare asigurata la asigurarea bunurilor de valoare",
+          "code": "GOODS_VALUE_INSURED_SUM",
+          "type": "INTEGER_NUMBER",
+          "value": null,
+          "valueTo": null,
+          "currency": null,
+          "isInterval": false,
+          "mandatory": false
+        },
+        {
+          "description": "Asigurarea bunurilor aflate asupra asiguratului, oriunde în afara perimetrului asigurat",
+          "name": "Valoare asigurata la asigurarea bunurilor aflate asupra asiguratului, oriunde în afara perimetrului asigurat",
+          "code": "PORTABLE_GOODS_INSURED_SUM",
+          "type": "INTEGER_NUMBER",
+          "value": null,
+          "valueTo": null,
+          "currency": null,
+          "isInterval": false,
+          "mandatory": false
+        },
+        {
+          "description": "Asigurarea pentru avarii accidentale la instalaţiile interioare",
+          "name": "Valoare asigurata la asigurarea pentru avarii accidentale la instalaţiile interioare",
+          "code": "INDOOR_INSTALLATIONS_INSURED_SUM",
+          "type": "INTEGER_NUMBER",
+          "value": null,
+          "valueTo": null,
+          "currency": null,
+          "isInterval": false,
+          "mandatory": false
+        },
+        {
+          "description": "Acoperire Spargere şi crăpare bunuri casabile pentru riscuri specifice. Maxim 50% din suma asigurata continut+cladire",
+          "name": "Valoare asigurata Spargere şi crăpare bunuri casabile pentru riscuri specifice",
+          "code": "PERISHABLE_GOODS_BREAKAGE_INSURED_SUM",
+          "type": "INTEGER_NUMBER",
+          "value": null,
+          "valueTo": null,
+          "currency": null,
+          "isInterval": false,
+          "mandatory": false
+        },
+        {
+          "description": "Asigurarea pentru pierderea chiriei/Chiria Datorata",
+          "name": "Valoare asigurata la asigurarea pentru pierderea chiriei/Chiria Datorata",
+          "code": "LOSE_RENT_INSURED_SUM",
+          "type": "INTEGER_NUMBER",
+          "value": null,
+          "valueTo": null,
+          "currency": null,
+          "isInterval": false,
+          "mandatory": false
+        },
+        {
+          "description": "Asigurarea grădinii",
+          "name": "Valoare asigurata la asigurarea grădinii",
+          "code": "GARDEN_COVERAGE_INSURED_SUM",
+          "type": "INTEGER_NUMBER",
+          "value": null,
+          "valueTo": null,
+          "currency": null,
+          "isInterval": false,
+          "mandatory": false
+        },
+        {
+          "description": "Acoperire Răspunderea chiriasului fata de proprietar/a proprietarului fata de chirias. Se acorda implicit daca exista Răspundere civilă faţă de terţi",
+          "name": "Limita raspundere: Răspunderea chiriasului fata de proprietar/a proprietarului fata de chirias",
+          "code": "TENANT_LIABILITY_COVERAGE_INSURED_SUM",
+          "type": "INTEGER_NUMBER",
+          "value": null,
+          "valueTo": null,
+          "currency": null,
+          "isInterval": false,
+          "mandatory": false
+        }
+      ]
+    }
+    ]
+
+
+Those entries that have mandatory=true are always included by the server in the PRE-BUILT bodies.
+The rest of the entries with mandatory=false represent optional clauses that can be added to the request body and finally send the 'enhanced' request to the server to get a non-standard offer.
+Looking on the optional clauses we see that we can add INDOOR_INSTALLATIONS_INSURED_SUM clause to cover accidents on indoor installations. This clause was returned initially with value 0, meaning it was not provided. The request will end up looking like this:
+
+{
+       "orderId": 298,
+       "productId": 36,
+       "agencyId": null,
+       "policyStartDate": "2024-12-26T10:06:05",
+       "periodMonths": 12,
+       "installmentsNo": 1,
+        "currency": "EUR",
+       "requestPAD": false,
+       "padPreviousPolicySeries": null,
+       "padPreviousPolicyNumber": null,
+       "padPolicyStartDate": "2024-12-29T10:06:05",
+       "padPolicyEndDate": "2025-12-28T10:06:05",
+       "offerDetails": {
+           "cessionMentions": null,
+           "cessions": null,
+           "cessionBegin": null,
+           "cessionEnd": null,
+           "cessionRateMFP": null,
+           "firstHomeCessioned": false,
+           "cessionAmount": null,
+           "indoorFinishesTypes": "SUP",
+           "occupationType": "Permanent",
+           "lastFloorApartment": false,
+           "buildingInsuredSum": 120000,
+           "contentInsuredSum": 12000,
+           "annexesInsuredSum": 1000,
+           "annexType": "GARAGE",
+           "annexStructure": null,
+           "annexArea": 50,
+           "stolenGoodsInsuredSum": 1000,
+           "civilLiabilityInsuredSum": 1000,
+           "waterPipesInsuredSum": 1000,
+           "electricalPhenomenaInsuredSum": 1000,
+           "heatingSystemInsuredSum": null,
+           "heatingSystemModel": null,
+           "heatingSystemYear": null,
+           "heatingSystemDescription": null,
+           "discount": null,
+           "discountReason": null,
+           "increase": null,
+           "increaseReason": null,
+           "hasAlarmSystem": false,
+           "hasFireDetection": false,
+           "floodAreaDeclaration": false,
+           "landslidesAreaDeclaration": false,
+           "avalancheAreaDeclaration": false,
+           "constructionAuthorization": true,
+           "constructionAuthorizationRespected": true,
+           "mentions": "MENTIUNI TEST",
+           "technicalAssistance": true,
+           "firstRiskInsurance": true,
+           "paidConstructionType": null,
+           "apartmentInVilla": false
+       },
+       "productCode": "ASIROM_CAMINUL_MEU_HOUSE",
+       "specificDetails": [
+           {
+               "code": "PORTABLE_GOODS_INSURED_SUM",
+               "value": 0
+           },
+           {
+               "code": "TECHNICAL_ASSISTANCE",
+               "value": "BASIC"
+           },
+           {
+               "code": "GOODS_VALUE_INSURED_SUM",
+               "value": 0
+           },
+           {
+               "code": "INDOOR_INSTALLATIONS_INSURED_SUM",
+               "value": 1500
+           },
+           {
+               "code": "THIRD_PARTY_COVERAGE_TERRITORIAL_EXPANSION",
+               "value": false
+           },
+           {
+               "code": "BUILDING_IN_CONSTRUCTION_COVERAGE",
+               "value": false
+           },
+           {
+               "code": "HOUSE_PACKAGE",
+               "value": "ACC_IMOBIL_TOTALA"
+           },
+           {
+               "code": "STOLEN_CONSTRUCTION_PARTS_INSURED_SUM",
+               "value": 0
+           },
+           {
+               "code": "PERISHABLE_GOODS_BREAKAGE_INSURED_SUM",
+               "value": 0
+           },
+           {
+               "code": "TENANT_LIABILITY_COVERAGE_INSURED_SUM",
+               "value": 0
+           },
+           {
+               "code": "LOSE_RENT_INSURED_SUM",
+               "value": 0
+           },
+           {
+               "code": "GARDEN_COVERAGE_INSURED_SUM",
+               "value": 0
+           }
+       ],
+       "saveError": true
+   }
+
+
+Note that we've added the desired amount of 1500 EUR.
+Same mechanism applies to all the products that have optional clauses/coverages.

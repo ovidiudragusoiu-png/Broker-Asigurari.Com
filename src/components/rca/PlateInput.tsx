@@ -34,12 +34,12 @@ export default function PlateInput({ value, onChange, onContinue }: PlateInputPr
       </div>
 
       <div className="mx-auto max-w-sm">
-        <label className="mb-1 block text-sm font-medium text-gray-700">
+        <label className="mb-1 block text-xs font-medium text-gray-500">
           Număr înmatriculare
         </label>
         <input
           type="text"
-          className="w-full rounded-lg border-2 border-gray-300 px-4 py-3 text-center text-lg font-bold uppercase tracking-widest focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 focus:outline-none transition-colors duration-200"
+          className="w-full rounded-xl border-2 border-gray-200 bg-gray-50/50 px-4 py-3 text-center text-lg font-bold uppercase tracking-widest text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none"
           value={value}
           onChange={(e) => {
             onChange(e.target.value.toUpperCase().replace(/[\s\-]/g, ""));
@@ -61,10 +61,15 @@ export default function PlateInput({ value, onChange, onContinue }: PlateInputPr
         <button
           type="button"
           onClick={handleSubmit}
-          className={btn.primary}
+          className={`${btn.primary} px-8`}
           disabled={!isValid}
         >
-          Continuă
+          <span className="flex items-center gap-2">
+            Continuă
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+            </svg>
+          </span>
         </button>
       </div>
     </div>

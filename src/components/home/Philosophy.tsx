@@ -36,14 +36,14 @@ export default function Philosophy() {
   return (
     <section
       ref={sectionRef}
-      className="relative overflow-hidden bg-[#0D1B2A] py-28 sm:py-40"
+      className="relative overflow-hidden bg-[#0D0D12] py-28 sm:py-40"
     >
       {/* Parallax texture */}
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-[0.07]"
         style={{
           backgroundImage:
-            "url('https://images.unsplash.com/photo-1557683316-973673baf926?w=1920&q=80')",
+            "url('https://images.unsplash.com/photo-1600607686527-6fb886090705?q=80&w=2500')",
         }}
       />
 
@@ -58,37 +58,35 @@ export default function Philosophy() {
       <div className="relative mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
         {/* Contrasting statements */}
         <div className="space-y-8 sm:space-y-12">
-          <p className="phil-line text-lg text-white/40 sm:text-xl lg:text-2xl">
+          <p className="phil-line text-lg text-[#FAF8F5]/40 sm:text-xl lg:text-2xl font-sans">
             Majoritatea brokerilor se concentrează pe:{" "}
-            <span className="text-white/60">vânzare, comision, volum.</span>
+            <span className="text-[#FAF8F5]/60">vânzare, oferte limitate, comisioane.</span>
           </p>
 
           <div>
-            <p className="phil-line text-2xl font-bold text-white sm:text-3xl lg:text-4xl">
+            <p className="phil-line text-2xl font-bold text-[#FAF8F5] sm:text-3xl lg:text-4xl font-sans">
               Noi ne concentrăm pe:
             </p>
             <p className="phil-line mt-3 sm:mt-4">
               <span
-                className="text-4xl font-bold italic text-[#4db8cc] sm:text-5xl lg:text-7xl"
-                style={{ fontFamily: "'Playfair Display', serif" }}
+                className="text-5xl font-light italic text-[#C9A84C] sm:text-6xl lg:text-8xl font-serif"
               >
                 transparență
               </span>
-              <span className="text-4xl font-bold text-white/80 sm:text-5xl lg:text-7xl">
+              <span className="text-4xl font-bold text-[#FAF8F5]/80 sm:text-5xl lg:text-7xl font-sans">
                 {" "}și{" "}
               </span>
               <span
-                className="text-4xl font-bold italic text-[#C9A84C] sm:text-5xl lg:text-7xl"
-                style={{ fontFamily: "'Playfair Display', serif" }}
+                className="text-5xl font-light italic text-[#C9A84C] sm:text-6xl lg:text-8xl font-serif"
               >
-                simplitate.
+                suport.
               </span>
             </p>
           </div>
 
-          <p className="phil-line max-w-2xl text-base text-white/30 sm:text-lg">
-            Fiecare ofertă e verificată, fiecare preț e real, fiecare decizie îți aparține.
-            Tu compari. Tu alegi. Noi doar facilităm procesul.
+          <p className="phil-line max-w-2xl text-base text-[#FAF8F5]/40 sm:text-lg font-sans">
+            Îți oferim vizibilitate totală asupra opțiunilor, dincolo de interese comerciale.
+            Tu alegi ce e mai bine, noi te susținem necondiționat, mai ales la dosarele de daună.
           </p>
         </div>
       </div>

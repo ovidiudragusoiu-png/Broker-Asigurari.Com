@@ -23,16 +23,20 @@ const ALLOWED_PATHS: RegExp[] = [
   /^online\/offers\/rca\/order(\/v3($|\?)|\/v3\/\d+)/, // create/update RCA order
   /^online\/offers\/rca\/v3($|\?)/, // generate RCA offers
   /^online\/offers\/rca\/\d+\/details\/v3($|\?)/, // offer details
-  /^online\/offers\/order\/v3($|\?|\/)/, // order operations
-  /^online\/offers\/payment\/v3($|\?)/, // create payment
+  /^online\/offers\/order\/v3($|\?|\/)/, // order operations (v3)
+  /^online\/offers\/order($|\?)/, // order operations (non-v3, PAD)
+  /^online\/offers\/payment\/v3($|\?)/, // create payment (v3)
+  /^online\/offers\/payment($|\?)/, // create payment (non-v3, PAD)
   /^online\/offers\/payment\/check\/v3($|\?)/, // check payment
-  /^online\/offers\/payment\/loan\/v3($|\?)/, // loan payment
+  /^online\/offers\/payment\/loan\/v3($|\?)/, // loan payment (v3)
+  /^online\/offers\/payment\/loan($|\?)/, // loan payment (non-v3, PAD)
+  /^online\/offers\/paid\/pad($|\?)/, // PAD offer creation (non-v3)
   /^online\/offers\/\d+\/document\/v3($|\?)/, // offer document
   /^online\/offers\/travel\//, // travel offers
   /^online\/offers\/house\//, // house offers
   /^online\/offers\/malpraxis\//, // malpraxis offers
   /^online\/client\/documents\//, // consent documents
-  /^online\/policies\//, // policy creation & documents
+  /^online\/policies($|\/)/, // policy creation & documents
   /^online\/idtypes($|\?)/, // ID types
   /^online\/companytypes($|\?)/, // company types
   /^online\/caencodes($|\?)/, // CAEN codes
@@ -77,7 +81,7 @@ async function proxyRequest(req: NextRequest, method: string) {
   const fetchOptions: RequestInit = { method, headers };
   const controller = new AbortController();
   // Policy creation can be slow — allow 2 minutes for those endpoints
-  const isSlowEndpoint = /^online\/(policies|offers\/payment)\//.test(pathSegments);
+  const isSlowEndpoint = /^online\/(policies|offers\/payment)(\/|$)/.test(pathSegments);
   const timeoutMs = isSlowEndpoint
     ? Math.max(appEnv.requestTimeoutMs, 120000)
     : appEnv.requestTimeoutMs;

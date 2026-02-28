@@ -3,9 +3,11 @@
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { ShieldCheck } from "lucide-react";
 import DesktopNav from "@/components/layout/DesktopNav";
 import MobileMenu from "@/components/home/MobileMenu";
+import HeaderAuthButton from "@/components/portal/HeaderAuthButton";
 
 export default function CinematicHeader() {
   const pathname = usePathname();
@@ -29,36 +31,31 @@ export default function CinematicHeader() {
 
   return (
     <header
-      className={`fixed top-4 left-1/2 z-50 w-[94%] max-w-6xl -translate-x-1/2 transition-all duration-500 ease-[cubic-bezier(0.25,0.46,0.45,0.94)] ${
-        scrolled
-          ? "rounded-[2rem] bg-white/80 shadow-lg shadow-black/5 backdrop-blur-xl border border-gray-200/60"
-          : "rounded-[2rem] bg-white/5 backdrop-blur-sm border border-white/10"
-      }`}
+      className={`fixed top-0 left-0 z-50 w-full transition-all duration-300 ${scrolled
+        ? "bg-white/90 shadow-sm backdrop-blur-md border-b border-gray-100"
+        : "bg-transparent"
+        }`}
     >
-      <nav className="flex items-center justify-between px-5 py-3 sm:px-6">
-        {/* Logo */}
-        <Link
-          href="/"
-          className={`flex items-center gap-2 text-lg font-extrabold transition-colors duration-300 ${
-            scrolled ? "text-slate-900" : "text-white"
-          }`}
-        >
-          <ShieldCheck
-            className={`h-6 w-6 transition-colors duration-300 ${
-              scrolled ? "text-[#4db8cc]" : "text-white"
-            }`}
-          />
-          <span>
-            Broker
-            <span
-              className={`transition-colors duration-300 ${
-                scrolled ? "text-[#4db8cc]" : "text-white/90"
-              }`}
-            >
-              Asigurari
+      <nav className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-6 lg:px-8">
+        {/* Logo + PNRR */}
+        <div className="flex flex-col">
+          <Link
+            href="/"
+            className="flex items-center gap-2 text-xl font-extrabold transition-opacity hover:opacity-90"
+          >
+            <ShieldCheck
+              className="h-7 w-7 text-[#2563EB]"
+            />
+            <span className="text-[#2563EB]">
+              Broker
+              <span className="text-[#F97316]">
+                Asigurari
+              </span>
+              <span className="text-[#2563EB]">.Com</span>
             </span>
-          </span>
-        </Link>
+          </Link>
+          <Image src="/images/pnrr/banner-pnrr.jpg" alt="Finanțat de Uniunea Europeană NextGenerationEU — Guvernul României — PNRR" width={400} height={33} className="object-contain mt-1" />
+        </div>
 
         {/* Desktop nav */}
         <DesktopNav scrolled={scrolled} />
@@ -66,17 +63,16 @@ export default function CinematicHeader() {
         {/* Mobile menu */}
         <MobileMenu scrolled={scrolled} />
 
-        {/* CTA button */}
-        <Link
-          href="/rca"
-          className={`btn-magnetic hidden items-center rounded-full px-5 py-2 text-sm font-semibold transition-all duration-300 md:inline-flex ${
-            scrolled
-              ? "bg-[#4db8cc] text-white hover:bg-[#3a9db0] shadow-sm"
-              : "bg-white/15 text-white backdrop-blur-sm border border-white/25 hover:bg-white/25"
-          }`}
-        >
-          Calculează RCA
-        </Link>
+        {/* CTA button placeholder + actions */}
+        <div className="hidden items-center gap-6 md:flex">
+          <HeaderAuthButton />
+          <Link
+            href="/rca"
+            className="rounded-full bg-[#F97316] px-6 py-2.5 text-sm font-bold text-white shadow-md shadow-[#F97316]/25 transition-transform hover:-translate-y-0.5 hover:shadow-lg hover:shadow-[#F97316]/40"
+          >
+            Calculator RCA
+          </Link>
+        </div>
       </nav>
     </header>
   );

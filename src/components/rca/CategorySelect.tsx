@@ -173,7 +173,7 @@ export default function CategorySelect({ onSelect }: CategorySelectProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8 text-gray-500">
-        <span className="h-5 w-5 animate-spin rounded-full border-2 border-sky-600 border-t-transparent" />
+        <span className="h-5 w-5 animate-spin rounded-full border-2 border-[#2563EB] border-t-transparent" />
         <span className="ml-2 text-sm">Se încarcă categoriile...</span>
       </div>
     );
@@ -204,7 +204,7 @@ export default function CategorySelect({ onSelect }: CategorySelectProps) {
               onClick={() => setSelectedId(cat.id)}
               className={`flex flex-col items-center gap-3 rounded-xl border-2 p-5 transition-all ${
                 isSelected
-                  ? "border-sky-500 bg-white shadow-md"
+                  ? "border-[#2563EB] bg-white shadow-md"
                   : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm"
               }`}
             >
@@ -215,11 +215,11 @@ export default function CategorySelect({ onSelect }: CategorySelectProps) {
               {/* Radio indicator */}
               <span
                 className={`flex h-5 w-5 items-center justify-center rounded-full border-2 ${
-                  isSelected ? "border-sky-500" : "border-gray-300"
+                  isSelected ? "border-[#2563EB]" : "border-gray-300"
                 }`}
               >
                 {isSelected && (
-                  <span className="h-2.5 w-2.5 rounded-full bg-sky-500" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#2563EB]" />
                 )}
               </span>
             </button>
@@ -238,9 +238,21 @@ export default function CategorySelect({ onSelect }: CategorySelectProps) {
           type="button"
           onClick={handleContinue}
           disabled={!selectedId || submitting}
-          className={btn.primary}
+          className={`${btn.primary} px-8`}
         >
-          {submitting ? "Se încarcă..." : "Înainte"}
+          {submitting ? (
+            <span className="flex items-center gap-2">
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              Se încarcă...
+            </span>
+          ) : (
+            <span className="flex items-center gap-2">
+              Continuă
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+              </svg>
+            </span>
+          )}
         </button>
       </div>
     </div>

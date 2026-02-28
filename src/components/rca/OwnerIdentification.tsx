@@ -44,40 +44,32 @@ export default function OwnerIdentification({
         <h2 className="text-2xl font-bold text-gray-900">Identificarea proprietarului</h2>
       </div>
 
-      {/* PF/PJ segmented control */}
-      <div className="mx-auto flex max-w-xs rounded-lg bg-gray-100 p-1">
-        <button
-          type="button"
-          onClick={() => onOwnerTypeChange("PF")}
-          className={`flex-1 rounded-md px-6 py-2.5 text-sm font-semibold transition-all ${
-            ownerType === "PF"
-              ? "bg-white text-gray-900 shadow-sm"
-              : "text-gray-500 hover:text-gray-700"
-          }`}
-        >
-          Persoană fizică
-        </button>
-        <button
-          type="button"
-          onClick={() => onOwnerTypeChange("PJ")}
-          className={`flex-1 rounded-md px-6 py-2.5 text-sm font-semibold transition-all ${
-            ownerType === "PJ"
-              ? "bg-white text-gray-900 shadow-sm"
-              : "text-gray-500 hover:text-gray-700"
-          }`}
-        >
-          Persoană juridică
-        </button>
+      {/* PF/PJ toggle */}
+      <div className="mx-auto flex max-w-xs gap-2">
+        {(["PF", "PJ"] as const).map((type) => (
+          <button
+            key={type}
+            type="button"
+            onClick={() => onOwnerTypeChange(type)}
+            className={`flex-1 rounded-lg border-2 px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
+              ownerType === type
+                ? "border-[#2563EB] bg-blue-50/60 text-blue-700"
+                : "border-gray-200 bg-gray-50/30 text-gray-600 hover:border-gray-300"
+            }`}
+          >
+            {type === "PF" ? "Persoană fizică" : "Persoană juridică"}
+          </button>
+        ))}
       </div>
 
       {/* CNP / CUI */}
       <div className="mx-auto max-w-sm">
-        <label className="mb-1 block text-sm font-medium text-gray-700">
+        <label className="mb-1 block text-xs font-medium text-gray-500">
           {ownerType === "PF" ? "CNP (Cod numeric personal)" : "CUI (Cod unic de identificare)"}
         </label>
         <input
           type="text"
-          className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 focus:outline-none transition-colors duration-200"
+          className="w-full rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none"
           value={cnpOrCui}
           onChange={(e) => onCnpChange(e.target.value.replace(/\D/g, ""))}
           maxLength={ownerType === "PF" ? 13 : 10}
@@ -92,12 +84,12 @@ export default function OwnerIdentification({
 
       {/* Email */}
       <div className="mx-auto max-w-sm">
-        <label className="mb-1 block text-sm font-medium text-gray-700">
+        <label className="mb-1 block text-xs font-medium text-gray-500">
           Adresă de email
         </label>
         <input
           type="email"
-          className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 focus:outline-none transition-colors duration-200"
+          className="w-full rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none"
           value={email}
           onChange={(e) => onEmailChange(e.target.value)}
           placeholder="email@exemplu.ro"
@@ -115,7 +107,7 @@ export default function OwnerIdentification({
           <button
             type="button"
             onClick={() => setShowPrivacy(!showPrivacy)}
-            className="font-semibold text-sky-600 underline hover:text-sky-700"
+            className="font-semibold text-[#2563EB] underline hover:text-blue-700"
           >
             Detalii
           </button>
@@ -152,7 +144,7 @@ export default function OwnerIdentification({
               <button
                 type="button"
                 onClick={() => setShowPrivacy(false)}
-                className="rounded-lg bg-sky-600 px-6 py-2 text-sm font-semibold text-white hover:bg-sky-700 transition-colors duration-200"
+                className="rounded-lg bg-[#2563EB] px-6 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors duration-200"
               >
                 Am înțeles
               </button>
@@ -167,9 +159,14 @@ export default function OwnerIdentification({
           type="button"
           onClick={handleSubmit}
           disabled={!isValid}
-          className={btn.primary}
+          className={`${btn.primary} px-8`}
         >
-          Continuă
+          <span className="flex items-center gap-2">
+            Continuă
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+            </svg>
+          </span>
         </button>
       </div>
     </div>

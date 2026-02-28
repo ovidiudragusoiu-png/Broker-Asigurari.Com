@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Phone, Mail } from "lucide-react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import Link from "next/link";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -14,16 +14,17 @@ export default function FinalCTA() {
   useEffect(() => {
     const ctx = gsap.context(() => {
       gsap.fromTo(
-        ".cta-content",
-        { y: 40, opacity: 0 },
+        ".cta-box",
+        { y: 40, opacity: 0, scale: 0.95 },
         {
           y: 0,
           opacity: 1,
+          scale: 1,
           duration: 0.8,
           ease: "power3.out",
           scrollTrigger: {
             trigger: sectionRef.current,
-            start: "top 75%",
+            start: "top 80%",
             once: true,
           },
         }
@@ -34,53 +35,47 @@ export default function FinalCTA() {
   }, []);
 
   return (
-    <section ref={sectionRef} className="relative overflow-hidden bg-[#0D1B2A] py-24 sm:py-32">
-      {/* Background image */}
-      <div
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-[0.08]"
-        style={{
-          backgroundImage:
-            "url('https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=1920&q=80')",
-        }}
-      />
+    <section ref={sectionRef} className="bg-[#F8F9FA] px-4 pb-24 pt-8 sm:px-6 sm:pb-32 lg:px-8">
+      <div className="cta-box mx-auto max-w-4xl overflow-hidden rounded-[2.5rem] bg-[#2563EB] relative shadow-2xl shadow-blue-500/20">
 
-      {/* Noise */}
-      <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.05]">
-        <filter id="cta-noise">
-          <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch" />
-        </filter>
-        <rect width="100%" height="100%" filter="url(#cta-noise)" />
-      </svg>
+        {/* Background blurs */}
+        <div className="pointer-events-none absolute right-0 top-0 h-64 w-64 -translate-y-1/2 translate-x-1/3 rounded-full bg-white/10 blur-3xl" />
+        <div className="pointer-events-none absolute bottom-0 left-0 h-64 w-64 -translate-x-1/3 translate-y-1/3 rounded-full bg-blue-400/20 blur-3xl" />
 
-      <div className="cta-content relative mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
-        <h2 className="text-3xl font-extrabold text-white sm:text-4xl lg:text-5xl">
-          Protejează-te acum cu{" "}
-          <span
-            className="italic text-[#4db8cc]"
-            style={{ fontFamily: "'Playfair Display', serif" }}
-          >
-            asigurarea potrivită.
-          </span>
-        </h2>
-        <p className="mx-auto mt-6 max-w-xl text-lg text-white/40">
-          Compară oferte de la cei mai buni asiguratori, 100% online, în mai puțin de 2 minute.
-        </p>
-        <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-          <Link
-            href="/rca"
-            className="btn-magnetic group relative overflow-hidden rounded-full bg-[#4db8cc] px-8 py-4 text-sm font-bold text-white shadow-lg shadow-[#4db8cc]/25 transition-all hover:shadow-xl"
-          >
-            <span className="relative z-10 flex items-center gap-2">
-              Calculează RCA
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </span>
-          </Link>
-          <Link
-            href="/casco"
-            className="btn-magnetic rounded-full border-2 border-white/15 px-8 py-4 text-sm font-bold text-white transition-all hover:border-white/30 hover:bg-white/5"
-          >
-            Cerere CASCO
-          </Link>
+        <div className="relative px-6 py-16 sm:px-12 sm:py-20 lg:p-24 text-center">
+          <h2 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl lg:text-5xl font-heading mb-4">
+            Hai să găsim oferta perfectă
+          </h2>
+          <p className="mx-auto max-w-xl text-lg text-blue-100 mb-10">
+            Calculează prețul asigurării tale în câteva minute sau contactează-ne pentru o ofertă personalizată.
+          </p>
+
+          {/* CTA Buttons */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link
+              href="/rca"
+              className="flex items-center gap-2 rounded-full bg-[#F97316] px-8 py-4 text-sm font-bold text-white shadow-md shadow-orange-500/30 transition-all hover:bg-orange-600 hover:shadow-lg hover:-translate-y-0.5"
+            >
+              Calculator RCA
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link
+              href="/contact"
+              className="flex items-center gap-2 rounded-full bg-white/15 backdrop-blur-sm border border-white/25 px-8 py-4 text-sm font-bold text-white transition-all hover:bg-white/25 hover:-translate-y-0.5"
+            >
+              Contactează-ne
+            </Link>
+          </div>
+
+          {/* Quick contact info */}
+          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-6 text-sm text-blue-200">
+            <a href="tel:+40720385551" className="flex items-center gap-2 hover:text-white transition-colors">
+              <Phone className="h-4 w-4" /> 0720 385 551
+            </a>
+            <a href="mailto:bucuresti@broker-asigurari.com" className="flex items-center gap-2 hover:text-white transition-colors">
+              <Mail className="h-4 w-4" /> bucuresti@broker-asigurari.com
+            </a>
+          </div>
         </div>
       </div>
     </section>

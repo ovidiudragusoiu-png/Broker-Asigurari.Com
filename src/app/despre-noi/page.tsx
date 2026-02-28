@@ -32,8 +32,8 @@ const VALUES = [
 ];
 
 const STATS = [
-  { icon: Users, value: "6+", label: "Asiguratori parteneri" },
-  { icon: FileCheck, value: "1000+", label: "Polițe emise" },
+  { icon: Users, value: "11+", label: "Asiguratori parteneri" },
+  { icon: FileCheck, value: "10.000+", label: "Polițe emise" },
   { icon: Globe, value: "100%", label: "Proces online" },
 ];
 
@@ -41,7 +41,7 @@ export default function DespreNoiPage() {
   return (
     <>
       {/* Hero */}
-      <section className="bg-gradient-to-br from-slate-900 via-slate-800 to-sky-900 py-16 sm:py-24">
+      <section className="bg-gradient-to-br from-slate-900 via-slate-800 to-blue-900 py-16 sm:py-24">
         <div className="mx-auto max-w-7xl px-4 text-center sm:px-6 lg:px-8">
           <h1 className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl">
             Despre noi
@@ -84,7 +84,7 @@ export default function DespreNoiPage() {
               const Icon = value.icon;
               return (
                 <div key={value.title} className="flex flex-col items-center rounded-2xl bg-white p-8 text-center shadow-sm">
-                  <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-100 text-sky-600">
+                  <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#2563EB]/10 text-[#2563EB]">
                     <Icon className="h-7 w-7" />
                   </div>
                   <h3 className="mb-3 text-lg font-bold text-slate-900">{value.title}</h3>
@@ -97,7 +97,7 @@ export default function DespreNoiPage() {
       </section>
 
       {/* Stats */}
-      <section className="bg-gradient-to-r from-[#2a7c8e] to-[#3b9db0] py-16">
+      <section className="bg-gradient-to-r from-[#2563EB] to-[#1d4ed8] py-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex flex-wrap justify-center gap-12 sm:gap-20">
             {STATS.map((stat) => {
@@ -128,13 +128,13 @@ export default function DespreNoiPage() {
           <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
             <Link
               href="/contact"
-              className="rounded-xl bg-sky-600 px-8 py-4 text-sm font-bold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-sky-700 hover:shadow-xl"
+              className="rounded-xl bg-[#2563EB] px-8 py-4 text-sm font-bold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-xl"
             >
               Contactează-ne
             </Link>
             <Link
               href="/rca"
-              className="rounded-xl border-2 border-sky-200 px-8 py-4 text-sm font-bold text-sky-600 transition hover:border-sky-300 hover:bg-sky-50"
+              className="rounded-xl border-2 border-[#2563EB]/20 px-8 py-4 text-sm font-bold text-[#2563EB] transition hover:border-[#2563EB]/30 hover:bg-[#2563EB]/5"
             >
               Calculează RCA
             </Link>

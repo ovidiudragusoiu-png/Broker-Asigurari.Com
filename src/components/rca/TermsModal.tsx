@@ -7,9 +7,10 @@ interface TermsModalProps {
   isOpen: boolean;
   onAgree: () => void;
   onClose: () => void;
+  productLabel?: string; // e.g. "RCA", "de Călătorie", "Locuință"
 }
 
-export default function TermsModal({ isOpen, onAgree, onClose }: TermsModalProps) {
+export default function TermsModal({ isOpen, onAgree, onClose, productLabel = "RCA" }: TermsModalProps) {
   const [agreed, setAgreed] = useState(false);
   const [scrolledToBottom, setScrolledToBottom] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -55,7 +56,7 @@ export default function TermsModal({ isOpen, onAgree, onClose }: TermsModalProps
         >
           <div className="space-y-4">
             <p className="text-center font-bold text-gray-900">
-              Termeni și Condiții pentru Încheierea Poliței RCA prin www.broker-asigurari.com
+              Termeni și Condiții pentru Încheierea Poliței {productLabel} prin www.broker-asigurari.com
             </p>
 
             <h3 className="font-bold text-gray-900">1. Prestarea Serviciilor</h3>
@@ -104,7 +105,7 @@ export default function TermsModal({ isOpen, onAgree, onClose }: TermsModalProps
             <p>
               <strong>Comandă</strong> &ndash; document electronic ce constituie mijlocul de comunicare
               între Vânzător și Cumpărător, prin care Cumpărătorul transmite intenția sa fermă de a
-              achiziționa o poliță RCA;
+              achiziționa o poliță {productLabel};
             </p>
             <p>
               <strong>Contract</strong> &ndash; contractul la distanță încheiat între Vânzător și
@@ -346,16 +347,16 @@ export default function TermsModal({ isOpen, onAgree, onClose }: TermsModalProps
         {/* Footer */}
         <div className="border-t px-6 py-4">
           <label className="flex items-center gap-3 text-sm">
-            <span className="text-sky-600 font-bold">&gt;&gt;</span>
+            <span className="text-[#2563EB] font-bold">&gt;&gt;</span>
             <input
               type="checkbox"
               checked={agreed}
               onChange={(e) => setAgreed(e.target.checked)}
               disabled={!scrolledToBottom}
-              className="h-5 w-5 rounded border-gray-300 text-sky-600 focus:ring-sky-500 disabled:opacity-40"
+              className="h-5 w-5 rounded border-gray-300 text-[#2563EB] focus:ring-[#2563EB] disabled:opacity-40"
             />
             <span className="text-gray-700 font-medium">
-              Sunt de acord cu emiterea poliței RCA în aceste condiții.
+              Sunt de acord cu emiterea poliței {productLabel} în aceste condiții.
             </span>
           </label>
 

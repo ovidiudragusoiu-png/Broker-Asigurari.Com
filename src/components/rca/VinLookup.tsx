@@ -117,7 +117,6 @@ export default function VinLookup({ vehicle, onChange, onContinue }: VinLookupPr
           ? makes.find((m) => m.name.toLowerCase() === makeName.toLowerCase())?.id ?? null
           : null);
 
-      console.log("DRPCIV response:", JSON.stringify(data, null, 2));
 
       const drpcivCategoryId = readNumber(data, ["vehicleCategoryId", "categoryId", "category"]);
       const drpcivSubcategoryId = readNumber(data, ["vehicleSubCategoryId", "subcategoryId", "vehicleSubcategoryId", "subcategory"]);
@@ -189,7 +188,7 @@ export default function VinLookup({ vehicle, onChange, onContinue }: VinLookupPr
         <div className="flex gap-2">
           <input
             type="text"
-            className="flex-1 rounded-lg border-2 border-gray-300 px-4 py-3 text-sm font-mono uppercase focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 focus:outline-none transition-colors duration-200"
+            className="flex-1 rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm font-mono uppercase text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none"
             value={vehicle.vin}
             onChange={(e) => onChange({ vin: e.target.value.toUpperCase() })}
             onKeyDown={(e) => e.key === "Enter" && lookupVIN()}
@@ -201,29 +200,44 @@ export default function VinLookup({ vehicle, onChange, onContinue }: VinLookupPr
             type="button"
             onClick={lookupVIN}
             disabled={lookingUp}
-            className="rounded-lg bg-sky-600 px-5 py-3 text-sm font-semibold text-white hover:bg-sky-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed transition-all duration-200"
+            className={btn.primary}
           >
-            {lookingUp ? "Se caută..." : "Caută"}
+            {lookingUp ? (
+              <span className="flex items-center gap-2">
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                Se caută...
+              </span>
+            ) : "Caută"}
           </button>
         </div>
         {vehicle.vin.length > 0 && !validateVIN(vehicle.vin) && (
           <p className="mt-1 text-xs text-red-600">VIN-ul trebuie să conțină exact 17 caractere</p>
         )}
         {lookupError && (
-          <p className="mt-1 text-sm text-amber-600">{lookupError}</p>
+          <div className="mt-2 flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-600">
+            <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+            </svg>
+            {lookupError}
+          </div>
         )}
       </div>
 
       {/* Vehicle details (editable after lookup or manual) */}
       {lookupDone && (
-        <div className="space-y-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
-          <h3 className="text-sm font-semibold text-gray-700">Date vehicul</h3>
+        <div className="space-y-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-2">
+            <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 00-.879-2.121L16.5 8.259a2.999 2.999 0 00-2.121-.879H5.25a2.25 2.25 0 00-2.25 2.25v8.745c0 .621.504 1.125 1.125 1.125H5.25" />
+            </svg>
+            <span className="text-sm font-semibold text-gray-700">Date vehicul</span>
+          </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-600">Marca</label>
+              <label className="mb-1 block text-xs font-medium text-gray-500">Marca</label>
               <select
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                className="w-full rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none"
                 value={vehicle.makeId ?? ""}
                 onChange={(e) => onChange({ makeId: e.target.value ? Number(e.target.value) : null })}
               >
@@ -234,10 +248,10 @@ export default function VinLookup({ vehicle, onChange, onContinue }: VinLookupPr
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-600">Model</label>
+              <label className="mb-1 block text-xs font-medium text-gray-500">Model</label>
               <input
                 type="text"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                className="w-full rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none"
                 value={vehicle.model}
                 onChange={(e) => onChange({ model: e.target.value })}
               />
@@ -246,29 +260,29 @@ export default function VinLookup({ vehicle, onChange, onContinue }: VinLookupPr
 
           <div className="grid grid-cols-5 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-600">An fabricație</label>
+              <label className="mb-1 block text-xs font-medium text-gray-500">An fabricație</label>
               <input
                 type="number"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                className="w-full rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none"
                 value={vehicle.year ?? ""}
                 onChange={(e) => onChange({ year: e.target.value ? Number(e.target.value) : null })}
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-600">Cilindree (cm3)</label>
+              <label className="mb-1 block text-xs font-medium text-gray-500">Cilindree (cm3)</label>
               <input
                 type="number"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                className="w-full rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none"
                 value={vehicle.engineCapacity ?? ""}
                 onChange={(e) => onChange({ engineCapacity: e.target.value ? Number(e.target.value) : null })}
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-600">Putere (kW)</label>
+              <label className="mb-1 block text-xs font-medium text-gray-500">Putere (kW)</label>
               <input
                 type="number"
-                className={`w-full rounded-md border px-3 py-2 text-sm ${
-                  lookupDone && powerInvalid ? "border-red-400" : "border-gray-300"
+                className={`w-full rounded-xl border-2 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none ${
+                  lookupDone && powerInvalid ? "border-red-400" : "border-gray-200"
                 }`}
                 value={vehicle.enginePowerKw ?? ""}
                 onChange={(e) => onChange({ enginePowerKw: e.target.value ? Number(e.target.value) : null })}
@@ -280,19 +294,19 @@ export default function VinLookup({ vehicle, onChange, onContinue }: VinLookupPr
               )}
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-600">Masa (kg)</label>
+              <label className="mb-1 block text-xs font-medium text-gray-500">Masa (kg)</label>
               <input
                 type="number"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                className="w-full rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none"
                 value={vehicle.totalWeight ?? ""}
                 onChange={(e) => onChange({ totalWeight: e.target.value ? Number(e.target.value) : null })}
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-600">Locuri</label>
+              <label className="mb-1 block text-xs font-medium text-gray-500">Locuri</label>
               <input
                 type="number"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                className="w-full rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none"
                 value={vehicle.seats ?? ""}
                 onChange={(e) => onChange({ seats: e.target.value ? Number(e.target.value) : null })}
               />
@@ -301,9 +315,9 @@ export default function VinLookup({ vehicle, onChange, onContinue }: VinLookupPr
 
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-600">Combustibil</label>
+              <label className="mb-1 block text-xs font-medium text-gray-500">Combustibil</label>
               <select
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                className="w-full rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none"
                 value={vehicle.fuelTypeId ?? ""}
                 onChange={(e) => onChange({ fuelTypeId: e.target.value ? Number(e.target.value) : null })}
               >
@@ -314,19 +328,19 @@ export default function VinLookup({ vehicle, onChange, onContinue }: VinLookupPr
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-600">Tip utilizare</label>
+              <label className="mb-1 block text-xs font-medium text-gray-500">Tip utilizare</label>
               <input
                 type="text"
-                className="w-full rounded-md border border-gray-200 bg-gray-100 px-3 py-2 text-sm text-gray-700"
+                className="w-full rounded-xl border-2 border-gray-200 bg-gray-100 px-3 py-2.5 text-sm text-gray-700"
                 value={activityTypes.find((a) => a.id === vehicle.activityTypeId)?.name ?? "Privat / Personal"}
                 readOnly
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-600">Subcategorie</label>
+              <label className="mb-1 block text-xs font-medium text-gray-500">Subcategorie</label>
               <select
-                className={`w-full rounded-md border px-3 py-2 text-sm ${
-                  !vehicle.subcategoryId ? "border-red-400" : "border-gray-300"
+                className={`w-full appearance-none rounded-xl border-2 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none ${
+                  !vehicle.subcategoryId ? "border-red-400" : "border-gray-200"
                 }`}
                 value={vehicle.subcategoryId ?? ""}
                 onChange={(e) => onChange({ subcategoryId: e.target.value ? Number(e.target.value) : null })}
@@ -346,10 +360,10 @@ export default function VinLookup({ vehicle, onChange, onContinue }: VinLookupPr
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-600">Tip înmatriculare</label>
+              <label className="mb-1 block text-xs font-medium text-gray-500">Tip înmatriculare</label>
               <input
                 type="text"
-                className="w-full rounded-md border border-gray-200 bg-gray-100 px-3 py-2 text-sm text-gray-700"
+                className="w-full rounded-xl border-2 border-gray-200 bg-gray-100 px-3 py-2.5 text-sm text-gray-700"
                 value={registrationTypes.find((r) => r.id === vehicle.registrationTypeId)?.name ?? "Inmatriculat"}
                 readOnly
               />
@@ -361,9 +375,14 @@ export default function VinLookup({ vehicle, onChange, onContinue }: VinLookupPr
               type="button"
               onClick={onContinue}
               disabled={!isVehicleReady}
-              className={btn.primary}
+              className={`${btn.primary} px-8`}
             >
-              Continuă
+              <span className="flex items-center gap-2">
+                Continuă
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                </svg>
+              </span>
             </button>
             {!isVehicleReady && (
               <p className="mt-1 text-xs text-amber-600">Completați toate câmpurile obligatorii</p>

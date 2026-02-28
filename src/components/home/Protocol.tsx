@@ -42,13 +42,13 @@ function HelixAnimation() {
           rx="80"
           ry="30"
           fill="none"
-          stroke="#4db8cc"
+          stroke="#C9A84C"
           strokeWidth="1"
           opacity="0.4"
           transform={`rotate(${rotation} 100 100)`}
         />
       ))}
-      <circle cx="100" cy="100" r="6" fill="#4db8cc" opacity="0.6" />
+      <circle cx="100" cy="100" r="6" fill="#C9A84C" opacity="0.6" />
       {[0, 45, 90, 135, 180, 225, 270, 315].map((angle) => {
         const rad = (angle * Math.PI) / 180;
         const x = 100 + 60 * Math.cos(rad);
@@ -59,8 +59,8 @@ function HelixAnimation() {
             cx={x}
             cy={y}
             r="2"
-            fill="#4db8cc"
-            opacity="0.3"
+            fill="#0D0D12"
+            opacity="0.4"
           />
         );
       })}
@@ -80,8 +80,8 @@ function ScannerAnimation() {
             cx={30 + col * 22}
             cy={30 + row * 22}
             r="2"
-            fill="#4db8cc"
-            opacity="0.15"
+            fill="#0D0D12"
+            opacity="0.25"
           />
         ))
       )}
@@ -91,9 +91,9 @@ function ScannerAnimation() {
         y1="0"
         x2="20"
         y2="200"
-        stroke="#4db8cc"
+        stroke="#C9A84C"
         strokeWidth="1.5"
-        opacity="0.5"
+        opacity="0.6"
       >
         <animateTransform
           attributeName="transform"
@@ -109,9 +109,9 @@ function ScannerAnimation() {
         y1="0"
         x2="20"
         y2="200"
-        stroke="#4db8cc"
+        stroke="#C9A84C"
         strokeWidth="8"
-        opacity="0.08"
+        opacity="0.1"
       >
         <animateTransform
           attributeName="transform"
@@ -133,12 +133,12 @@ function PulseAnimation() {
       <path
         d="M0,50 L30,50 L40,50 L50,20 L60,80 L70,30 L80,70 L90,50 L120,50 L130,50 L140,25 L150,75 L160,35 L170,65 L180,50 L200,50"
         fill="none"
-        stroke="#4db8cc"
+        stroke="#C9A84C"
         strokeWidth="2"
         strokeLinecap="round"
         strokeDasharray="400"
         strokeDashoffset="400"
-        opacity="0.6"
+        opacity="0.8"
       >
         <animate
           attributeName="stroke-dashoffset"
@@ -151,12 +151,12 @@ function PulseAnimation() {
       <path
         d="M0,50 L30,50 L40,50 L50,20 L60,80 L70,30 L80,70 L90,50 L120,50 L130,50 L140,25 L150,75 L160,35 L170,65 L180,50 L200,50"
         fill="none"
-        stroke="#4db8cc"
+        stroke="#C9A84C"
         strokeWidth="6"
         strokeLinecap="round"
         strokeDasharray="400"
         strokeDashoffset="400"
-        opacity="0.1"
+        opacity="0.15"
       >
         <animate
           attributeName="stroke-dashoffset"
@@ -209,12 +209,11 @@ export default function Protocol() {
       <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         <div className="mb-12 text-center">
           <p
-            className="mb-3 text-sm font-semibold uppercase tracking-widest text-[#4db8cc]"
-            style={{ fontFamily: "'JetBrains Mono', monospace" }}
+            className="mb-3 text-sm font-semibold uppercase tracking-widest text-[#0D0D12] font-mono"
           >
             Protocol
           </p>
-          <h2 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
+          <h2 className="text-3xl font-extrabold tracking-tight text-[#2A2A35] sm:text-4xl font-sans">
             Cum funcționează?
           </h2>
         </div>
@@ -228,7 +227,7 @@ export default function Protocol() {
             className="protocol-card relative flex min-h-screen items-center"
             style={{ zIndex: i + 1 }}
           >
-            <div className="absolute inset-0 border-t border-gray-100 bg-[#F2F0E9]">
+            <div className="absolute inset-0 border-t border-gray-100 bg-[#FAF8F5]">
               {/* Noise */}
               <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.03]">
                 <filter id={`proto-noise-${i}`}>
@@ -242,12 +241,11 @@ export default function Protocol() {
               {/* Text */}
               <div className="flex-1">
                 <span
-                  className="mb-4 block text-5xl font-bold text-[#4db8cc]/20 sm:text-6xl"
-                  style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                  className="mb-4 block text-5xl font-bold text-[#0D0D12]/20 sm:text-6xl font-mono"
                 >
                   {step.step}
                 </span>
-                <h3 className="mb-4 text-2xl font-extrabold text-slate-900 sm:text-3xl lg:text-4xl">
+                <h3 className="mb-4 text-2xl font-extrabold text-[#2A2A35] sm:text-3xl lg:text-4xl font-sans">
                   {step.title}
                 </h3>
                 <p className="max-w-md text-base text-slate-500 leading-relaxed sm:text-lg">

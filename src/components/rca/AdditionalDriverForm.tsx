@@ -4,7 +4,7 @@ import { validateCNP } from "@/lib/utils/validation";
 import { isAdditionalDriverValid } from "@/lib/utils/formGuards";
 import type { AdditionalDriver } from "@/types/rcaFlow";
 import { emptyAdditionalDriver } from "@/lib/utils/rcaHelpers";
-import { btn, inputClass as inputToken } from "@/lib/ui/tokens";
+import { btn } from "@/lib/ui/tokens";
 
 interface AdditionalDriverFormProps {
   hasDriver: boolean;
@@ -29,7 +29,7 @@ export default function AdditionalDriverForm({
     onDriverChange({ ...d, [field]: value });
   };
 
-  const inputClass = inputToken;
+  const inputCls = "w-full rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none";
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -47,13 +47,13 @@ export default function AdditionalDriverForm({
           onClick={() => onToggle(false)}
           className={`flex items-center gap-3 rounded-lg border-2 px-5 py-4 text-left text-base font-bold transition-all ${
             !hasDriver
-              ? "border-sky-500 bg-white shadow-sm"
+              ? "border-[#2563EB] bg-white shadow-sm"
               : "border-gray-200 bg-white hover:border-gray-300"
           }`}
         >
           <span
             className={`flex h-6 w-6 shrink-0 items-center justify-center rounded ${
-              !hasDriver ? "bg-sky-600 text-white" : "border-2 border-gray-300"
+              !hasDriver ? "bg-[#2563EB] text-white" : "border-2 border-gray-300"
             }`}
           >
             {!hasDriver && (
@@ -69,13 +69,13 @@ export default function AdditionalDriverForm({
           onClick={() => onToggle(true)}
           className={`flex items-center gap-3 rounded-lg border-2 px-5 py-4 text-left text-base font-bold transition-all ${
             hasDriver
-              ? "border-sky-500 bg-white shadow-sm"
+              ? "border-[#2563EB] bg-white shadow-sm"
               : "border-gray-200 bg-white hover:border-gray-300"
           }`}
         >
           <span
             className={`flex h-6 w-6 shrink-0 items-center justify-center rounded ${
-              hasDriver ? "bg-sky-600 text-white" : "border-2 border-gray-300"
+              hasDriver ? "bg-[#2563EB] text-white" : "border-2 border-gray-300"
             }`}
           >
             {hasDriver && (
@@ -94,14 +94,14 @@ export default function AdditionalDriverForm({
           <div className="grid grid-cols-2 gap-3">
             <input
               type="text"
-              className={inputClass}
+              className={inputCls}
               value={d.lastName}
               onChange={(e) => updateField("lastName", e.target.value)}
               placeholder="NUME SOFER"
             />
             <input
               type="text"
-              className={inputClass}
+              className={inputCls}
               value={d.firstName}
               onChange={(e) => updateField("firstName", e.target.value)}
               placeholder="PRENUME SOFER"
@@ -110,7 +110,7 @@ export default function AdditionalDriverForm({
 
           <input
             type="text"
-            className={inputClass}
+            className={inputCls}
             value={d.cnp}
             onChange={(e) => updateField("cnp", e.target.value.replace(/\D/g, ""))}
             maxLength={13}
@@ -121,14 +121,14 @@ export default function AdditionalDriverForm({
           <div className="grid grid-cols-2 gap-3">
             <input
               type="text"
-              className={`${inputClass} uppercase`}
+              className={`${inputCls} uppercase`}
               value={d.idSeries}
               onChange={(e) => updateField("idSeries", e.target.value.toUpperCase())}
               placeholder="SERIE CI"
             />
             <input
               type="text"
-              className={inputClass}
+              className={inputCls}
               value={d.idNumber}
               onChange={(e) => updateField("idNumber", e.target.value)}
               placeholder="NUMAR CI"
@@ -136,12 +136,12 @@ export default function AdditionalDriverForm({
           </div>
 
           <div className="text-left">
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+            <label className="mb-1 block text-xs font-medium text-gray-500">
               Data obținere permis de conducere
             </label>
             <input
               type="date"
-              className={inputClass}
+              className={inputCls}
               value={d.driverLicenceDate}
               onChange={(e) => updateField("driverLicenceDate", e.target.value)}
             />
@@ -149,15 +149,20 @@ export default function AdditionalDriverForm({
         </div>
       )}
 
-      {/* Inainte button */}
+      {/* Continue button */}
       <div className="pt-2 text-center">
         <button
           type="button"
           onClick={onContinue}
           disabled={!isValid}
-          className={btn.primary}
+          className={`${btn.primary} px-8`}
         >
-          Înainte
+          <span className="flex items-center gap-2">
+            Continuă
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+            </svg>
+          </span>
         </button>
       </div>
     </div>

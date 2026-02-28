@@ -93,60 +93,66 @@ function RcaPageInner() {
       const fullPerson = buildFullPersonFromFlowState(state);
       const normalizedPerson = normalizePersonForRca(fullPerson);
 
-      // Check consent status and submit if needed
-      let consentSigned = false;
+      // Auto-sign consent (required by order API) — matches ConsentFlow logic
       try {
         const consentStatus = await api.get<{ signedDocuments: boolean }>(
           `/online/client/documents/status?legalType=${state.ownerType}&cif=${state.cnpOrCui}&vendorProductType=RCA`
         );
-        consentSigned = consentStatus.signedDocuments;
-      } catch {
-        // Status check failed - assume not signed, proceed to submit
-      }
+        if (!consentStatus.signedDocuments) {
+          const consentData = await api.get<{
+            sections: { title: string; questions: { id: string; type?: string; hiddenByAnswers?: string[]; answers: { id: string; defaultValue: string; extraField?: { name: string } | null }[] }[] }[];
+            communicationChannels: string[];
+          }>(
+            `/online/client/documents/fetch-questions?legalType=${state.ownerType}&vendorProductType=RCA`
+          );
 
-      if (!consentSigned) {
-        const consentData = await api.get<{
-          sections: { title: string; questions: { id: string; type?: string; answers: { id: string; defaultValue: string }[] }[] }[];
-          communicationChannels: string[];
-        }>(
-          `/online/client/documents/fetch-questions?legalType=${state.ownerType}&vendorProductType=RCA`
-        );
-
-        // Build formInputData matching ConsentFlow format: every answer gets true/false
-        const formInputData: Record<string, boolean | string> = {};
-        for (const section of consentData.sections) {
-          for (const question of section.questions) {
-            if (question.type === "text") {
-              formInputData[question.id] = "";
-            } else {
-              for (const answer of question.answers) {
-                formInputData[answer.id] = answer.defaultValue === "true";
+          // Build selectedAnswers respecting question types (oneOf = first/default only)
+          const selectedAnswers: Record<string, string[]> = {};
+          for (const section of consentData.sections) {
+            for (const question of section.questions) {
+              if (question.type === "text") continue;
+              if (question.type === "checkbox_oneOf") {
+                // Only ONE answer allowed — pick default or first
+                const def = question.answers.find((a) => a.defaultValue === "true");
+                selectedAnswers[question.id] = [def?.id ?? question.answers[0]?.id].filter(Boolean);
+              } else {
+                // checkbox_allIn — select ALL to auto-accept
+                selectedAnswers[question.id] = question.answers.map((a) => a.id);
               }
             }
           }
-        }
+          const allSelectedIds = Object.values(selectedAnswers).flat();
 
-        await api.post("/online/client/documents/submit-answers", {
-          personBaseRequest: normalizedPerson,
-          communicationChannelEmail: true,
-          communicationChannelPhoneNo: false,
-          communicationChannelAddress: false,
-          formInputData,
-          vendorProductType: "RCA",
-          website: typeof window !== "undefined" ? window.location.origin : "https://www.broker-asigurari.com",
-        });
-
-        // Verify consent was accepted
-        try {
-          const verifyStatus = await api.get<{ signedDocuments: boolean }>(
-            `/online/client/documents/status?legalType=${state.ownerType}&cif=${state.cnpOrCui}&vendorProductType=RCA`
-          );
-          if (!verifyStatus.signedDocuments) {
-            // Consent submitted but verification still shows unsigned - continue anyway
+          // Build formInputData, skipping hidden questions
+          const formInputData: Record<string, boolean | string> = {};
+          for (const section of consentData.sections) {
+            for (const question of section.questions) {
+              if (question.hiddenByAnswers?.some((id) => allSelectedIds.includes(id))) continue;
+              if (question.type === "text") {
+                formInputData[question.id] = "";
+              } else {
+                const selected = selectedAnswers[question.id] || [];
+                for (const answer of question.answers) {
+                  formInputData[answer.id] = selected.includes(answer.id);
+                }
+              }
+            }
           }
-        } catch {
-          // Verification failed - continue anyway, order creation will be the real test
+
+
+          await api.post("/online/client/documents/submit-answers", {
+            personBaseRequest: normalizedPerson,
+            communicationChannelEmail: true,
+            communicationChannelPhoneNo: false,
+            communicationChannelAddress: false,
+            formInputData,
+            vendorProductType: "RCA",
+            website: typeof window !== "undefined" ? window.location.origin : "https://www.broker-asigurari.com",
+          });
         }
+      } catch (consentErr) {
+        console.error("[RCA] consent submission failed:", consentErr);
+        // Continue to order creation — it will fail if consent is truly required
       }
 
       // 2. Get RCA products
@@ -377,8 +383,12 @@ function RcaPageInner() {
         registrationCertificateNumber: state.registrationCertSeries,
       },
       policyStartDate: toRcaDate(state.startDate),
+      email: normalizedPerson.email,
     };
     sessionStorage.setItem("rcaPolicyData", JSON.stringify(policyData));
+    if (normalizedPerson.email) {
+      sessionStorage.setItem("customerEmail", normalizedPerson.email);
+    }
 
     // Create payment link
     const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
@@ -640,56 +650,63 @@ function RcaPageInner() {
 
   // Step 3: CIV + start date
   const step3CivContent = (
-    <div className="mx-auto max-w-md space-y-6 text-center">
-      <div>
-        <p className="text-lg font-bold text-gray-800">
-          Completați datele poliței
-        </p>
+    <div className="mx-auto max-w-md space-y-4">
+      <div className="text-center">
+        <h2 className="text-2xl font-bold text-gray-900">Completați datele poliței</h2>
       </div>
 
-      {/* CIV */}
-      <div className="text-left">
-        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
-          Serie carte auto (CIV)
-        </label>
-        <input
-          type="text"
-          className="w-full rounded-lg border-2 border-gray-300 px-4 py-3 text-sm uppercase focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 focus:outline-none transition-colors duration-200"
-          value={state.registrationCertSeries}
-          onChange={(e) => handlePolicyDetailsFieldChange("registrationCertSeries", e.target.value.toUpperCase())}
-          placeholder="ex: F123123"
-        />
-        <p className="mt-1 text-xs text-gray-400">
-          La taloanele noi, seria cărții auto nu mai apare. O găsiți în cartea vehiculului.
-        </p>
+      <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm space-y-4">
+        {/* CIV */}
+        <div>
+          <label className="mb-1 block text-xs font-medium text-gray-500">
+            Serie carte auto (CIV)
+          </label>
+          <input
+            type="text"
+            className="w-full rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm uppercase text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none"
+            value={state.registrationCertSeries}
+            onChange={(e) => handlePolicyDetailsFieldChange("registrationCertSeries", e.target.value.toUpperCase())}
+            placeholder="ex: F123123"
+          />
+          <p className="mt-1 text-xs text-gray-400">
+            La taloanele noi, seria cărții auto nu mai apare. O găsiți în cartea vehiculului.
+          </p>
+        </div>
+
+        {/* Start date */}
+        <div>
+          <label className="mb-1 block text-xs font-medium text-gray-500">
+            Data început valabilitate RCA
+          </label>
+          <input
+            type="date"
+            className="w-full rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none"
+            value={state.startDate}
+            min={new Date(Date.now() + 86400000).toISOString().split("T")[0]}
+            onChange={(e) => handlePolicyDetailsFieldChange("startDate", e.target.value)}
+          />
+          <p className="mt-1 text-xs text-gray-400">
+            Selectați prima zi după expirarea poliței curente.
+          </p>
+        </div>
       </div>
 
-      {/* Start date */}
-      <div className="text-left">
-        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
-          Data început valabilitate RCA
-        </label>
-        <input
-          type="date"
-          className="w-full rounded-lg border-2 border-gray-300 px-4 py-3 text-sm focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 focus:outline-none transition-colors duration-200"
-          value={state.startDate}
-          min={new Date(Date.now() + 86400000).toISOString().split("T")[0]}
-          onChange={(e) => handlePolicyDetailsFieldChange("startDate", e.target.value)}
-        />
-        <p className="mt-1 text-xs text-gray-400">
-          Selectați prima zi după expirarea poliței curente.
-        </p>
+      {/* Continue button */}
+      <div className="text-center pt-2">
+        <button
+          type="button"
+          onClick={handleCivContinue}
+          disabled={!civStepValid}
+          className={`${btn.primary} px-8`}
+        >
+          <span className="flex items-center gap-2">
+            Continuă
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+            </svg>
+          </span>
+        </button>
       </div>
-
-      {/* Inainte button */}
-      <button
-        type="button"
-        onClick={handleCivContinue}
-        disabled={!civStepValid}
-        className={btn.primary}
-      >
-        Înainte
-      </button>
     </div>
   );
 
@@ -773,17 +790,28 @@ function RcaPageInner() {
   ];
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-      <h1 className="mb-8 text-center text-3xl font-bold text-gray-900">
-        Asigurare RCA
-      </h1>
+    <div className="mx-auto max-w-4xl px-4 pt-24 pb-8 sm:px-6 lg:px-8">
+      {/* Page header */}
+      <div className="mb-6 text-center">
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg">
+          <svg className="h-7 w-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 00-.879-2.121L16.5 8.259a2.999 2.999 0 00-2.121-.879H5.25a2.25 2.25 0 00-2.25 2.25v8.745c0 .621.504 1.125 1.125 1.125H5.25" />
+          </svg>
+        </div>
+        <h1 className="text-2xl font-bold text-gray-900">Asigurare RCA</h1>
+        <p className="mt-1 text-sm text-gray-500">Compară ofertele și alege cea mai bună asigurare auto</p>
+      </div>
 
       {state.error && (
-        <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">
-          {state.error}
+        <div className="mb-4 flex items-center gap-2 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
+          <svg className="h-5 w-5 shrink-0 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+          </svg>
+          <span className="flex-1">{state.error}</span>
           <button
+            type="button"
             onClick={() => dispatch({ type: "SET_ERROR", error: null })}
-            className="ml-2 font-medium underline"
+            className="shrink-0 font-medium text-red-600 underline hover:text-red-800"
           >
             Închide
           </button>

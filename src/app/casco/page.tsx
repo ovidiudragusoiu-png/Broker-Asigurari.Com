@@ -5,7 +5,7 @@ import WizardStepper, { useWizard } from "@/components/shared/WizardStepper";
 import { api } from "@/lib/api/client";
 import { readString, readNumber } from "@/lib/utils/rcaHelpers";
 import { validateVIN } from "@/lib/utils/validation";
-import { btn, inputClass } from "@/lib/ui/tokens";
+import { btn } from "@/lib/ui/tokens";
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -123,6 +123,12 @@ const EMPTY_FORM: CascoForm = {
   consent: false,
 };
 
+const tomorrowDate = (() => {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+})();
+
 const BODY_TYPES = ["Sedan", "Hatchback", "Break/Combi", "SUV/Crossover", "Coupe", "Cabrio", "Monovolum"];
 const FUEL_TYPES = ["Benzină", "Motorină", "Electric", "GPL", "Hibrid benzină", "Hibrid motorină"];
 const INSURERS = [
@@ -130,6 +136,25 @@ const INSURERS = [
   "Generali", "Grawe", "Groupama", "Hellas", "Omniasig", "Uniqa",
 ];
 const YEARS = Array.from({ length: 20 }, (_, i) => String(2026 - i));
+
+/* ── CSS helpers ── */
+const selectCls =
+  "w-full appearance-none rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none";
+const inputCls =
+  "w-full rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none";
+const labelCls = "mb-1 block text-xs font-medium text-gray-500";
+
+/* Bucharest sectors: each sector is a separate county+city in the API */
+const BUCHAREST_SECTORS = [
+  { label: "Sector 1", countyId: 14, cityId: 1598 },
+  { label: "Sector 2", countyId: 5,  cityId: 1599 },
+  { label: "Sector 3", countyId: 9,  cityId: 1600 },
+  { label: "Sector 4", countyId: 22, cityId: 1601 },
+  { label: "Sector 5", countyId: 39, cityId: 1602 },
+  { label: "Sector 6", countyId: 8,  cityId: 1603 },
+];
+const BUCHAREST_COUNTY_IDS = new Set(BUCHAREST_SECTORS.map((s) => String(s.countyId)));
+const BUCHAREST_SENTINEL = "-999"; // virtual countyId for the single "Bucuresti" option
 
 // ── Component ───────────────────────────────────────────────────────
 
@@ -143,6 +168,18 @@ export default function CascoPage() {
   // Nomenclatures
   const [counties, setCounties] = useState<SelectOption[]>([]);
   const [cities, setCities] = useState<SelectOption[]>([]);
+
+  const isBucharest = BUCHAREST_COUNTY_IDS.has(form.countyId);
+  const isBucharestSentinel = form.countyId === BUCHAREST_SENTINEL;
+
+  // Deduplicate: replace all 6 "Bucuresti" counties with one virtual entry
+  const deduplicatedCounties = (() => {
+    const filtered = counties.filter((c) => !BUCHAREST_COUNTY_IDS.has(String(c.id)));
+    filtered.push({ id: Number(BUCHAREST_SENTINEL), name: "Bucuresti" });
+    filtered.sort((a, b) => a.name.localeCompare(b.name, "ro"));
+    return filtered;
+  })();
+
   const [makes, setMakes] = useState<SelectOption[]>([]);
   const [categories, setCategories] = useState<SelectOption[]>([]);
   const [subcategories, setSubcategories] = useState<SelectOption[]>([]);
@@ -160,13 +197,12 @@ export default function CascoPage() {
   }, []);
 
   useEffect(() => {
-    if (!form.countyId) { setCities([]); return; }
+    if (!form.countyId || form.countyId === BUCHAREST_SENTINEL) { setCities([]); return; }
     api.get<SelectOption[]>(`/online/address/utils/cities?countyId=${form.countyId}`)
       .then((data) => setCities(data.sort((a, b) => a.name.localeCompare(b.name))))
       .catch(() => setCities([]));
   }, [form.countyId]);
 
-  // Load subcategories when category changes
   useEffect(() => {
     if (!form.categoryId) { setSubcategories([]); return; }
     api.get<SelectOption[]>(`/online/vehicles/categories/${form.categoryId}/subcategories`)
@@ -209,7 +245,6 @@ export default function CascoPage() {
         cityName: cityResp?.name || prev.cityName,
       }));
 
-      // Load cities for the matched county so the city dropdown is populated
       if (countyResp) {
         try {
           const cityList = await api.get<{ id: number; name: string }[]>(
@@ -217,7 +252,7 @@ export default function CascoPage() {
           );
           setCities(cityList);
         } catch {
-          /* cities fetch failed — user can still select manually */
+          /* cities fetch failed */
         }
       }
 
@@ -259,10 +294,8 @@ export default function CascoPage() {
       const drpcivSubcategoryId = readNumber(data, ["vehicleSubCategoryId", "subcategoryId", "vehicleSubcategoryId", "subcategory"]);
       const drpcivEuropeanCode = readString(data, ["europeanCode"]);
 
-      // Resolve category name
       const matchedCategory = drpcivCategoryId ? categories.find((c) => c.id === drpcivCategoryId) : null;
 
-      // Resolve subcategory: fetch subcategories for the new category and auto-match
       let resolvedSubId = drpcivSubcategoryId ? String(drpcivSubcategoryId) : "";
       let resolvedSubName = "";
       if (drpcivCategoryId) {
@@ -271,9 +304,7 @@ export default function CascoPage() {
             `/online/vehicles/categories/${drpcivCategoryId}/subcategories`
           );
           setSubcategories(subs);
-          // Try to match by ID first
           let matched = drpcivSubcategoryId ? subs.find((s) => s.id === drpcivSubcategoryId) : null;
-          // Fall back to europeanCode match (e.g. "M1" → "[M1]" in name)
           if (!matched && drpcivEuropeanCode) {
             matched = subs.find((s) => s.name.includes(`[${drpcivEuropeanCode}]`));
           }
@@ -353,7 +384,6 @@ export default function CascoPage() {
     setSubmitError(null);
 
     try {
-      // Convert files to base64
       const fileAttachments: { name: string; content: string; type: string }[] = [];
       for (const file of form.files) {
         const buffer = await file.arrayBuffer();
@@ -389,14 +419,14 @@ export default function CascoPage() {
 
   if (submitted) {
     return (
-      <section className="mx-auto max-w-3xl px-4 py-16 text-center">
-        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-sky-100">
-          <svg className="h-8 w-8 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <section className="mx-auto max-w-3xl px-4 pt-24 pb-8 text-center">
+        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-green-400 to-green-500 shadow-lg shadow-green-500/25">
+          <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
           </svg>
         </div>
         <h2 className="text-2xl font-bold text-gray-900">Cererea a fost trimisă cu succes!</h2>
-        <p className="mt-2 text-gray-500">
+        <p className="mt-2 text-sm text-gray-500">
           Un consultant vă va contacta în cel mai scurt timp cu oferta CASCO personalizată.
         </p>
         <button type="button" onClick={() => { setForm(EMPTY_FORM); setSubmitted(false); goTo(0); }} className={`mt-8 ${btn.primary}`}>
@@ -409,181 +439,272 @@ export default function CascoPage() {
   // ── Steps ──
 
   const steps = [
+    /* ────── Step 1: Date de Contact ────── */
     {
       title: "Date de contact",
       content: (
-        <div className="mx-auto max-w-2xl space-y-6">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-900">Date de contact</h2>
-            <p className="mt-1 text-sm text-gray-500">Completați informațiile de contact ale proprietarului</p>
-          </div>
-
-          {/* PF / PJ toggle */}
-          <div className="flex justify-center">
-            <div className="inline-flex rounded-lg bg-gray-100 p-1">
+        <div className="mx-auto max-w-2xl space-y-4">
+          {/* Main card */}
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm space-y-4">
+            {/* PF / PJ toggle */}
+            <div className="flex gap-2">
               {(["PF", "PJ"] as const).map((type) => (
                 <button
                   key={type}
                   type="button"
                   onClick={() => set("ownerType", type)}
-                  className={`rounded-md px-6 py-2 text-sm font-semibold transition-all ${
+                  className={`flex-1 rounded-lg border-2 px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
                     form.ownerType === type
-                      ? "bg-white text-gray-900 shadow-sm"
-                      : "text-gray-500 hover:text-gray-700"
+                      ? "border-[#2563EB] bg-blue-50/60 text-blue-700"
+                      : "border-gray-200 bg-gray-50/30 text-gray-600 hover:border-gray-300"
                   }`}
                 >
-                  {type === "PF" ? "Persoană fizică" : "Persoană juridică"}
+                  {type === "PF" ? "Persoana fizica" : "Persoana juridica"}
                 </button>
               ))}
             </div>
-          </div>
 
-          {form.ownerType === "PF" ? (
-            <>
-              <div className="grid grid-cols-2 gap-3">
-                <input className={inputClass} value={form.lastName} onChange={(e) => set("lastName", e.target.value)} placeholder="Nume" />
-                <input className={inputClass} value={form.firstName} onChange={(e) => set("firstName", e.target.value)} placeholder="Prenume" />
-              </div>
-              <input className={inputClass} value={form.cnp} onChange={(e) => set("cnp", e.target.value)} placeholder="CNP" maxLength={13} />
-              <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Stare civilă</label>
-                <select className={inputClass} value={form.maritalStatus} onChange={(e) => set("maritalStatus", e.target.value)}>
-                  <option value="">— Selectează —</option>
-                  <option value="casatorit">Căsătorit(ă)</option>
-                  <option value="necasatorit">Necăsătorit(ă)</option>
-                </select>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="flex gap-2">
-                <input className={`flex-1 ${inputClass}`} value={form.cui} onChange={(e) => { set("cui", e.target.value); setCuiFound(false); setCuiError(null); }} placeholder="CUI" />
-                <button
-                  type="button"
-                  onClick={lookupCUI}
-                  disabled={cuiLoading || form.cui.length < 2}
-                  className={btn.primary}
-                >
-                  {cuiLoading ? "Se caută..." : "Caută firma"}
-                </button>
-              </div>
-              {cuiError && <p className="text-sm text-amber-600">{cuiError}</p>}
-              {cuiFound && <p className="text-sm text-sky-600">Firma a fost identificată.</p>}
-              <input className={inputClass} value={form.companyName} onChange={(e) => set("companyName", e.target.value)} placeholder="Nume firmă" />
-            </>
-          )}
-
-          <div className="grid grid-cols-2 gap-3">
-            <input type="email" className={inputClass} value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="Email" />
-            <input type="tel" className={inputClass} value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="Telefon (07XXXXXXXX)" />
-          </div>
-
-          {/* Driving license */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Deții permis auto?</label>
-              <select className={inputClass} value={form.hasLicense} onChange={(e) => set("hasLicense", e.target.value as "da" | "nu" | "")}>
-                <option value="">— Selectează —</option>
-                <option value="da">Da</option>
-                <option value="nu">Nu</option>
-              </select>
-            </div>
-            {form.hasLicense === "da" && (
-              <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Data obținere permis</label>
-                <input type="date" className={inputClass} value={form.licenseDate} onChange={(e) => set("licenseDate", e.target.value)} />
-              </div>
+            {form.ownerType === "PF" ? (
+              <>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                  <div>
+                    <label className={labelCls}>Nume</label>
+                    <input className={inputCls} value={form.lastName} onChange={(e) => set("lastName", e.target.value)} placeholder="ex: Popescu" />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Prenume</label>
+                    <input className={inputCls} value={form.firstName} onChange={(e) => set("firstName", e.target.value)} placeholder="ex: Ion" />
+                  </div>
+                </div>
+                <div>
+                  <label className={labelCls}>CNP</label>
+                  <input className={inputCls} value={form.cnp} onChange={(e) => set("cnp", e.target.value)} placeholder="13 cifre" maxLength={13} />
+                </div>
+                <div>
+                  <label className={labelCls}>Stare civila</label>
+                  <select className={selectCls} value={form.maritalStatus} onChange={(e) => set("maritalStatus", e.target.value)}>
+                    <option value="">Selecteaza</option>
+                    <option value="casatorit">Casatorit(a)</option>
+                    <option value="necasatorit">Necasatorit(a)</option>
+                  </select>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <label className={labelCls}>CUI</label>
+                    <input className={inputCls} value={form.cui} onChange={(e) => { set("cui", e.target.value); setCuiFound(false); setCuiError(null); }} placeholder="ex: 12345678" />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={lookupCUI}
+                    disabled={cuiLoading || form.cui.length < 2}
+                    className={`mt-5 shrink-0 ${btn.primary}`}
+                  >
+                    {cuiLoading ? (
+                      <span className="flex items-center gap-2">
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                        Se cauta...
+                      </span>
+                    ) : "Cauta firma"}
+                  </button>
+                </div>
+                {cuiError && (
+                  <p className="flex items-center gap-1.5 text-xs text-amber-600">
+                    <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" /></svg>
+                    {cuiError}
+                  </p>
+                )}
+                {cuiFound && (
+                  <p className="flex items-center gap-1.5 text-xs text-blue-600">
+                    <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                    Firma a fost identificata
+                  </p>
+                )}
+                <div>
+                  <label className={labelCls}>Nume firma</label>
+                  <input className={inputCls} value={form.companyName} onChange={(e) => set("companyName", e.target.value)} placeholder="Denumire firma" />
+                </div>
+              </>
             )}
+
+            {/* Contact section */}
+            <div className="border-t border-gray-100 pt-4">
+              <div className="mb-3 flex items-center gap-2">
+                <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                </svg>
+                <span className="text-xs font-medium text-gray-500">Contact</span>
+              </div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                <div>
+                  <label className={labelCls}>Email</label>
+                  <input type="email" className={inputCls} value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="email@exemplu.ro" />
+                </div>
+                <div>
+                  <label className={labelCls}>Telefon</label>
+                  <input type="tel" className={inputCls} value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="07XXXXXXXX" />
+                </div>
+              </div>
+            </div>
+
+            {/* License section */}
+            <div className="border-t border-gray-100 pt-4">
+              <div className="mb-3 flex items-center gap-2">
+                <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm-3.375 6.75h4.5" />
+                </svg>
+                <span className="text-xs font-medium text-gray-500">Permis auto</span>
+              </div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                <div>
+                  <label className={labelCls}>Detii permis auto?</label>
+                  <select className={selectCls} value={form.hasLicense} onChange={(e) => set("hasLicense", e.target.value as "da" | "nu" | "")}>
+                    <option value="">Selecteaza</option>
+                    <option value="da">Da</option>
+                    <option value="nu">Nu</option>
+                  </select>
+                </div>
+                {form.hasLicense === "da" && (
+                  <div>
+                    <label className={labelCls}>Data obtinere permis</label>
+                    <input type="date" className={inputCls} value={form.licenseDate} onChange={(e) => set("licenseDate", e.target.value)} />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Location section */}
+            <div className="border-t border-gray-100 pt-4">
+              <div className="mb-3 flex items-center gap-2">
+                <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+                </svg>
+                <span className="text-xs font-medium text-gray-500">Localizare</span>
+              </div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                <div>
+                  <label className={labelCls}>Judet</label>
+                  <select
+                    className={selectCls}
+                    value={isBucharest ? BUCHAREST_SENTINEL : form.countyId}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === BUCHAREST_SENTINEL) {
+                        set("countyId", BUCHAREST_SENTINEL);
+                        set("countyName", "Bucuresti");
+                        set("cityId", "");
+                        set("cityName", "");
+                      } else {
+                        const county = deduplicatedCounties.find((c) => String(c.id) === val);
+                        set("countyId", val);
+                        set("countyName", county?.name || "");
+                        set("cityId", "");
+                        set("cityName", "");
+                      }
+                    }}
+                  >
+                    <option value="">Selecteaza judetul</option>
+                    {deduplicatedCounties.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>
+                    {isBucharest || isBucharestSentinel ? "Sector" : "Localitate"}
+                  </label>
+                  {isBucharest || isBucharestSentinel ? (
+                    <select
+                      className={selectCls}
+                      value={isBucharest ? form.countyId : ""}
+                      onChange={(e) => {
+                        const sector = BUCHAREST_SECTORS.find((s) => String(s.countyId) === e.target.value);
+                        if (sector) {
+                          set("countyId", String(sector.countyId));
+                          set("countyName", "Bucuresti");
+                          set("cityId", String(sector.cityId));
+                          set("cityName", sector.label);
+                        }
+                      }}
+                    >
+                      <option value="">Selecteaza sectorul</option>
+                      {BUCHAREST_SECTORS.map((s) => (
+                        <option key={s.countyId} value={s.countyId}>{s.label}</option>
+                      ))}
+                    </select>
+                  ) : (
+                  <select
+                    className={selectCls}
+                    value={form.cityId}
+                    disabled={!form.countyId}
+                    onChange={(e) => {
+                      const city = cities.find((c) => String(c.id) === e.target.value);
+                      set("cityId", e.target.value);
+                      set("cityName", city?.name || "");
+                    }}
+                  >
+                    <option value="">Selecteaza localitatea</option>
+                    {cities.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* County + City */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Județ</label>
-              <select
-                className={inputClass}
-                value={form.countyId}
-                onChange={(e) => {
-                  const county = counties.find((c) => String(c.id) === e.target.value);
-                  set("countyId", e.target.value);
-                  set("countyName", county?.name || "");
-                  set("cityId", "");
-                  set("cityName", "");
-                }}
-              >
-                <option value="">— Selectează județul —</option>
-                {counties.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Localitate</label>
-              <select
-                className={inputClass}
-                value={form.cityId}
-                disabled={!form.countyId}
-                onChange={(e) => {
-                  const city = cities.find((c) => String(c.id) === e.target.value);
-                  set("cityId", e.target.value);
-                  set("cityName", city?.name || "");
-                }}
-              >
-                <option value="">— Selectează localitatea —</option>
-                {cities.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="pt-2 text-center">
-            <button type="button" onClick={next} disabled={!step1Valid} className={btn.primary}>
-              Înainte
+          {/* Continue */}
+          <div className="text-center pt-2">
+            <button type="button" onClick={() => step1Valid && next()} disabled={!step1Valid} className={`${btn.primary} px-8`}>
+              <span className="flex items-center gap-2">
+                Continua
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                </svg>
+              </span>
             </button>
           </div>
         </div>
       ),
     },
+
+    /* ────── Step 2: Vehicul & Asigurare ────── */
     {
       title: "Vehicul & Asigurare",
       content: (
-        <div className="mx-auto max-w-2xl space-y-6">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-900">Detalii vehicul și asigurare</h2>
-            <p className="mt-1 text-sm text-gray-500">Completați informațiile despre vehicul sau atașați documentele</p>
-          </div>
-
+        <div className="mx-auto max-w-2xl space-y-4">
           {/* Input mode toggle */}
-          <div className="flex justify-center">
-            <div className="inline-flex rounded-lg bg-gray-100 p-1">
-              {([
-                { key: "form" as const, label: "Completează formularul" },
-                { key: "upload" as const, label: "Atașează documente" },
-              ]).map(({ key, label }) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => set("inputMode", key)}
-                  className={`rounded-md px-5 py-2 text-sm font-semibold transition-all ${
-                    form.inputMode === key
-                      ? "bg-white text-gray-900 shadow-sm"
-                      : "text-gray-500 hover:text-gray-700"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+          <div className="flex gap-2">
+            {([
+              { key: "form" as const, label: "Completeaza formularul" },
+              { key: "upload" as const, label: "Ataseaza documente" },
+            ]).map(({ key, label }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => set("inputMode", key)}
+                className={`flex-1 rounded-lg border-2 px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
+                  form.inputMode === key
+                    ? "border-[#2563EB] bg-blue-50/60 text-blue-700"
+                    : "border-gray-200 bg-gray-50/30 text-gray-600 hover:border-gray-300"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
 
           {form.inputMode === "upload" ? (
             /* File upload area */
-            <div className="rounded-xl border-2 border-dashed border-gray-300 p-8 text-center">
+            <div className="rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50/30 p-8 text-center">
               <svg className="mx-auto h-10 w-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
               </svg>
-              <p className="mt-2 text-sm text-gray-600">Încărcați talon sau carte auto (max. 2 fișiere, JPG/PNG/PDF, max 5MB)</p>
+              <p className="mt-2 text-sm text-gray-600">Incarcati talon sau carte auto (max. 2 fisiere, JPG/PNG/PDF, max 5MB)</p>
               <input
                 type="file"
                 accept=".jpg,.jpeg,.png,.pdf"
@@ -594,9 +715,14 @@ export default function CascoPage() {
               {form.files.length > 0 && (
                 <div className="mt-4 space-y-2">
                   {form.files.map((file, i) => (
-                    <div key={i} className="flex items-center justify-center gap-2 text-sm text-gray-700">
-                      <span>{file.name} ({(file.size / 1024 / 1024).toFixed(1)} MB)</span>
-                      <button type="button" onClick={() => removeFile(i)} className="text-red-500 hover:text-red-700">✕</button>
+                    <div key={i} className="flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50/40 px-3 py-2">
+                      <svg className="h-4 w-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+                      <span className="flex-1 text-xs font-medium text-blue-800">{file.name} ({(file.size / 1024 / 1024).toFixed(1)} MB)</span>
+                      <button type="button" onClick={() => removeFile(i)} className="text-blue-400 hover:text-red-500 transition-colors">
+                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -605,300 +731,429 @@ export default function CascoPage() {
           ) : (
             /* Manual form fields */
             <>
-              <input className={inputClass} value={form.plateNumber} onChange={(e) => set("plateNumber", e.target.value.toUpperCase())} placeholder="Număr înmatriculare" />
-
-              <div className="flex gap-2">
-                <input className={`flex-1 ${inputClass}`} value={form.vin} onChange={(e) => { set("vin", e.target.value.toUpperCase()); setVinDone(false); setVinError(null); }} placeholder="Serie șasiu (VIN)" maxLength={17} />
-                <button
-                  type="button"
-                  onClick={lookupVIN}
-                  disabled={vinLoading || form.vin.length < 17}
-                  className={btn.primary}
-                >
-                  {vinLoading ? "Se caută..." : "Caută"}
-                </button>
-              </div>
-              {vinError && <p className="text-sm text-amber-600">{vinError}</p>}
-              {vinDone && !vinError && <p className="text-sm text-sky-600">Datele vehiculului au fost completate automat din baza DRPCIV.</p>}
-
-              <div className="grid grid-cols-2 gap-3">
+              {/* VIN section */}
+              <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm space-y-3">
                 <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Categorie vehicul</label>
-                  <select className={inputClass} value={form.categoryId} onChange={(e) => {
-                    const cat = categories.find((c) => String(c.id) === e.target.value);
-                    set("categoryId", e.target.value);
-                    set("categoryName", cat?.name || "");
-                    set("subcategoryId", "");
-                    set("subcategoryName", "");
-                  }}>
-                    <option value="">— Selectează —</option>
-                    {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
+                  <label className={labelCls}>Numar inmatriculare</label>
+                  <input className={inputCls} value={form.plateNumber} onChange={(e) => set("plateNumber", e.target.value.toUpperCase())} placeholder="ex: B 123 ABC" />
                 </div>
-                <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Subcategorie (cod EU)</label>
-                  <select className={inputClass} value={form.subcategoryId} onChange={(e) => {
-                    const sub = subcategories.find((s) => String(s.id) === e.target.value);
-                    set("subcategoryId", e.target.value);
-                    set("subcategoryName", sub?.name || "");
-                  }}>
-                    <option value="">— Selectează —</option>
-                    {subcategories.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Marca</label>
-                  <select
-                    className={inputClass}
-                    value={form.makeId}
-                    onChange={(e) => {
-                      const make = makes.find((m) => String(m.id) === e.target.value);
-                      set("makeId", e.target.value);
-                      set("makeName", make?.name || "");
-                    }}
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <label className={labelCls}>Serie sasiu (VIN)</label>
+                    <input className={inputCls} value={form.vin} onChange={(e) => { set("vin", e.target.value.toUpperCase()); setVinDone(false); setVinError(null); }} placeholder="17 caractere" maxLength={17} />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={lookupVIN}
+                    disabled={vinLoading || form.vin.length < 17}
+                    className={`mt-5 shrink-0 ${btn.primary}`}
                   >
-                    <option value="">— Selectează —</option>
-                    {makes.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-                  </select>
+                    {vinLoading ? (
+                      <span className="flex items-center gap-2">
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                        Se cauta...
+                      </span>
+                    ) : "Cauta VIN"}
+                  </button>
                 </div>
+                {vinError && (
+                  <p className="flex items-center gap-1.5 text-xs text-amber-600">
+                    <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" /></svg>
+                    {vinError}
+                  </p>
+                )}
+                {vinDone && !vinError && (
+                  <p className="flex items-center gap-1.5 text-xs text-blue-600">
+                    <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                    Datele vehiculului au fost completate automat din baza DRPCIV
+                  </p>
+                )}
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <input className={inputClass} value={form.model} onChange={(e) => set("model", e.target.value)} placeholder="Model" />
-                <input className={inputClass} value={form.version} onChange={(e) => set("version", e.target.value)} placeholder="Versiune / nivel echipare" />
-              </div>
+              {/* Vehicle details card */}
+              <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm space-y-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0H21M3.375 14.25h.747c.464 0 .893-.258 1.108-.66l3.478-6.521A1.125 1.125 0 019.72 6.5h4.56a1.125 1.125 0 011.012.625l3.478 6.521c.215.402.644.66 1.108.66h.747" />
+                  </svg>
+                  <span className="text-xs font-medium text-gray-500">Detalii vehicul</span>
+                </div>
 
-              <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                  <div>
+                    <label className={labelCls}>Categorie vehicul</label>
+                    <select className={selectCls} value={form.categoryId} onChange={(e) => {
+                      const cat = categories.find((c) => String(c.id) === e.target.value);
+                      set("categoryId", e.target.value);
+                      set("categoryName", cat?.name || "");
+                      set("subcategoryId", "");
+                      set("subcategoryName", "");
+                    }}>
+                      <option value="">Selecteaza</option>
+                      {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={labelCls}>Subcategorie (cod EU)</label>
+                    <select className={selectCls} value={form.subcategoryId} onChange={(e) => {
+                      const sub = subcategories.find((s) => String(s.id) === e.target.value);
+                      set("subcategoryId", e.target.value);
+                      set("subcategoryName", sub?.name || "");
+                    }}>
+                      <option value="">Selecteaza</option>
+                      {subcategories.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                  <div>
+                    <label className={labelCls}>Marca</label>
+                    <select
+                      className={selectCls}
+                      value={form.makeId}
+                      onChange={(e) => {
+                        const make = makes.find((m) => String(m.id) === e.target.value);
+                        set("makeId", e.target.value);
+                        set("makeName", make?.name || "");
+                      }}
+                    >
+                      <option value="">Selecteaza</option>
+                      {makes.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={labelCls}>Model</label>
+                    <input className={inputCls} value={form.model} onChange={(e) => set("model", e.target.value)} placeholder="ex: Golf" />
+                  </div>
+                </div>
+
                 <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">An fabricație</label>
-                  <select className={inputClass} value={form.year} onChange={(e) => set("year", e.target.value)}>
-                    <option value="">— Selectează —</option>
-                    {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
+                  <label className={labelCls}>Versiune / nivel echipare</label>
+                  <input className={inputCls} value={form.version} onChange={(e) => set("version", e.target.value)} placeholder="ex: 1.6 TDI Highline" />
+                </div>
+
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                  <div>
+                    <label className={labelCls}>An fabricatie</label>
+                    <select className={selectCls} value={form.year} onChange={(e) => set("year", e.target.value)}>
+                      <option value="">Selecteaza</option>
+                      {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={labelCls}>Data primei inmatriculari</label>
+                    <input type="date" className={inputCls} value={form.firstRegistrationDate} onChange={(e) => set("firstRegistrationDate", e.target.value)} />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-x-4 gap-y-3">
+                  <div>
+                    <label className={labelCls}>Caroserie</label>
+                    <select className={selectCls} value={form.bodyType} onChange={(e) => set("bodyType", e.target.value)}>
+                      <option value="">Selecteaza</option>
+                      {BODY_TYPES.map((b) => <option key={b} value={b}>{b}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={labelCls}>Transmisie</label>
+                    <select className={selectCls} value={form.transmission} onChange={(e) => set("transmission", e.target.value)}>
+                      <option value="">Selecteaza</option>
+                      <option value="automata">Automata</option>
+                      <option value="manuala">Manuala</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={labelCls}>Motorizare</label>
+                    <select className={selectCls} value={form.fuelType} onChange={(e) => set("fuelType", e.target.value)}>
+                      <option value="">Selecteaza</option>
+                      {FUEL_TYPES.map((f) => <option key={f} value={f}>{f}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
+                  <div>
+                    <label className={labelCls}>Km la bord</label>
+                    <input type="number" className={inputCls} value={form.km} onChange={(e) => set("km", e.target.value)} placeholder="ex: 50000" />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Nr. locuri</label>
+                    <input type="number" className={inputCls} value={form.seats} onChange={(e) => set("seats", e.target.value)} placeholder="ex: 5" />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Cil. (cm³)</label>
+                    <input type="number" className={inputCls} value={form.engineCc} onChange={(e) => set("engineCc", e.target.value)} placeholder="ex: 1968" />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Putere (kW)</label>
+                    <input type="number" className={inputCls} value={form.engineKw} onChange={(e) => set("engineKw", e.target.value)} placeholder="ex: 110" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                  <div>
+                    <label className={labelCls}>Masa maxima (kg)</label>
+                    <input type="number" className={inputCls} value={form.maxWeight} onChange={(e) => set("maxWeight", e.target.value)} placeholder="ex: 1850" />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Istoric proprietar</label>
+                    <select className={selectCls} value={form.ownerHistory} onChange={(e) => set("ownerHistory", e.target.value)}>
+                      <option value="">Selecteaza</option>
+                      <option value="primul">Primul proprietar</option>
+                      <option value="al_doilea">Al doilea proprietar</option>
+                      <option value="al_treilea">Al treilea proprietar sau mai mult</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className={labelCls}>Utilizare ridesharing / taxi?</label>
+                  <select className={selectCls} value={form.ridesharing} onChange={(e) => set("ridesharing", e.target.value)}>
+                    <option value="">Selecteaza</option>
+                    <option value="nu">Nu</option>
+                    <option value="da">Da</option>
                   </select>
                 </div>
-                <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Data primei înmatriculări</label>
-                  <input type="date" className={inputClass} value={form.firstRegistrationDate} onChange={(e) => set("firstRegistrationDate", e.target.value)} />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Caroserie</label>
-                  <select className={inputClass} value={form.bodyType} onChange={(e) => set("bodyType", e.target.value)}>
-                    <option value="">— Selectează —</option>
-                    {BODY_TYPES.map((b) => <option key={b} value={b}>{b}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Transmisie</label>
-                  <select className={inputClass} value={form.transmission} onChange={(e) => set("transmission", e.target.value)}>
-                    <option value="">— Selectează —</option>
-                    <option value="automata">Automată</option>
-                    <option value="manuala">Manuală</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Motorizare</label>
-                  <select className={inputClass} value={form.fuelType} onChange={(e) => set("fuelType", e.target.value)}>
-                    <option value="">— Selectează —</option>
-                    {FUEL_TYPES.map((f) => <option key={f} value={f}>{f}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <input type="number" className={inputClass} value={form.km} onChange={(e) => set("km", e.target.value)} placeholder="Km la bord" />
-                <input type="number" className={inputClass} value={form.seats} onChange={(e) => set("seats", e.target.value)} placeholder="Nr. locuri" />
-                <input type="number" className={inputClass} value={form.engineCc} onChange={(e) => set("engineCc", e.target.value)} placeholder="Cil. (cm³)" />
-                <input type="number" className={inputClass} value={form.engineKw} onChange={(e) => set("engineKw", e.target.value)} placeholder="Putere (kW)" />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Masă maximă (kg)</label>
-                  <input type="number" className={inputClass} value={form.maxWeight} onChange={(e) => set("maxWeight", e.target.value)} placeholder="Masă maximă (kg)" />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Istoric proprietar</label>
-                  <select className={inputClass} value={form.ownerHistory} onChange={(e) => set("ownerHistory", e.target.value)}>
-                    <option value="">— Selectează —</option>
-                    <option value="primul">Primul proprietar</option>
-                    <option value="al_doilea">Al doilea proprietar</option>
-                    <option value="al_treilea">Al treilea proprietar sau mai mult</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Utilizare ridesharing / taxi?</label>
-                <select className={inputClass} value={form.ridesharing} onChange={(e) => set("ridesharing", e.target.value)}>
-                  <option value="">— Selectează —</option>
-                  <option value="nu">Nu</option>
-                  <option value="da">Da</option>
-                </select>
               </div>
             </>
           )}
 
-          {/* Insurance-specific fields (always shown) */}
-          <hr className="border-gray-200" />
-          <h3 className="text-center text-lg font-semibold text-gray-900">Detalii asigurare</h3>
+          {/* Insurance details card — always shown */}
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm space-y-3">
+            <div className="flex items-center gap-2 mb-1">
+              <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+              </svg>
+              <span className="text-xs font-medium text-gray-500">Detalii asigurare</span>
+            </div>
 
-          <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+              <div>
+                <label className={labelCls}>Asigurat CASCO la</label>
+                <select className={selectCls} value={form.currentInsurer} onChange={(e) => set("currentInsurer", e.target.value)}>
+                  <option value="">Selecteaza</option>
+                  {INSURERS.map((ins) => <option key={ins} value={ins}>{ins}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>Data inceput asigurare</label>
+                <input type="date" className={inputCls} value={form.startDate} min={tomorrowDate} onChange={(e) => set("startDate", e.target.value)} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+              <div>
+                <label className={labelCls}>Frecventa plata</label>
+                <select className={selectCls} value={form.paymentFrequency} onChange={(e) => set("paymentFrequency", e.target.value)}>
+                  <option value="">Selecteaza</option>
+                  <option value="integrala">Integrala</option>
+                  <option value="semestriala">Semestriala</option>
+                  <option value="trimestriala">Trimestriala</option>
+                  <option value="lunara">Lunara</option>
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>Fransiza</label>
+                <select className={selectCls} value={form.deductible} onChange={(e) => set("deductible", e.target.value)}>
+                  <option value="">Selecteaza</option>
+                  <option value="cu_fransiza">Cu fransiza</option>
+                  <option value="fara_fransiza">Fara fransiza</option>
+                  <option value="ambele">Ambele variante</option>
+                </select>
+              </div>
+            </div>
+
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Asigurat CASCO la</label>
-              <select className={inputClass} value={form.currentInsurer} onChange={(e) => set("currentInsurer", e.target.value)}>
-                <option value="">— Selectează —</option>
-                {INSURERS.map((ins) => <option key={ins} value={ins}>{ins}</option>)}
+              <label className={labelCls}>Masina noua?</label>
+              <select className={selectCls} value={form.isNewCar} onChange={(e) => set("isNewCar", e.target.value)}>
+                <option value="">Selecteaza</option>
+                <option value="nu">Nu</option>
+                <option value="da">Da</option>
               </select>
             </div>
-            <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Data început asigurare</label>
-              <input type="date" className={inputClass} value={form.startDate} onChange={(e) => set("startDate", e.target.value)} />
-            </div>
+
+            {form.isNewCar === "da" && (
+              <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                <div>
+                  <label className={labelCls}>Valoare factura</label>
+                  <input type="number" className={inputCls} value={form.invoiceValue} onChange={(e) => set("invoiceValue", e.target.value)} placeholder="ex: 25000" />
+                </div>
+                <div>
+                  <label className={labelCls}>Moneda</label>
+                  <select className={selectCls} value={form.invoiceCurrency} onChange={(e) => set("invoiceCurrency", e.target.value)}>
+                    <option value="RON">Lei (RON)</option>
+                    <option value="EUR">Euro (EUR)</option>
+                  </select>
+                </div>
+              </div>
+            )}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Frecvență plată</label>
-              <select className={inputClass} value={form.paymentFrequency} onChange={(e) => set("paymentFrequency", e.target.value)}>
-                <option value="">— Selectează —</option>
-                <option value="integrala">Integrală</option>
-                <option value="semestriala">Semestrială</option>
-                <option value="trimestriala">Trimestrială</option>
-                <option value="lunara">Lunară</option>
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Franșiză</label>
-              <select className={inputClass} value={form.deductible} onChange={(e) => set("deductible", e.target.value)}>
-                <option value="">— Selectează —</option>
-                <option value="cu_fransiza">Cu franșiză</option>
-                <option value="fara_fransiza">Fără franșiză</option>
-                <option value="ambele">Ambele variante</option>
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Mașină nouă?</label>
-            <select className={inputClass} value={form.isNewCar} onChange={(e) => set("isNewCar", e.target.value)}>
-              <option value="">— Selectează —</option>
-              <option value="nu">Nu</option>
-              <option value="da">Da</option>
-            </select>
-          </div>
-
-          {form.isNewCar === "da" && (
-            <div className="grid grid-cols-2 gap-3">
-              <input type="number" className={inputClass} value={form.invoiceValue} onChange={(e) => set("invoiceValue", e.target.value)} placeholder="Valoare factură" />
-              <select className={inputClass} value={form.invoiceCurrency} onChange={(e) => set("invoiceCurrency", e.target.value)}>
-                <option value="RON">Lei (RON)</option>
-                <option value="EUR">Euro (EUR)</option>
-              </select>
-            </div>
-          )}
-
-          <div className="flex items-center justify-center gap-3 pt-2">
-            <button type="button" onClick={prev} className={btn.secondary}>Înapoi</button>
-            <button type="button" onClick={next} disabled={!step2Valid} className={btn.primary}>Înainte</button>
+          {/* Navigation */}
+          <div className="flex justify-center gap-3 pt-2">
+            <button type="button" onClick={prev} className={`${btn.secondary} px-8`}>
+              <span className="flex items-center gap-2">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+                </svg>
+                Inapoi
+              </span>
+            </button>
+            <button type="button" onClick={() => step2Valid && next()} disabled={!step2Valid} className={`${btn.primary} px-8`}>
+              <span className="flex items-center gap-2">
+                Continua
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                </svg>
+              </span>
+            </button>
           </div>
         </div>
       ),
     },
+
+    /* ────── Step 3: Confirmare ────── */
     {
       title: "Confirmare",
       content: (
-        <div className="mx-auto max-w-2xl space-y-6">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-900">Verificați și trimiteți</h2>
-            <p className="mt-1 text-sm text-gray-500">Verificați datele introduse și trimiteți cererea de ofertă CASCO</p>
-          </div>
-
-          {/* Summary */}
-          <div className="rounded-xl border border-gray-200 bg-white p-6 space-y-4">
-            <h3 className="font-semibold text-gray-900">Date de contact</h3>
-            <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
-              <span>Tip: {form.ownerType === "PF" ? "Persoană fizică" : "Persoană juridică"}</span>
-              <span>
-                {form.ownerType === "PF"
-                  ? `${form.lastName} ${form.firstName}`
-                  : form.companyName}
-              </span>
-              <span>Email: {form.email}</span>
-              <span>Telefon: {form.phone}</span>
-              <span>{form.ownerType === "PF" ? `CNP: ${form.cnp}` : `CUI: ${form.cui}`}</span>
-              <span>Localitate: {form.cityName}, {form.countyName}</span>
+        <div className="mx-auto max-w-2xl space-y-4">
+          {/* Contact summary */}
+          <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <div className="flex items-center gap-3 border-b border-gray-100 bg-gray-50/50 px-5 py-3">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50">
+                <svg className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                </svg>
+              </div>
+              <span className="text-sm font-semibold text-gray-900">Date de contact</span>
+            </div>
+            <div className="px-5 py-4 space-y-2">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+                <div><span className="text-gray-400">Tip:</span> <span className="font-medium text-gray-700">{form.ownerType === "PF" ? "Persoana fizica" : "Persoana juridica"}</span></div>
+                <div><span className="text-gray-400">Nume:</span> <span className="font-medium text-gray-700">{form.ownerType === "PF" ? `${form.lastName} ${form.firstName}` : form.companyName}</span></div>
+                <div><span className="text-gray-400">Email:</span> <span className="font-medium text-gray-700">{form.email}</span></div>
+                <div><span className="text-gray-400">Telefon:</span> <span className="font-medium text-gray-700">{form.phone}</span></div>
+                <div><span className="text-gray-400">{form.ownerType === "PF" ? "CNP:" : "CUI:"}</span> <span className="font-medium text-gray-700">{form.ownerType === "PF" ? form.cnp : form.cui}</span></div>
+                <div><span className="text-gray-400">Localitate:</span> <span className="font-medium text-gray-700">{form.cityName}, {form.countyName}</span></div>
+              </div>
             </div>
           </div>
 
-          <div className="rounded-xl border border-gray-200 bg-white p-6 space-y-4">
-            <h3 className="font-semibold text-gray-900">Vehicul și asigurare</h3>
-            {form.inputMode === "upload" ? (
-              <p className="text-sm text-gray-600">
-                Documente atașate: {form.files.map((f) => f.name).join(", ") || "—"}
-              </p>
-            ) : (
-              <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
-                {form.plateNumber && <span>Nr. înmatriculare: {form.plateNumber}</span>}
-                {form.categoryName && <span>Categorie: {form.categoryName}</span>}
-                {form.subcategoryName && <span>Subcategorie: {form.subcategoryName}</span>}
-                <span>Marca: {form.makeName}</span>
-                <span>Model: {form.model}</span>
-                <span>An: {form.year}</span>
-                <span>VIN: {form.vin}</span>
-                {form.km && <span>Km: {form.km}</span>}
-                {form.bodyType && <span>Caroserie: {form.bodyType}</span>}
-                {form.fuelType && <span>Motorizare: {form.fuelType}</span>}
+          {/* Vehicle & insurance summary */}
+          <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <div className="flex items-center gap-3 border-b border-gray-100 bg-gray-50/50 px-5 py-3">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50">
+                <svg className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0H21M3.375 14.25h.747c.464 0 .893-.258 1.108-.66l3.478-6.521A1.125 1.125 0 019.72 6.5h4.56a1.125 1.125 0 011.012.625l3.478 6.521c.215.402.644.66 1.108.66h.747" />
+                </svg>
               </div>
-            )}
-            <hr className="border-gray-100" />
-            <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
-              <span>Asigurat la: {form.currentInsurer}</span>
-              <span>Data început: {form.startDate}</span>
-              <span>Plată: {form.paymentFrequency}</span>
-              <span>Franșiză: {form.deductible}</span>
-              {form.isNewCar === "da" && <span>Valoare factură: {form.invoiceValue} {form.invoiceCurrency}</span>}
+              <span className="text-sm font-semibold text-gray-900">Vehicul si asigurare</span>
+            </div>
+            <div className="px-5 py-4 space-y-3">
+              {form.inputMode === "upload" ? (
+                <p className="text-sm text-gray-600">
+                  Documente atasate: {form.files.map((f) => f.name).join(", ") || "—"}
+                </p>
+              ) : (
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+                  {form.plateNumber && <div><span className="text-gray-400">Nr. inmatriculare:</span> <span className="font-medium text-gray-700">{form.plateNumber}</span></div>}
+                  {form.categoryName && <div><span className="text-gray-400">Categorie:</span> <span className="font-medium text-gray-700">{form.categoryName}</span></div>}
+                  {form.subcategoryName && <div><span className="text-gray-400">Subcategorie:</span> <span className="font-medium text-gray-700">{form.subcategoryName}</span></div>}
+                  <div><span className="text-gray-400">Marca:</span> <span className="font-medium text-gray-700">{form.makeName}</span></div>
+                  <div><span className="text-gray-400">Model:</span> <span className="font-medium text-gray-700">{form.model}</span></div>
+                  <div><span className="text-gray-400">An:</span> <span className="font-medium text-gray-700">{form.year}</span></div>
+                  <div><span className="text-gray-400">VIN:</span> <span className="font-medium text-gray-700">{form.vin}</span></div>
+                  {form.km && <div><span className="text-gray-400">Km:</span> <span className="font-medium text-gray-700">{form.km}</span></div>}
+                  {form.bodyType && <div><span className="text-gray-400">Caroserie:</span> <span className="font-medium text-gray-700">{form.bodyType}</span></div>}
+                  {form.fuelType && <div><span className="text-gray-400">Motorizare:</span> <span className="font-medium text-gray-700">{form.fuelType}</span></div>}
+                </div>
+              )}
+              <div className="border-t border-gray-100 pt-3">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+                  <div><span className="text-gray-400">Asigurat la:</span> <span className="font-medium text-gray-700">{form.currentInsurer}</span></div>
+                  <div><span className="text-gray-400">Data inceput:</span> <span className="font-medium text-gray-700">{form.startDate}</span></div>
+                  <div><span className="text-gray-400">Plata:</span> <span className="font-medium text-gray-700">{form.paymentFrequency}</span></div>
+                  <div><span className="text-gray-400">Fransiza:</span> <span className="font-medium text-gray-700">{form.deductible}</span></div>
+                  {form.isNewCar === "da" && <div><span className="text-gray-400">Val. factura:</span> <span className="font-medium text-gray-700">{form.invoiceValue} {form.invoiceCurrency}</span></div>}
+                </div>
+              </div>
             </div>
           </div>
 
           {/* Observations */}
-          <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Observații (opțional)</label>
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <label className={labelCls}>Observatii (optional)</label>
             <textarea
-              className={inputClass}
+              className={`${inputCls} resize-none`}
               rows={3}
               value={form.observations}
               onChange={(e) => set("observations", e.target.value)}
-              placeholder="Informații suplimentare..."
+              placeholder="Informatii suplimentare..."
             />
           </div>
 
-          {/* Consent */}
-          <label className="flex items-start gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={form.consent}
-              onChange={(e) => set("consent", e.target.checked)}
-              className="mt-0.5 h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500"
-            />
-            <span className="text-sm text-gray-600">
-              Sunt de acord cu prelucrarea datelor personale în vederea primirii ofertei de asigurare CASCO.
+          {/* Consent toggle */}
+          <button
+            type="button"
+            onClick={() => set("consent", !form.consent)}
+            className={`flex w-full items-center gap-3 rounded-2xl border-2 p-4 text-left transition-all duration-200 ${
+              form.consent
+                ? "border-[#2563EB] bg-blue-50/60"
+                : "border-gray-200 bg-white hover:border-gray-300"
+            }`}
+          >
+            <div
+              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors ${
+                form.consent ? "border-[#2563EB] bg-[#2563EB]" : "border-gray-300 bg-white"
+              }`}
+            >
+              {form.consent && (
+                <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                </svg>
+              )}
+            </div>
+            <span className="text-sm text-gray-700">
+              Sunt de acord cu prelucrarea datelor personale in vederea primirii ofertei de asigurare CASCO.
             </span>
-          </label>
+          </button>
 
           {submitError && (
-            <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{submitError}</p>
+            <div className="flex items-start gap-2 rounded-xl bg-red-50 p-4 text-sm text-red-700">
+              <svg className="mt-0.5 h-4 w-4 shrink-0 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+              </svg>
+              {submitError}
+            </div>
           )}
 
-          <div className="flex items-center justify-center gap-3 pt-2">
-            <button type="button" onClick={prev} className={btn.secondary}>Înapoi</button>
-            <button type="button" onClick={handleSubmit} disabled={!step3Valid || submitting} className={btn.primary}>
-              {submitting ? "Se trimite..." : "Trimite cererea"}
+          {/* Navigation */}
+          <div className="flex justify-center gap-3 pt-2">
+            <button type="button" onClick={prev} className={`${btn.secondary} px-8`}>
+              <span className="flex items-center gap-2">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+                </svg>
+                Inapoi
+              </span>
+            </button>
+            <button type="button" onClick={handleSubmit} disabled={!step3Valid || submitting} className={`${btn.primary} px-8`}>
+              <span className="flex items-center gap-2">
+                {submitting ? (
+                  <>
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    Se trimite...
+                  </>
+                ) : (
+                  <>
+                    Trimite cererea
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                    </svg>
+                  </>
+                )}
+              </span>
             </button>
           </div>
         </div>
@@ -907,8 +1162,18 @@ export default function CascoPage() {
   ];
 
   return (
-    <section className="mx-auto max-w-4xl px-4 py-10">
+    <div className="mx-auto max-w-4xl px-4 pt-24 pb-8 sm:px-6 lg:px-8">
+      {/* Page header */}
+      <div className="text-center mb-6">
+        <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/25">
+          <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0H21M3.375 14.25h.747c.464 0 .893-.258 1.108-.66l3.478-6.521A1.125 1.125 0 019.72 6.5h4.56a1.125 1.125 0 011.012.625l3.478 6.521c.215.402.644.66 1.108.66h.747" />
+          </svg>
+        </div>
+        <h2 className="text-lg font-bold text-gray-900">Asigurare CASCO</h2>
+        <p className="mt-0.5 text-sm text-gray-500">Cerere de oferta pentru asigurarea auto completa</p>
+      </div>
       <WizardStepper steps={steps} currentStep={currentStep} onStepChange={goTo} />
-    </section>
+    </div>
   );
 }
