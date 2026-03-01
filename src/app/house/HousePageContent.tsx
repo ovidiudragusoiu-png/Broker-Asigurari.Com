@@ -1277,7 +1277,7 @@ export default function HousePage() {
                                         setSelectedOffer(offer);
                                         // Save HOUSE policy data for callback page (PAD offer + renewal info)
                                         try {
-                                          sessionStorage.setItem("housePolicyData", JSON.stringify({
+                                          localStorage.setItem("housePolicyData", JSON.stringify({
                                             padOfferId: padOffer && padOffer.id > 0 ? padOffer.id : null,
                                             padPreviousPolicySeries: hasPreviousPad && padPreviousSeries ? padPreviousSeries : null,
                                             padPreviousPolicyNumber: hasPreviousPad && padPreviousNumber ? padPreviousNumber : null,

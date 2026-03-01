@@ -65,7 +65,7 @@ export default function PaymentFlow({
         },
         { Accept: "text/plain" }
       );
-      if (customerEmail) sessionStorage.setItem("customerEmail", customerEmail);
+      if (customerEmail) localStorage.setItem("customerEmail", customerEmail);
       setStatus("redirecting");
       // Validate payment URL before redirect
       try {
@@ -99,7 +99,7 @@ export default function PaymentFlow({
         },
         { Accept: "text/plain" }
       );
-      if (customerEmail) sessionStorage.setItem("customerEmail", customerEmail);
+      if (customerEmail) localStorage.setItem("customerEmail", customerEmail);
       setStatus("redirecting");
       // Validate loan URL before redirect
       try {

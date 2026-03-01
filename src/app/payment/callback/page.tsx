@@ -139,10 +139,13 @@ function PaymentCallbackContent() {
 
       let payload: Record<string, unknown>;
       let customerEmail = "";
+      let vehicleVin = "";
+      let vehiclePlate = "";
+      let vehicleCategory = "";
 
       // Retrieve saved email (set by PaymentFlow before redirect)
       try {
-        customerEmail = sessionStorage.getItem("customerEmail") || "";
+        customerEmail = localStorage.getItem("customerEmail") || "";
         if (customerEmail) emailSentTo.current = customerEmail;
       } catch {
         // sessionStorage unavailable
@@ -151,7 +154,7 @@ function PaymentCallbackContent() {
       if (productType === "RCA") {
         let savedData: Record<string, unknown> = {};
         try {
-          const raw = sessionStorage.getItem("rcaPolicyData");
+          const raw = localStorage.getItem("rcaPolicyData");
           if (raw) {
             savedData = JSON.parse(raw);
             // Also check email from RCA policy data as fallback
@@ -168,14 +171,21 @@ function PaymentCallbackContent() {
           paymentMethodType: "CardOnline",
           ...savedData,
         };
-        sessionStorage.removeItem("rcaPolicyData");
+        // Extract vehicle data for anti-fraud snapshot
+        const vd = savedData.vehicleDetails as Record<string, unknown> | undefined;
+        if (vd) {
+          vehicleVin = (vd.vin as string) || "";
+          vehiclePlate = (vd.plateNo as string) || "";
+          vehicleCategory = String(vd.vehicleCategoryId || "");
+        }
+        localStorage.removeItem("rcaPolicyData");
       } else {
         payload = { offerId: Number(offerId), paymentMethodType: "CardOnline" };
         // For HOUSE with PAD: include padOfferId from URL param or sessionStorage
         let resolvedPadOfferId = urlPadOfferId;
         if (!resolvedPadOfferId || !isValidPositiveInt(resolvedPadOfferId)) {
           try {
-            const saved = sessionStorage.getItem("housePolicyData");
+            const saved = localStorage.getItem("housePolicyData");
             if (saved) {
               const data = JSON.parse(saved);
               if (data.padOfferId) resolvedPadOfferId = String(data.padOfferId);
@@ -188,7 +198,7 @@ function PaymentCallbackContent() {
       }
 
       // Clean up
-      try { sessionStorage.removeItem("customerEmail"); } catch { /* */ }
+      try { localStorage.removeItem("customerEmail"); } catch { /* */ }
 
       const result = await api.post<PolicyCreateResponse>(
         endpoint,
@@ -228,6 +238,9 @@ function PaymentCallbackContent() {
               startDate: info.startDate,
               endDate: info.endDate,
               email: customerEmail,
+              vehicleVin: vehicleVin || undefined,
+              vehiclePlate: vehiclePlate || undefined,
+              vehicleCategory: vehicleCategory || undefined,
             }),
           });
         } catch {
@@ -275,22 +288,19 @@ function PaymentCallbackContent() {
       setError("Parametrii pentru descărcarea documentului sunt invalizi.");
       return;
     }
-    const endpoint =
-      type === "offer"
-        ? `/online/offers/${id}/document/v3?orderHash=${orderHash}`
-        : `/online/policies/${id}/document/v3?orderHash=${orderHash}`;
 
     try {
-      const data = await api.get<{ url: string }>(endpoint, {
-        timeoutMs: 60000,
+      // Download through our proxy which applies PDF protection + audit logging
+      const params = new URLSearchParams({
+        type,
+        id: String(id),
+        orderHash,
+        productType: productType || "UNKNOWN",
       });
-      if (data.url) {
-        const safeUrl = new URL(data.url, window.location.origin);
-        if (!["http:", "https:"].includes(safeUrl.protocol)) {
-          throw new Error("Linkul documentului este invalid.");
-        }
-        window.open(safeUrl.toString(), "_blank", "noopener,noreferrer");
-      }
+      const proxyUrl = `/api/documents/download?${params}`;
+
+      // Open protected PDF in new tab (triggers download via Content-Disposition)
+      window.open(proxyUrl, "_blank", "noopener,noreferrer");
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Eroare la descărcarea documentului."

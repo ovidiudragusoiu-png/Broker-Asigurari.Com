@@ -7,6 +7,8 @@ import { readString, readNumber } from "@/lib/utils/rcaHelpers";
 import { validateVIN, validateCNP } from "@/lib/utils/validation";
 import { btn } from "@/lib/ui/tokens";
 import DateInput from "@/components/shared/DateInput";
+import DntChoice from "@/components/rca/DntChoice";
+import TermsModal from "@/components/rca/TermsModal";
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -160,11 +162,13 @@ const BUCHAREST_SENTINEL = "-999"; // virtual countyId for the single "Bucuresti
 // ── Component ───────────────────────────────────────────────────────
 
 export default function CascoPage() {
-  const { currentStep, next, prev, goTo } = useWizard(3);
+  const { currentStep, next, prev, goTo } = useWizard(4);
   const [form, setForm] = useState<CascoForm>(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [showGdprModal, setShowGdprModal] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
 
   // Inline validation — track touched fields + attempted submit
   const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -777,7 +781,20 @@ export default function CascoPage() {
       ),
     },
 
-    /* ────── Step 2: Vehicul & Asigurare ────── */
+    /* ────── Step 2: DNT Choice ────── */
+    {
+      title: "Aproape gata",
+      content: (
+        <DntChoice
+          productLabel="CASCO"
+          onContinueDirect={() => next()}
+          onBack={() => prev()}
+          backLabel="Inapoi la datele de contact"
+        />
+      ),
+    },
+
+    /* ────── Step 3: Vehicul & Asigurare ────── */
     {
       title: "Vehicul & Asigurare",
       content: (
@@ -1213,30 +1230,85 @@ export default function CascoPage() {
           </div>
 
           {/* Consent toggle */}
-          <button
-            type="button"
-            onClick={() => set("consent", !form.consent)}
+          <div
             className={`flex w-full items-center gap-3 rounded-2xl border-2 p-4 text-left transition-all duration-200 ${
               form.consent
                 ? "border-[#2563EB] bg-blue-50/60"
                 : "border-gray-200 bg-white hover:border-gray-300"
             }`}
           >
-            <div
-              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors ${
-                form.consent ? "border-[#2563EB] bg-[#2563EB]" : "border-gray-300 bg-white"
-              }`}
+            <button
+              type="button"
+              onClick={() => set("consent", !form.consent)}
+              className="flex shrink-0 items-center"
             >
-              {form.consent && (
-                <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                </svg>
-              )}
-            </div>
+              <div
+                className={`flex h-5 w-5 items-center justify-center rounded-md border-2 transition-colors ${
+                  form.consent ? "border-[#2563EB] bg-[#2563EB]" : "border-gray-300 bg-white"
+                }`}
+              >
+                {form.consent && (
+                  <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                  </svg>
+                )}
+              </div>
+            </button>
             <span className="text-sm text-gray-700">
-              Sunt de acord cu prelucrarea datelor personale in vederea primirii ofertei de asigurare CASCO.
+              Sunt de acord cu{" "}
+              <button
+                type="button"
+                onClick={() => setShowGdprModal(true)}
+                className="font-semibold text-[#2563EB] underline hover:text-blue-700"
+              >
+                prelucrarea datelor personale
+              </button>
+              {" "}in vederea primirii ofertei de asigurare CASCO.
             </span>
-          </button>
+          </div>
+
+          {/* GDPR details modal */}
+          {showGdprModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+              <div className="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50">
+                    <svg className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900">
+                    Politica de prelucrare a datelor personale
+                  </h3>
+                </div>
+                <div className="space-y-3 text-sm text-gray-700">
+                  <p>
+                    In conformitate cu Regulamentul (UE) 2016/679 (GDPR), datele dumneavoastra personale
+                    sunt prelucrate in scopul ofertarii si emiterii politelor de asigurare.
+                  </p>
+                  <p>
+                    Datele colectate (CNP/CUI, email, date personale, date vehicul) sunt transmise catre
+                    societatile de asigurare partenere exclusiv in scopul generarii ofertelor si emiterii
+                    politei selectate.
+                  </p>
+                  <p>
+                    Aveti dreptul de acces, rectificare, stergere si portabilitate a datelor, precum si
+                    dreptul de a va opune prelucrarii. Pentru exercitarea acestor drepturi, ne puteti
+                    contacta la adresa de email indicata pe site.
+                  </p>
+                </div>
+                <div className="mt-5 text-center">
+                  <button
+                    type="button"
+                    onClick={() => setShowGdprModal(false)}
+                    className={`${btn.primary} px-8`}
+                  >
+                    Am inteles
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {submitError && (
             <div className="flex items-start gap-2 rounded-xl bg-red-50 p-4 text-sm text-red-700">
@@ -1257,7 +1329,7 @@ export default function CascoPage() {
                 Inapoi
               </span>
             </button>
-            <button type="button" onClick={handleSubmit} disabled={!step3Valid || submitting} className={`${btn.primary} px-8`}>
+            <button type="button" onClick={() => setShowTermsModal(true)} disabled={!step3Valid || submitting} className={`${btn.primary} px-8`}>
               <span className="flex items-center gap-2">
                 {submitting ? (
                   <>
@@ -1275,6 +1347,17 @@ export default function CascoPage() {
               </span>
             </button>
           </div>
+
+          {/* Terms & Conditions modal — must agree before submission */}
+          <TermsModal
+            isOpen={showTermsModal}
+            productLabel="CASCO"
+            onClose={() => setShowTermsModal(false)}
+            onAgree={() => {
+              setShowTermsModal(false);
+              handleSubmit();
+            }}
+          />
         </div>
       ),
     },
