@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import PadPageContent from "./PadPageContent";
 
 export const metadata: Metadata = {
-  title: "Asigurare PAD Online - Polita de Asigurare a Locuintei | Broker Asigurari",
+  title: "Asigurare PAD Online - Polita de Asigurare a Locuintei | Sigur.Ai",
   description:
     "Cumpără asigurare PAD obligatorie online. Protecție împotriva cutremurelor, inundațiilor și alunecărilor de teren. Emitere rapidă.",
   openGraph: {
-    title: "Asigurare PAD Online | Broker Asigurari",
+    title: "Asigurare PAD Online | Sigur.Ai",
     description:
       "Cumpără asigurare PAD obligatorie online. Protecție împotriva cutremurelor, inundațiilor și alunecărilor de teren.",
     type: "website",

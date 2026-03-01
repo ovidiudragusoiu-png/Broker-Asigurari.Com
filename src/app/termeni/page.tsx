@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Termeni și Condiții | Broker Asigurari",
+  title: "Termeni și Condiții | Sigur.Ai",
   description:
-    "Termenii și condițiile de utilizare a platformei Broker-Asigurari.Com. Informații despre drepturile și obligațiile utilizatorilor.",
+    "Termenii și condițiile de utilizare a platformei Sigur.Ai. Informații despre drepturile și obligațiile utilizatorilor.",
 };
 
 export default function TermeniPage() {
@@ -22,7 +22,7 @@ export default function TermeniPage() {
           1. Informații generale
         </h2>
         <p>
-          Platforma Broker-Asigurari.Com este operată de <strong>FLETHO LLC SRL</strong>,
+          Platforma Sigur.Ai este operată de <strong>FLETHO LLC SRL</strong>,
           societate de brokeraj în asigurări autorizată de Autoritatea de Supraveghere
           Financiară (ASF), număr autorizare <strong>RAJ506943</strong>.
         </p>
@@ -35,7 +35,7 @@ export default function TermeniPage() {
           2. Servicii oferite
         </h2>
         <p>
-          Broker-Asigurari.Com oferă servicii de intermediere în asigurări, permițând
+          Sigur.Ai oferă servicii de intermediere în asigurări, permițând
           utilizatorilor să compare și să achiziționeze polițe de asigurare online
           (RCA, CASCO, călătorie, locuință, PAD, malpraxis, garanții contractuale,
           răspundere profesională).

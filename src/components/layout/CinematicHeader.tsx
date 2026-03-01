@@ -47,11 +47,10 @@ export default function CinematicHeader() {
               className="h-7 w-7 text-[#2563EB]"
             />
             <span className="text-[#2563EB]">
-              Broker
+              Sigur
               <span className="text-[#F97316]">
-                Asigurari
+                .Ai
               </span>
-              <span className="text-[#2563EB]">.Com</span>
             </span>
           </Link>
           <Image src="/images/pnrr/banner-pnrr.jpg" alt="Finanțat de Uniunea Europeană NextGenerationEU — Guvernul României — PNRR" width={400} height={33} className="object-contain mt-1" />

@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!article) return { title: "Articol negăsit" };
 
   return {
-    title: `${article.title} | Blog Broker Asigurari`,
+    title: `${article.title} | Blog Sigur.Ai`,
     description: article.excerpt,
     openGraph: {
       title: article.title,

@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Politica de Confidențialitate | Broker Asigurari",
+  title: "Politica de Confidențialitate | Sigur.Ai",
   description:
-    "Politica de confidențialitate Broker-Asigurari.Com. Cum colectăm, utilizăm și protejăm datele dumneavoastră personale.",
+    "Politica de confidențialitate Sigur.Ai. Cum colectăm, utilizăm și protejăm datele dumneavoastră personale.",
 };
 
 export default function ConfidentialitatePage() {

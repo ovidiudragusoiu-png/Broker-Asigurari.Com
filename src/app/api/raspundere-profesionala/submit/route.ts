@@ -49,7 +49,7 @@ function buildEmailHtml(data: RPSubmission): string {
   return `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
       <h2 style="color:#2563EB;margin-bottom:4px">Cerere ofertă Răspundere Profesională</h2>
-      <p style="color:#6b7280;margin-top:0">Trimisă de pe broker-asigurari.com</p>
+      <p style="color:#6b7280;margin-top:0">Trimisă de pe sigur.ai</p>
 
       <h3 style="color:#111827;border-bottom:2px solid #dbeafe;padding-bottom:6px">Detalii cerere</h3>
       <table style="width:100%;border-collapse:collapse">${rows}</table>

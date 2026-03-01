@@ -147,7 +147,7 @@ export default function ChatWidget() {
           </div>
           <div>
             <p className="text-sm font-semibold text-white">Insurel</p>
-            <p className="text-xs text-white/70">BrokerAsigurari.Com</p>
+            <p className="text-xs text-white/70">Sigur.Ai</p>
           </div>
         </div>
         <button

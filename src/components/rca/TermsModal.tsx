@@ -56,7 +56,7 @@ export default function TermsModal({ isOpen, onAgree, onClose, productLabel = "R
         >
           <div className="space-y-4">
             <p className="text-center font-bold text-gray-900">
-              Termeni și Condiții pentru Încheierea Poliței {productLabel} prin www.broker-asigurari.com
+              Termeni și Condiții pentru Încheierea Poliței {productLabel} prin www.sigur.ai
             </p>
 
             <h3 className="font-bold text-gray-900">1. Prestarea Serviciilor</h3>

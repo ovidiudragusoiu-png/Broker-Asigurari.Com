@@ -33,7 +33,7 @@ function buildEmailHtml(data: ContactSubmission): string {
   return `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
       <h2 style="color:#059669;margin-bottom:4px">Mesaj Contact</h2>
-      <p style="color:#6b7280;margin-top:0">Trimis de pe broker-asigurari.com</p>
+      <p style="color:#6b7280;margin-top:0">Trimis de pe sigur.ai</p>
 
       <h3 style="color:#111827;border-bottom:2px solid #d1fae5;padding-bottom:6px">Date contact</h3>
       <table style="width:100%;border-collapse:collapse">${rows}</table>

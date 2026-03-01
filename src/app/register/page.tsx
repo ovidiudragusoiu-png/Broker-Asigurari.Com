@@ -2,7 +2,7 @@ import { UserPlus } from "lucide-react";
 import RegisterForm from "@/components/portal/RegisterForm";
 
 export const metadata = {
-  title: "Creează cont | Broker Asigurari",
+  title: "Creează cont | Sigur.Ai",
 };
 
 export default function RegisterPage() {

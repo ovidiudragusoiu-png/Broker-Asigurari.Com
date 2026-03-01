@@ -9,7 +9,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Broker Asigurari - Asigurari Online",
+  title: "Sigur.Ai - Asigurari Online",
   description:
     "Compara si cumpara asigurari online: RCA, Travel, Locuinta, CASCO, Malpraxis, Garantii. Cele mai bune oferte de la asiguratorii din Romania.",
 };
@@ -29,10 +29,10 @@ export default function RootLayout({
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "InsuranceAgency",
-              name: "Broker-Asigurari.Com",
+              name: "Sigur.Ai",
               legalName: "FLETHO LLC SRL",
-              url: "https://broker-asigurari.com",
-              logo: "https://broker-asigurari.com/images/logo.png",
+              url: "https://sigur.ai",
+              logo: "https://sigur.ai/images/logo.png",
               telephone: "+40720385551",
               email: "bucuresti@broker-asigurari.com",
               address: {
@@ -82,7 +82,7 @@ export default function RootLayout({
               <div className="sm:col-span-2">
                 <Link href="/" className="flex items-center gap-2 text-xl font-extrabold text-white mb-5">
                   <ShieldCheck className="h-7 w-7 text-[#2563EB]" />
-                  <span>Broker<span className="text-[#F97316]">Asigurari</span><span className="text-[#2563EB]">.Com</span></span>
+                  <span>Sigur<span className="text-[#F97316]">.Ai</span></span>
                 </Link>
                 <p className="text-sm text-slate-500 max-w-xs mb-8 leading-relaxed">
                   Platforma ta de încredere pentru asigurări online. Compară oferte și cumpără polița de care ai nevoie, simplu și rapid.
@@ -150,7 +150,7 @@ export default function RootLayout({
               <div>
                 <h3 className="text-xs font-semibold text-white/60 uppercase tracking-widest mb-5">Autorizare</h3>
                 <p className="text-xs text-slate-500 leading-relaxed">
-                  Broker-Asigurari.Com prin FLETHO LLC SRL, autorizată de Autoritatea de Supraveghere Financiară (ASF).<br /><br />
+                  Sigur.Ai prin FLETHO LLC SRL, autorizată de Autoritatea de Supraveghere Financiară (ASF).<br /><br />
                   Număr autorizare: <strong className="text-slate-400">RAJ506943</strong>
                 </p>
               </div>
@@ -178,7 +178,7 @@ export default function RootLayout({
             {/* Bottom bar */}
             <div className="mt-16 flex flex-col items-center justify-between gap-4 border-t border-white/5 pt-8 md:flex-row">
               <p className="text-xs text-slate-600">
-                &copy; {new Date().getFullYear()} Broker-Asigurari.Com. Toate drepturile rezervate.
+                &copy; {new Date().getFullYear()} Sigur.Ai. Toate drepturile rezervate.
               </p>
 
               {/* System Operational indicator */}

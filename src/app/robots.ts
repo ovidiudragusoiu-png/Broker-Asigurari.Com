@@ -7,6 +7,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: "/",
       disallow: ["/api/", "/dashboard/", "/login", "/register", "/payment/"],
     },
-    sitemap: "https://broker-asigurari.com/sitemap.xml",
+    sitemap: "https://sigur.ai/sitemap.xml",
   };
 }

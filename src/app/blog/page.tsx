@@ -4,11 +4,11 @@ import { Clock, ArrowRight } from "lucide-react";
 import { ARTICLES } from "@/lib/data/articles";
 
 export const metadata: Metadata = {
-  title: "Blog | Broker Asigurari — Ghiduri și sfaturi despre asigurări",
+  title: "Blog | Sigur.Ai — Ghiduri și sfaturi despre asigurări",
   description:
     "Articole utile despre asigurări auto, călătorie, locuință și multe altele. Ghiduri practice, sfaturi de economisire și noutăți din piața asigurărilor din România.",
   openGraph: {
-    title: "Blog | Broker Asigurari",
+    title: "Blog | Sigur.Ai",
     description: "Ghiduri și sfaturi despre asigurări din România",
     type: "website",
   },

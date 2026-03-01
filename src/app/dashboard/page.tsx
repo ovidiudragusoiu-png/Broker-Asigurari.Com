@@ -8,7 +8,7 @@ import PolicyCard from "@/components/portal/PolicyCard";
 import LogoutButton from "@/components/portal/LogoutButton";
 
 export const metadata = {
-  title: "Polițele mele | Broker Asigurari",
+  title: "Polițele mele | Sigur.Ai",
 };
 
 export default async function DashboardPage() {

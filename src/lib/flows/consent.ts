@@ -69,6 +69,6 @@ export async function autoSignConsent(
     website:
       typeof window !== "undefined"
         ? window.location.origin
-        : "https://www.broker-asigurari.com",
+        : "https://www.sigur.ai",
   });
 }

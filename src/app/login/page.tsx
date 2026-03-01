@@ -2,7 +2,7 @@ import { ShieldCheck } from "lucide-react";
 import LoginForm from "@/components/portal/LoginForm";
 
 export const metadata = {
-  title: "Autentificare | Broker Asigurari",
+  title: "Autentificare | Sigur.Ai",
 };
 
 export default function LoginPage() {

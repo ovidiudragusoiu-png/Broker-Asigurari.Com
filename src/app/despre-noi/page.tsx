@@ -3,9 +3,9 @@ import Link from "next/link";
 import { ShieldCheck, Eye, Zap, HeadphonesIcon, Users, FileCheck, Globe } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Despre noi | Broker Asigurari — Cine suntem",
+  title: "Despre noi | Sigur.Ai — Cine suntem",
   description:
-    "Aflați povestea Broker Asigurari, misiunea noastră de a simplifica asigurările online și valorile care ne ghidează în fiecare zi.",
+    "Aflați povestea Sigur.Ai, misiunea noastră de a simplifica asigurările online și valorile care ne ghidează în fiecare zi.",
 };
 
 const VALUES = [
@@ -59,7 +59,7 @@ export default function DespreNoiPage() {
             <h2 className="text-3xl font-extrabold text-slate-900 sm:text-4xl">Cine suntem</h2>
             <div className="mt-6 space-y-4 text-lg text-slate-600 leading-relaxed">
               <p>
-                <strong className="text-slate-900">Broker Asigurari</strong> este o platformă digitală de brokeraj de asigurări,
+                <strong className="text-slate-900">Sigur.Ai</strong> este o platformă digitală de brokeraj de asigurări,
                 autorizată de Autoritatea de Supraveghere Financiară (ASF). Conectăm clienții cu cei mai buni asiguratori
                 din România pentru a oferi cele mai competitive prețuri și cea mai bună acoperire.
               </p>

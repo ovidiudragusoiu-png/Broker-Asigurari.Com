@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { ARTICLES } from "@/lib/data/articles";
 
-const BASE_URL = "https://broker-asigurari.com";
+const BASE_URL = "https://sigur.ai";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const staticPages: MetadataRoute.Sitemap = [
