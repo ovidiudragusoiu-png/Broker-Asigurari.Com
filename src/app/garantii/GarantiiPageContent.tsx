@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import WizardStepper, { useWizard } from "@/components/shared/WizardStepper";
 import { api } from "@/lib/api/client";
 import { btn } from "@/lib/ui/tokens";
+import DntChoice from "@/components/rca/DntChoice";
+import TermsModal from "@/components/rca/TermsModal";
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -75,11 +77,13 @@ const labelCls = "mb-1 block text-xs font-medium text-gray-500";
 // ── Component ───────────────────────────────────────────────────────
 
 export default function GarantiiPage() {
-  const { currentStep, next, prev, goTo } = useWizard(2);
+  const { currentStep, next, prev, goTo } = useWizard(3);
   const [form, setForm] = useState<GarantiiForm>(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [showGdprModal, setShowGdprModal] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
 
   // Inline validation
   const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -509,6 +513,25 @@ export default function GarantiiPage() {
         </div>
       ),
     },
+
+    /* ────── Step 2: DNT ────── */
+    {
+      title: "Aproape gata",
+      content: (
+        <DntChoice
+          productLabel="Garanții"
+          onContinueDirect={() => next()}
+          onBack={() => prev()}
+          backLabel="Inapoi la detalii cerere"
+          subtitle="Alege cum dorești să continui"
+          directTitle="Completează cererea"
+          directDescription="Completezi formularul și vei fi contactat cu oferta personalizată"
+          directButtonLabel="Continuă"
+        />
+      ),
+    },
+
+    /* ────── Step 3: Confirmare ────── */
     {
       title: "Confirmare",
       content: (
@@ -535,7 +558,7 @@ export default function GarantiiPage() {
             </div>
           </div>
 
-          {/* Consent */}
+          {/* Consent with GDPR link */}
           <button
             type="button"
             onClick={() => set("consent", !form.consent)}
@@ -554,8 +577,18 @@ export default function GarantiiPage() {
                 </svg>
               )}
             </div>
-            <span className="text-sm text-gray-600">
-              Sunt de acord cu prelucrarea datelor personale în vederea primirii ofertei de garanții contractuale.
+            <span className="text-sm text-gray-700">
+              Sunt de acord cu{" "}
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={(e) => { e.stopPropagation(); setShowGdprModal(true); }}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); setShowGdprModal(true); } }}
+                className="font-semibold text-[#2563EB] underline hover:text-blue-700"
+              >
+                prelucrarea datelor personale
+              </span>
+              {" "}în vederea primirii ofertei de garanții contractuale.
             </span>
           </button>
 
@@ -577,7 +610,7 @@ export default function GarantiiPage() {
                 Înapoi
               </span>
             </button>
-            <button type="button" onClick={handleSubmit} disabled={!step2Valid || submitting} className={`${btn.primary} px-6`}>
+            <button type="button" onClick={() => setShowTermsModal(true)} disabled={!step2Valid || submitting} className={`${btn.primary} px-6`}>
               <span className="flex items-center gap-2">
                 {submitting ? (
                   <>
@@ -595,6 +628,41 @@ export default function GarantiiPage() {
               </span>
             </button>
           </div>
+
+          {/* GDPR Modal */}
+          {showGdprModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+              <div className="mx-4 max-w-lg rounded-xl bg-white p-6 shadow-xl">
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#2563EB]/10 text-[#2563EB]">
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900">Prelucrarea datelor personale</h3>
+                </div>
+                <div className="max-h-64 overflow-y-auto text-sm text-gray-600 space-y-2">
+                  <p>În conformitate cu Regulamentul (UE) 2016/679 (GDPR), datele personale furnizate vor fi prelucrate de Broker Asigurări în scopul:</p>
+                  <ul className="list-disc pl-5 space-y-1">
+                    <li>Generării ofertei de garanții contractuale solicitate</li>
+                    <li>Contactării dumneavoastră cu oferta personalizată</li>
+                    <li>Îndeplinirii obligațiilor legale în domeniul asigurărilor</li>
+                  </ul>
+                  <p>Datele sunt stocate în siguranță și nu vor fi partajate cu terți neautorizați. Aveți dreptul de acces, rectificare, ștergere și portabilitate a datelor.</p>
+                  <p>Pentru exercitarea drepturilor, contactați-ne la: <strong>bucuresti@broker-asigurari.com</strong></p>
+                </div>
+                <button type="button" onClick={() => setShowGdprModal(false)} className={`mt-4 w-full ${btn.primary}`}>Am înțeles</button>
+              </div>
+            </div>
+          )}
+
+          {/* Terms Modal */}
+          <TermsModal
+            isOpen={showTermsModal}
+            productLabel="Garanții Contractuale"
+            onClose={() => setShowTermsModal(false)}
+            onAgree={() => { setShowTermsModal(false); handleSubmit(); }}
+          />
         </div>
       ),
     },
