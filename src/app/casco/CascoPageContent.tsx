@@ -67,6 +67,7 @@ interface CascoForm {
   isNewCar: string;
   invoiceValue: string;
   invoiceCurrency: string;
+  invoiceFiles: File[];
 
   // Step 3
   observations: string;
@@ -121,6 +122,7 @@ const EMPTY_FORM: CascoForm = {
   isNewCar: "",
   invoiceValue: "",
   invoiceCurrency: "RON",
+  invoiceFiles: [],
 
   observations: "",
   consent: false,
@@ -428,6 +430,28 @@ export default function CascoPage() {
     set("files", form.files.filter((_, i) => i !== index));
   };
 
+  // ── Invoice file upload (new car) ──
+
+  const invoiceInputRef = useRef<HTMLInputElement>(null);
+
+  const addInvoiceFiles = (incoming: File[]) => {
+    const allowed = incoming.filter(
+      (f) => /\.(jpe?g|png|pdf)$/i.test(f.name) && f.size <= 5 * 1024 * 1024
+    );
+    const merged = [...form.invoiceFiles, ...allowed].slice(0, 2);
+    set("invoiceFiles", merged);
+  };
+
+  const handleInvoiceFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return;
+    addInvoiceFiles(Array.from(e.target.files));
+    e.target.value = "";
+  };
+
+  const removeInvoiceFile = (index: number) => {
+    set("invoiceFiles", form.invoiceFiles.filter((_, i) => i !== index));
+  };
+
   // ── Submit ──
 
   const handleSubmit = async () => {
@@ -445,12 +469,22 @@ export default function CascoPage() {
         fileAttachments.push({ name: file.name, content: base64, type: file.type });
       }
 
+      const invoiceAttachments: { name: string; content: string; type: string }[] = [];
+      for (const file of form.invoiceFiles) {
+        const buffer = await file.arrayBuffer();
+        const base64 = btoa(
+          new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), "")
+        );
+        invoiceAttachments.push({ name: file.name, content: base64, type: file.type });
+      }
+
       const response = await fetch("/api/casco/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
           files: fileAttachments,
+          invoiceFiles: invoiceAttachments,
         }),
       });
 
@@ -1114,17 +1148,65 @@ export default function CascoPage() {
             </div>
 
             {form.isNewCar === "da" && (
-              <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-                <div>
-                  <label className={labelCls}>Valoare factura</label>
-                  <input type="number" className={inputCls} value={form.invoiceValue} onChange={(e) => set("invoiceValue", e.target.value)} placeholder="ex: 25000" />
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                  <div>
+                    <label className={labelCls}>Valoare factura</label>
+                    <input type="number" className={inputCls} value={form.invoiceValue} onChange={(e) => set("invoiceValue", e.target.value)} placeholder="ex: 25000" />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Moneda</label>
+                    <select className={selectCls} value={form.invoiceCurrency} onChange={(e) => set("invoiceCurrency", e.target.value)}>
+                      <option value="RON">Lei (RON)</option>
+                      <option value="EUR">Euro (EUR)</option>
+                    </select>
+                  </div>
                 </div>
+
+                {/* Invoice / contract upload */}
                 <div>
-                  <label className={labelCls}>Moneda</label>
-                  <select className={selectCls} value={form.invoiceCurrency} onChange={(e) => set("invoiceCurrency", e.target.value)}>
-                    <option value="RON">Lei (RON)</option>
-                    <option value="EUR">Euro (EUR)</option>
-                  </select>
+                  <label className={labelCls}>Factura / Contract de vanzare-cumparare</label>
+                  <input
+                    ref={invoiceInputRef}
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.pdf"
+                    multiple
+                    className="hidden"
+                    onChange={handleInvoiceFileChange}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => form.invoiceFiles.length < 2 && invoiceInputRef.current?.click()}
+                    className={`w-full rounded-xl border-2 border-dashed px-4 py-3 text-center text-sm transition-colors ${
+                      form.invoiceFiles.length >= 2
+                        ? "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed"
+                        : "border-gray-300 bg-gray-50/50 text-gray-500 hover:border-[#2563EB]/40 hover:bg-blue-50/30"
+                    }`}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                      </svg>
+                      {form.invoiceFiles.length === 0
+                        ? "Incarca factura sau contractul"
+                        : `${form.invoiceFiles.length}/2 fisiere incarcate`}
+                    </div>
+                    <p className="mt-1 text-xs text-gray-400">JPG, PNG sau PDF (max 5 MB fiecare, max 2 fisiere)</p>
+                  </button>
+                  {form.invoiceFiles.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {form.invoiceFiles.map((file, i) => (
+                        <div key={i} className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-1.5 text-xs">
+                          <span className="truncate text-gray-600">{file.name}</span>
+                          <button type="button" onClick={() => removeInvoiceFile(i)} className="ml-2 text-red-400 hover:text-red-600">
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -1216,6 +1298,7 @@ export default function CascoPage() {
                   <div><span className="text-gray-400">Plata:</span> <span className="font-medium text-gray-700">{form.paymentFrequency}</span></div>
                   <div><span className="text-gray-400">Fransiza:</span> <span className="font-medium text-gray-700">{form.deductible}</span></div>
                   {form.isNewCar === "da" && <div><span className="text-gray-400">Val. factura:</span> <span className="font-medium text-gray-700">{form.invoiceValue} {form.invoiceCurrency}</span></div>}
+                  {form.isNewCar === "da" && form.invoiceFiles.length > 0 && <div><span className="text-gray-400">Factura/Contract:</span> <span className="font-medium text-gray-700">{form.invoiceFiles.map((f) => f.name).join(", ")}</span></div>}
                 </div>
               </div>
             </div>
