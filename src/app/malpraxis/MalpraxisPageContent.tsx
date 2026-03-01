@@ -166,7 +166,16 @@ export default function MalpraxisPage() {
       .then((data) => {
         setProfessions(getArray<Profession>(data.profession));
         setAuthorizationTypes(getArray<CodeName>(data.operatingAuthorizationType));
-        setMoralDamagesLimits(getArray<CodeName>(data.moralDamagesLimit));
+        setMoralDamagesLimits(
+          getArray<CodeName>(data.moralDamagesLimit).sort((a, b) => {
+            const na = parseFloat(a.name);
+            const nb = parseFloat(b.name);
+            if (isNaN(na) && isNaN(nb)) return 0;
+            if (isNaN(na)) return 1;
+            if (isNaN(nb)) return -1;
+            return na - nb;
+          })
+        );
         setRetroactivePeriods(getArray<CodeName>(data.retroactivePeriod));
         setCurrencies(getArray<string>(data.currency));
         setInstallmentsOptions(getArray<number>(data.installmentsNo));
