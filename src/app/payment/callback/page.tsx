@@ -95,6 +95,7 @@ function PaymentCallbackContent() {
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const autoEmitAttempted = useRef(false);
+  const emailSentTo = useRef("");
 
   const normalizedStatus = (status || "").toUpperCase();
   const isSuccess = normalizedStatus === "APPROVED";
@@ -142,6 +143,7 @@ function PaymentCallbackContent() {
       // Retrieve saved email (set by PaymentFlow before redirect)
       try {
         customerEmail = sessionStorage.getItem("customerEmail") || "";
+        if (customerEmail) emailSentTo.current = customerEmail;
       } catch {
         // sessionStorage unavailable
       }
@@ -230,6 +232,26 @@ function PaymentCallbackContent() {
           });
         } catch {
           console.warn("Failed to save policy to portal");
+        }
+
+        // Fire-and-forget: send policy documents to customer email
+        if (customerEmail) {
+          fetch("/api/email/documents", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: customerEmail,
+              productType: productType || "UNKNOWN",
+              offerId: Number(offerId),
+              policyId: info.policyId,
+              padPolicyId: info.padPolicyId || null,
+              orderHash,
+              policyNumber,
+              vendorName: info.vendorName,
+              startDate: info.startDate,
+              endDate: info.endDate,
+            }),
+          }).catch(() => {});
         }
       }
     } catch (err) {
@@ -396,12 +418,14 @@ function PaymentCallbackContent() {
             </div>
 
             {/* Email notice */}
-            <div className="flex items-center gap-2 rounded-lg bg-blue-50 px-4 py-3">
-              <Mail className="h-4 w-4 shrink-0 text-[#2563EB]" />
-              <p className="text-xs text-[#2563EB]">
-                Polita a fost trimisa si pe adresa dumneavoastra de email.
-              </p>
-            </div>
+            {emailSentTo.current && (
+              <div className="flex items-center gap-2 rounded-lg bg-blue-50 px-4 py-3">
+                <Mail className="h-4 w-4 shrink-0 text-[#2563EB]" />
+                <p className="text-xs text-[#2563EB]">
+                  Documentele au fost trimise pe adresa {emailSentTo.current}.
+                </p>
+              </div>
+            )}
 
             {/* Download buttons */}
             <div className="flex flex-col gap-3 pt-2 sm:flex-row">
