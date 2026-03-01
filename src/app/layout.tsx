@@ -5,6 +5,7 @@ import Image from "next/image";
 import CinematicHeader from "@/components/layout/CinematicHeader";
 import ChatWidget from "@/components/shared/ChatWidget";
 import { AuthProvider } from "@/components/portal/AuthProvider";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -192,6 +193,7 @@ export default function RootLayout({
             </div>
           </div>
         </footer>
+        <SpeedInsights />
         </AuthProvider>
       </body>
     </html>
