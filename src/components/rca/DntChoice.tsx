@@ -8,11 +8,15 @@ interface DntChoiceProps {
   productLabel?: string;
   onBack?: () => void;
   backLabel?: string;
+  subtitle?: string;
+  directTitle?: string;
+  directDescription?: string;
+  directButtonLabel?: string;
 }
 
 const CONSULTATION_EMAIL = "bucuresti@broker-asigurari.com";
 
-export default function DntChoice({ onContinueDirect, productLabel = "RCA", onBack, backLabel = "Inapoi la datele calatorilor" }: DntChoiceProps) {
+export default function DntChoice({ onContinueDirect, productLabel = "RCA", onBack, backLabel = "Inapoi la datele calatorilor", subtitle, directTitle, directDescription, directButtonLabel }: DntChoiceProps) {
   const [showPopup, setShowPopup] = useState(false);
 
   return (
@@ -20,7 +24,7 @@ export default function DntChoice({ onContinueDirect, productLabel = "RCA", onBa
       <div className="text-center">
         <h2 className="text-2xl font-bold text-gray-900">Aproape gata!</h2>
         <p className="mt-1 text-sm text-gray-500">
-          Mai ai puțin până la ofertele {productLabel}
+          {subtitle ?? `Mai ai puțin până la ofertele ${productLabel}`}
         </p>
       </div>
 
@@ -39,13 +43,13 @@ export default function DntChoice({ onContinueDirect, productLabel = "RCA", onBa
             </svg>
           </div>
           <div>
-            <h3 className="text-lg font-bold text-gray-900">Continuă direct</h3>
+            <h3 className="text-lg font-bold text-gray-900">{directTitle ?? "Continuă direct"}</h3>
             <p className="mt-1 text-sm text-gray-500">
-              Primești ofertele instant și alegi cea mai bună variantă
+              {directDescription ?? "Primești ofertele instant și alegi cea mai bună variantă"}
             </p>
           </div>
           <span className={`${btn.primary} mt-auto`}>
-            Vezi oferte
+            {directButtonLabel ?? "Vezi oferte"}
           </span>
         </button>
 

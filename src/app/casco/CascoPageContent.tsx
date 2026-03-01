@@ -790,6 +790,10 @@ export default function CascoPage() {
           onContinueDirect={() => next()}
           onBack={() => prev()}
           backLabel="Inapoi la datele de contact"
+          subtitle="Alege cum dorești să continui"
+          directTitle="Completează cererea"
+          directDescription="Completezi formularul și vei fi contactat cu oferta personalizată"
+          directButtonLabel="Continuă"
         />
       ),
     },
