@@ -3,7 +3,7 @@ function requireEnv(name: string): string {
   if (!value || !value.trim()) {
     throw new Error(`Missing required environment variable: ${name}`);
   }
-  return value;
+  return value.trim();
 }
 
 export const insureTechEnv = {
