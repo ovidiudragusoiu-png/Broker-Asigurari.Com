@@ -52,6 +52,7 @@ export default function CinematicHeader() {
                 .Ai
               </span>
             </span>
+            <span className="hidden sm:inline text-[11px] font-medium text-slate-400 ml-2 tracking-wide">Fii sigur. Fii asigurat.</span>
           </Link>
           <Image src="/images/pnrr/banner-pnrr.jpg" alt="Finanțat de Uniunea Europeană NextGenerationEU — Guvernul României — PNRR" width={400} height={33} className="object-contain mt-1" />
         </div>

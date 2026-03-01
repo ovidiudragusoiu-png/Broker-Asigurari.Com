@@ -9,7 +9,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Sigur.Ai - Asigurari Online",
+  title: "Sigur.Ai - Fii sigur. Fii asigurat.",
   description:
     "Compara si cumpara asigurari online: RCA, Travel, Locuinta, CASCO, Malpraxis, Garantii. Cele mai bune oferte de la asiguratorii din Romania.",
 };
