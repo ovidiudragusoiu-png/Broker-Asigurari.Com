@@ -552,7 +552,7 @@ export default function CascoPage() {
 
             {form.ownerType === "PF" ? (
               <>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
                   <div>
                     <label className={labelCls}>Nume</label>
                     <input className={`${inputCls} ${inputErr("lastName")}`} value={form.lastName} onChange={(e) => set("lastName", e.target.value)} onBlur={() => touch("lastName")} placeholder="ex: Popescu" />
@@ -638,7 +638,7 @@ export default function CascoPage() {
                 </svg>
                 <span className="text-xs font-medium text-gray-500">Contact</span>
               </div>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
                 <div>
                   <label className={labelCls}>Email</label>
                   <input type="email" className={`${inputCls} ${inputErr("email")}`} value={form.email} onChange={(e) => set("email", e.target.value)} onBlur={() => touch("email")} placeholder="email@exemplu.ro" />
@@ -670,7 +670,7 @@ export default function CascoPage() {
                 </svg>
                 <span className="text-xs font-medium text-gray-500">Permis auto</span>
               </div>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
                 <div>
                   <label className={labelCls}>Detii permis auto?</label>
                   <select className={`${selectCls} ${selectErr("hasLicense")}`} value={form.hasLicense} onChange={(e) => { set("hasLicense", e.target.value as "da" | "nu" | ""); touch("hasLicense"); }} onBlur={() => touch("hasLicense")}>
@@ -700,7 +700,7 @@ export default function CascoPage() {
                 </svg>
                 <span className="text-xs font-medium text-gray-500">Localizare</span>
               </div>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
                 <div>
                   <label className={labelCls}>Judet</label>
                   <select
@@ -953,7 +953,7 @@ export default function CascoPage() {
                   <span className="text-xs font-medium text-gray-500">Detalii vehicul</span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
                   <div>
                     <label className={labelCls}>Categorie vehicul</label>
                     <select className={selectCls} value={form.categoryId} onChange={(e) => {
@@ -980,7 +980,7 @@ export default function CascoPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
                   <div>
                     <label className={labelCls}>Marca</label>
                     <select
@@ -1007,7 +1007,7 @@ export default function CascoPage() {
                   <input className={inputCls} value={form.version} onChange={(e) => set("version", e.target.value)} placeholder="ex: 1.6 TDI Highline" />
                 </div>
 
-                <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
                   <div>
                     <label className={labelCls}>An fabricatie</label>
                     <select className={selectCls} value={form.year} onChange={(e) => set("year", e.target.value)}>
@@ -1046,7 +1046,7 @@ export default function CascoPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
                   <div>
                     <label className={labelCls}>Km la bord</label>
                     <input type="number" className={inputCls} value={form.km} onChange={(e) => set("km", e.target.value)} placeholder="ex: 50000" />
@@ -1065,7 +1065,7 @@ export default function CascoPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
                   <div>
                     <label className={labelCls}>Masa maxima (kg)</label>
                     <input type="number" className={inputCls} value={form.maxWeight} onChange={(e) => set("maxWeight", e.target.value)} placeholder="ex: 1850" />
@@ -1102,7 +1102,7 @@ export default function CascoPage() {
               <span className="text-xs font-medium text-gray-500">Detalii asigurare</span>
             </div>
 
-            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
               <div>
                 <label className={labelCls}>Asigurat CASCO la</label>
                 <select className={selectCls} value={form.currentInsurer} onChange={(e) => set("currentInsurer", e.target.value)}>
@@ -1116,7 +1116,7 @@ export default function CascoPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
               <div>
                 <label className={labelCls}>Frecventa plata</label>
                 <select className={selectCls} value={form.paymentFrequency} onChange={(e) => set("paymentFrequency", e.target.value)}>
@@ -1149,7 +1149,7 @@ export default function CascoPage() {
 
             {form.isNewCar === "da" && (
               <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
                   <div>
                     <label className={labelCls}>Valoare factura</label>
                     <input type="number" className={inputCls} value={form.invoiceValue} onChange={(e) => set("invoiceValue", e.target.value)} placeholder="ex: 25000" />
@@ -1213,7 +1213,7 @@ export default function CascoPage() {
           </div>
 
           {/* Navigation */}
-          <div className="flex justify-center gap-3 pt-2">
+          <div className="flex flex-col sm:flex-row justify-center gap-3 pt-2">
             <button type="button" onClick={prev} className={`${btn.secondary} px-8`}>
               <span className="flex items-center gap-2">
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -1407,7 +1407,7 @@ export default function CascoPage() {
           )}
 
           {/* Navigation */}
-          <div className="flex justify-center gap-3 pt-2">
+          <div className="flex flex-col sm:flex-row justify-center gap-3 pt-2">
             <button type="button" onClick={prev} className={`${btn.secondary} px-8`}>
               <span className="flex items-center gap-2">
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>

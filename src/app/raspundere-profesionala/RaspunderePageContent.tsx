@@ -334,7 +334,7 @@ export default function RaspundereProfesionalaPage() {
 
               {form.ownerType === "PF" ? (
                 <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
                     <div>
                       <label className={labelCls}>Nume</label>
                       <input className={`${inputCls} ${inputErr("lastName")}`} value={form.lastName} onChange={(e) => set("lastName", e.target.value)} onBlur={() => touch("lastName")} placeholder="Nume" />
@@ -420,7 +420,7 @@ export default function RaspundereProfesionalaPage() {
                 </svg>
                 <span className="text-xs font-medium text-gray-500">Contact</span>
               </div>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
                 <div>
                   <label className={labelCls}>Email</label>
                   <input type="email" className={`${inputCls} ${inputErr("email")}`} value={form.email} onChange={(e) => set("email", e.target.value)} onBlur={() => touch("email")} placeholder="email@exemplu.ro" />
@@ -453,7 +453,7 @@ export default function RaspundereProfesionalaPage() {
                 </svg>
                 <span className="text-xs font-medium text-gray-500">Localizare</span>
               </div>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
                 <div>
                   <label className={labelCls}>Județ</label>
                   <select
@@ -678,7 +678,7 @@ export default function RaspundereProfesionalaPage() {
             </div>
           )}
 
-          <div className="flex items-center justify-center gap-3 pt-2">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
             <button type="button" onClick={prev} className={`${btn.secondary} px-6`}>
               <span className="flex items-center gap-2">
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
