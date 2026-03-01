@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import WizardStepper, { useWizard } from "@/components/shared/WizardStepper";
 import { api } from "@/lib/api/client";
 import { readString, readNumber } from "@/lib/utils/rcaHelpers";
@@ -397,10 +397,27 @@ export default function CascoPage() {
 
   // ── File upload handler ──
 
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const addFiles = (incoming: File[]) => {
+    const allowed = incoming.filter(
+      (f) => /\.(jpe?g|png|pdf)$/i.test(f.name) && f.size <= 5 * 1024 * 1024
+    );
+    const merged = [...form.files, ...allowed].slice(0, 2);
+    set("files", merged);
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
-    const newFiles = Array.from(e.target.files).slice(0, 2);
-    set("files", newFiles);
+    addFiles(Array.from(e.target.files));
+    e.target.value = "";
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    if (e.dataTransfer.files) addFiles(Array.from(e.dataTransfer.files));
   };
 
   const removeFile = (index: number) => {
@@ -787,21 +804,35 @@ export default function CascoPage() {
           </div>
 
           {form.inputMode === "upload" ? (
-            /* File upload area */
-            <div className="rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50/30 p-8 text-center">
-              <svg className="mx-auto h-10 w-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            /* Drag & drop upload area */
+            <div
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={handleDrop}
+              onClick={() => form.files.length < 2 && fileInputRef.current?.click()}
+              className={`rounded-2xl border-2 border-dashed p-8 text-center cursor-pointer transition-colors ${
+                dragOver
+                  ? "border-[#2563EB] bg-blue-50/60"
+                  : "border-gray-300 bg-gray-50/30 hover:border-blue-300 hover:bg-blue-50/20"
+              }`}
+            >
+              <svg className={`mx-auto h-10 w-10 transition-colors ${dragOver ? "text-[#2563EB]" : "text-gray-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
               </svg>
-              <p className="mt-2 text-sm text-gray-600">Incarcati talon sau carte auto (max. 2 fisiere, JPG/PNG/PDF, max 5MB)</p>
+              <p className="mt-3 text-sm font-medium text-gray-700">
+                Trage fisierele aici sau <span className="text-[#2563EB] underline">apasa pentru a alege</span>
+              </p>
+              <p className="mt-1 text-xs text-gray-400">Talon sau carte auto — max. 2 fisiere, JPG/PNG/PDF, max 5 MB</p>
               <input
+                ref={fileInputRef}
                 type="file"
                 accept=".jpg,.jpeg,.png,.pdf"
                 multiple
                 onChange={handleFileChange}
-                className="mt-4 text-sm"
+                className="hidden"
               />
               {form.files.length > 0 && (
-                <div className="mt-4 space-y-2">
+                <div className="mt-4 space-y-2" onClick={(e) => e.stopPropagation()}>
                   {form.files.map((file, i) => (
                     <div key={i} className="flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50/40 px-3 py-2">
                       <svg className="h-4 w-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
