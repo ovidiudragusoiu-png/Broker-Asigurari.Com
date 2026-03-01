@@ -335,7 +335,7 @@ export default function PadPage() {
           {/* Main card */}
           <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm space-y-4">
             {/* Row 1: PAD type + Environment */}
-            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+            <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-500">Tip PAD</label>
                 <select
@@ -370,7 +370,7 @@ export default function PadPage() {
 
             {/* Row 2: Building structure + Construction type (shown after PAD type selected) */}
             {padPropertyType && (
-              <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+              <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
                 <div>
                   <label className="mb-1 block text-xs font-medium text-gray-500">Structura cladire</label>
                   <select
@@ -405,7 +405,7 @@ export default function PadPage() {
             )}
 
             {/* Row 3: Year + Area */}
-            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+            <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-500">An constructie</label>
                 <input
@@ -432,7 +432,7 @@ export default function PadPage() {
             </div>
 
             {/* Row 4: Rooms + Floors + Buildings */}
-            <div className="grid grid-cols-3 gap-x-4 gap-y-3">
+            <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-3">
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-500">Nr. camere</label>
                 <input
@@ -516,7 +516,7 @@ export default function PadPage() {
 
               {/* Renewal: previous policy fields */}
               {isRenewal && (
-                <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
                   <div>
                     <label className="mb-1 block text-xs font-medium text-gray-500">Serie polita anterioara</label>
                     <input

@@ -465,7 +465,7 @@ export default function TravelPage() {
 
             {/* Road assistance sub-fields */}
             {roadAssistance && (
-              <div className="mt-2 grid grid-cols-3 gap-3 rounded-lg border border-blue-100 bg-blue-50/30 p-3">
+              <div className="mt-2 grid grid-cols-1 gap-3 rounded-lg border border-blue-100 bg-blue-50/30 p-3 sm:grid-cols-3">
                 <div>
                   <label className="mb-1 block text-xs font-medium text-gray-500">Nr. inmatriculare</label>
                   <input type="text" placeholder="B 123 ABC" className={inputCls} value={vehiclePlateNo} onChange={(e) => setVehiclePlateNo(e.target.value)} />

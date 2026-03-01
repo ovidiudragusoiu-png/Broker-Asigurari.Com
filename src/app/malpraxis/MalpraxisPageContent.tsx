@@ -545,7 +545,7 @@ export default function MalpraxisPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-x-4 gap-y-3">
+            <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-3">
               <div>
                 <label className={labelCls}>Tip autorizatie</label>
                 <select

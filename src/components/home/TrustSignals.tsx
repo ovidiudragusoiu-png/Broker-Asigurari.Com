@@ -70,7 +70,7 @@ export default function TrustSignals() {
         </div>
 
         {/* Stats */}
-        <div className="mt-16 grid grid-cols-3 gap-4 sm:gap-8">
+        <div className="mt-16 grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-8">
           {stats.map((stat) => {
             const Icon = stat.icon;
             return (

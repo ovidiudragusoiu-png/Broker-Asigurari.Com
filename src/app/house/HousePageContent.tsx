@@ -523,7 +523,7 @@ export default function HousePage() {
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-gray-900">Detalii locuinta</h3>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Tip constructie</label>
               <select
@@ -548,7 +548,7 @@ export default function HousePage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Suprafata (mp)</label>
               <input
@@ -579,7 +579,7 @@ export default function HousePage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Tip finisaj</label>
               <select
@@ -608,7 +608,7 @@ export default function HousePage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Tip proprietate PAD</label>
               <select
@@ -686,7 +686,7 @@ export default function HousePage() {
           </div>
 
           <h4 className="text-sm font-semibold text-gray-700">Sume asigurate</h4>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Suma cladire (EUR)</label>
               <input
@@ -734,7 +734,7 @@ export default function HousePage() {
 
                 {hasPreviousPad && (
                   <div className="space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div>
                         <label className="mb-1 block text-xs font-medium text-gray-500">Serie polita PAD anterioara</label>
                         <input
@@ -1136,7 +1136,7 @@ export default function HousePage() {
 
                             {/* Sume asigurate */}
                             {!unavailable && (offer.insuredAmount != null || offer.contentAmount != null) && (
-                              <div className="mb-3 grid grid-cols-2 gap-2">
+                              <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
                                 {offer.insuredAmount != null && offer.insuredAmount > 0 && (
                                   <div className="rounded-lg bg-slate-50 px-2.5 py-1.5">
                                     <p className="text-[9px] font-semibold uppercase tracking-widest text-slate-400">Cladire asigurata</p>
