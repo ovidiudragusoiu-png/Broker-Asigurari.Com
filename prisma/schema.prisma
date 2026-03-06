@@ -20,23 +20,64 @@ model User {
 }
 
 model Policy {
-  id           String   @id @default(cuid())
-  userId       String?
-  user         User?    @relation(fields: [userId], references: [id])
-  email        String
-  orderId      Int
-  orderHash    String
-  offerId      Int
-  policyId     Int
-  productType  String
-  policyNumber String?
-  vendorName   String?
-  premium      Float?
-  currency     String   @default("RON")
-  startDate    String?
-  endDate      String?
-  createdAt    DateTime @default(now())
+  id              String   @id @default(cuid())
+  userId          String?
+  user            User?    @relation(fields: [userId], references: [id])
+  email           String
+  orderId         Int
+  orderHash       String
+  offerId         Int
+  policyId        Int
+  productType     String
+  policyNumber    String?
+  vendorName      String?
+  premium         Float?
+  currency        String   @default("RON")
+  startDate       String?
+  endDate         String?
+  vehicleVin      String?
+  vehiclePlate    String?
+  vehicleCategory String?
+  ownerCnpHash    String?
+  ipAddress       String?
+  userAgent       String?
+  createdAt       DateTime @default(now())
 
   @@index([userId])
   @@index([email])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  action      String
+  productType String?
+  orderId     Int?
+  orderHash   String?
+  offerId     Int?
+  policyId    Int?
+  email       String?
+  ipAddress   String?
+  userAgent   String?
+  payload     String?
+  pdfHash     String?
+  createdAt   DateTime @default(now())
+
+  @@index([orderHash])
+  @@index([email])
+  @@index([ipAddress])
+  @@index([policyId])
+}
+
+model DebugLog {
+  id             String   @id @default(cuid())
+  timestamp      DateTime @default(now())
+  method         String
+  path           String
+  requestBody    String?
+  responseStatus Int
+  responseBody   String?
+  curlCommand    String?
+
+  @@index([timestamp])
+  @@index([path])
 }

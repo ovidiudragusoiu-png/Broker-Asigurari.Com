@@ -58,6 +58,66 @@ export function validateEmail(email: string): boolean {
 }
 
 /**
+ * Common email domain typos → correct domain.
+ * Returns a suggested correction or null if the domain looks fine.
+ */
+const DOMAIN_TYPOS: Record<string, string> = {
+  // Gmail
+  "gmial.com": "gmail.com",
+  "gmal.com": "gmail.com",
+  "gmali.com": "gmail.com",
+  "gmaul.com": "gmail.com",
+  "gamil.com": "gmail.com",
+  "gnail.com": "gmail.com",
+  "gmaill.com": "gmail.com",
+  "gmail.co": "gmail.com",
+  "gmail.ro": "gmail.com",
+  "gmail.con": "gmail.com",
+  "gmail.om": "gmail.com",
+  "gmail.comm": "gmail.com",
+  "gmai.com": "gmail.com",
+  "gimail.com": "gmail.com",
+  // Yahoo
+  "yaho.com": "yahoo.com",
+  "yahooo.com": "yahoo.com",
+  "yhaoo.com": "yahoo.com",
+  "yaoo.com": "yahoo.com",
+  "yahoo.co": "yahoo.com",
+  "yahoo.con": "yahoo.com",
+  "yahoo.ro": "yahoo.com",
+  "yahoo.comm": "yahoo.com",
+  "yhoo.com": "yahoo.com",
+  // Hotmail / Outlook
+  "hotmal.com": "hotmail.com",
+  "hotmial.com": "hotmail.com",
+  "hotmaill.com": "hotmail.com",
+  "hotmail.co": "hotmail.com",
+  "hotmail.con": "hotmail.com",
+  "hotmil.com": "hotmail.com",
+  "outlok.com": "outlook.com",
+  "outllook.com": "outlook.com",
+  "outlook.co": "outlook.com",
+  "outlook.con": "outlook.com",
+  // iCloud
+  "iclod.com": "icloud.com",
+  "icoud.com": "icloud.com",
+  "icloud.co": "icloud.com",
+  // Proton
+  "protonmal.com": "protonmail.com",
+  "protonmail.co": "protonmail.com",
+};
+
+export function suggestEmailTypo(email: string): string | null {
+  if (!email || !email.includes("@")) return null;
+  const [local, domain] = email.split("@");
+  if (!local || !domain) return null;
+  const lowerDomain = domain.toLowerCase();
+  const correction = DOMAIN_TYPOS[lowerDomain];
+  if (correction) return `${local}@${correction}`;
+  return null;
+}
+
+/**
  * Validate Romanian phone number.
  */
 export function validatePhoneRO(phone: string): boolean {

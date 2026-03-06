@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { appEnv, insureTechEnv } from "@/lib/config/env";
+import { logAudit, getClientInfo } from "@/lib/audit/logger";
 
 const API_URL = insureTechEnv.apiUrl;
 const USERNAME = insureTechEnv.username;
@@ -46,6 +47,23 @@ const ALLOWED_PATHS: RegExp[] = [
 
 const MAX_BODY_SIZE = 1_048_576; // 1 MB
 
+// Sensitive operations that warrant audit logging
+const AUDIT_PATHS: { pattern: RegExp; action: string }[] = [
+  { pattern: /^online\/offers\/rca\/order\/v3/, action: "ORDER_CREATED" },
+  { pattern: /^online\/offers\/order\/v3/, action: "ORDER_CREATED" },
+  { pattern: /^online\/offers\/order($|\?)/, action: "ORDER_CREATED" },
+  { pattern: /^online\/policies/, action: "POLICY_CREATED" },
+  { pattern: /^online\/offers\/payment\/v3/, action: "PAYMENT_INITIATED" },
+  { pattern: /^online\/offers\/payment($|\?)/, action: "PAYMENT_INITIATED" },
+];
+
+function getAuditAction(path: string): string | null {
+  for (const { pattern, action } of AUDIT_PATHS) {
+    if (pattern.test(path)) return action;
+  }
+  return null;
+}
+
 function isPathAllowed(path: string): boolean {
   return ALLOWED_PATHS.some((re) => re.test(path));
 }
@@ -73,9 +91,15 @@ async function proxyRequest(req: NextRequest, method: string) {
 
   const targetUrl = `${API_URL}/${pathSegments}${url.search}`;
 
+  // Payment URL endpoints (payment/v3, payment/loan/v3) need Accept: text/plain
+  // to return the redirect URL. Everything else MUST use application/json —
+  // sending text/plain to payment/check or policies causes 500 errors.
+  const isPaymentUrlEndpoint =
+    /^online\/offers\/payment\/(v3|loan\/v3|loan)($|\?)/.test(pathSegments) &&
+    !/check/.test(pathSegments);
   const headers: Record<string, string> = {
     ...getAuthHeaders(),
-    Accept: req.headers.get("accept") || "application/json",
+    Accept: isPaymentUrlEndpoint ? "text/plain" : "application/json",
   };
 
   const fetchOptions: RequestInit = { method, headers };
@@ -91,22 +115,23 @@ async function proxyRequest(req: NextRequest, method: string) {
   );
   fetchOptions.signal = controller.signal;
 
+  let requestBody = "";
   if (method !== "GET" && method !== "HEAD") {
     const contentType = req.headers.get("content-type");
     if (contentType) {
       headers["Content-Type"] = contentType;
     }
-    const body = await req.text();
+    requestBody = await req.text();
     // Security: enforce body size limit
-    if (body.length > MAX_BODY_SIZE) {
+    if (requestBody.length > MAX_BODY_SIZE) {
       clearTimeout(timeoutId);
       return NextResponse.json(
         { message: "Request body too large" },
         { status: 413 }
       );
     }
-    if (body) {
-      fetchOptions.body = body;
+    if (requestBody) {
+      fetchOptions.body = requestBody;
     }
   }
 
@@ -133,9 +158,69 @@ async function proxyRequest(req: NextRequest, method: string) {
 
     if (isTextResponse) {
       const responseBody = await response.text();
+
+      // DEBUG: verbose curl-format logging for payment/policy/malpraxis endpoints
+      // Persisted to DebugLog table so we never lose them
+      const isDebugEndpoint = /^online\/(policies|offers\/(malpraxis|payment))/.test(pathSegments);
+      if (isDebugEndpoint) {
+        const ts = new Date().toISOString();
+        const curlHeaders = Object.entries(headers)
+          .filter(([k]) => k !== "Authorization" && k !== "Api_key")
+          .map(([k, v]) => `-H "${k}: ${v}"`)
+          .join(" \\\n  ");
+        const curlBody = requestBody ? `\\\n  -d '${requestBody}'` : "";
+        const curlCommand = `curl -X ${method} "${targetUrl}" \\\n  ${curlHeaders} ${curlBody}`;
+        console.log(`\n[DEBUG ${ts}] ${curlCommand}\n[DEBUG ${ts}] Response: ${response.status}\n${responseBody}\n`);
+
+        // Persist to database (fire-and-forget)
+        import("@/lib/db/prisma").then(({ prisma }) =>
+          prisma.debugLog.create({
+            data: {
+              id: `dbg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+              method,
+              path: pathSegments,
+              requestBody: requestBody || null,
+              responseStatus: response.status,
+              responseBody: responseBody.substring(0, 4000),
+              curlCommand,
+            },
+          }).catch(() => {})
+        );
+      }
+
       if (!response.ok) {
         console.error(`[InsureTech API] ${method} ${pathSegments} → ${response.status}`, responseBody);
       }
+
+      // Audit logging for sensitive POST/PUT operations
+      if (response.ok && (method === "POST" || method === "PUT")) {
+        const auditAction = getAuditAction(pathSegments);
+        if (auditAction) {
+          const { ipAddress, userAgent } = getClientInfo(req);
+          let payload: Record<string, unknown> | undefined;
+          try {
+            payload = requestBody ? JSON.parse(requestBody) : undefined;
+          } catch { /* not JSON */ }
+
+          // Extract orderHash from URL search params
+          const orderHash = url.searchParams.get("orderHash") || undefined;
+
+          // Extract identifiers from response
+          let respData: Record<string, unknown> = {};
+          try { respData = JSON.parse(responseBody); } catch { /* */ }
+
+          await logAudit({
+            action: auditAction,
+            orderHash,
+            orderId: (respData.id as number) || (respData.orderId as number) || undefined,
+            offerId: (payload?.offerId as number) || (payload?.rcaOfferId as number) || undefined,
+            ipAddress,
+            userAgent,
+            payload,
+          });
+        }
+      }
+
       return new NextResponse(responseBody, {
         status: response.status,
         headers: responseHeaders,

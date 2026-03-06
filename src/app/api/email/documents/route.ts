@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { insuretechFetch } from "@/lib/api/insuretech";
+import { logAudit, hashSha256 } from "@/lib/audit/logger";
 
 export const maxDuration = 60;
 
-const BROKER_CC = "bucuresti@broker-asigurari.com";
+const BROKER_CC = ["bucuresti@broker-asigurari.com", "office@sigur.ai"];
 
 function getResend() {
   const key = process.env.RESEND_API_KEY;
@@ -28,7 +29,8 @@ interface DocumentEmailRequest {
 async function fetchPdfBuffer(
   docType: "offer" | "policy",
   id: number,
-  orderHash: string
+  orderHash: string,
+  auditContext: { email?: string; productType?: string }
 ): Promise<{ buffer: Buffer; filename: string } | null> {
   try {
     const endpoint =
@@ -48,8 +50,24 @@ async function fetchPdfBuffer(
     if (!response.ok) return null;
 
     const arrayBuffer = await response.arrayBuffer();
+    const pdfBuffer = Buffer.from(arrayBuffer);
+
+    // SHA-256 hash of original PDF for tamper detection
+    const pdfHash = hashSha256(pdfBuffer);
+
+    // Log document with hash for anti-fraud audit trail
+    await logAudit({
+      action: "DOCUMENT_EMAILED",
+      productType: auditContext.productType,
+      orderHash,
+      offerId: docType === "offer" ? id : undefined,
+      policyId: docType === "policy" ? id : undefined,
+      email: auditContext.email,
+      pdfHash,
+    });
+
     return {
-      buffer: Buffer.from(arrayBuffer),
+      buffer: pdfBuffer,
       filename:
         docType === "offer" ? `oferta-${id}.pdf` : `polita-${id}.pdf`,
     };
@@ -73,7 +91,8 @@ function getProductLabel(productType: string): string {
 
 function buildEmailHtml(
   data: DocumentEmailRequest,
-  hasAttachments: boolean
+  hasAttachments: boolean,
+  isEuroins = false
 ): string {
   const productLabel = getProductLabel(data.productType);
   const dateRange =
@@ -112,7 +131,9 @@ function buildEmailHtml(
       <p style="margin:0;font-size:13px;color:#1e40af;font-weight:600">
         ${hasAttachments
           ? "Documentele politei si ofertei sunt atasate acestui email."
-          : "Documentele vor fi disponibile pentru descarcare din contul tau pe sigur.ai."}
+          : isEuroins
+            ? "Polita a fost emisa automat de asigurator. Veti primi documentele direct de la asigurator."
+            : "Documentele vor fi disponibile pentru descarcare din contul tau pe sigur.ai."}
       </p>
     </div>
   </div>
@@ -129,7 +150,7 @@ function buildEmailHtml(
       Sigur.Ai prin FLETHO LLC SRL &middot; Autorizata ASF &middot; RAJ506943
     </p>
     <p style="margin:0;font-size:11px;color:#cbd5e1">
-      0720 38 55 51 &middot; bucuresti@broker-asigurari.com
+      0720 38 55 51 &middot; office@sigur.ai
     </p>
   </div>
 
@@ -156,37 +177,46 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch documents in parallel
-    const promises: Promise<{ buffer: Buffer; filename: string } | null>[] = [
-      fetchPdfBuffer("offer", data.offerId, data.orderHash),
-    ];
-    if (data.policyId) {
-      promises.push(fetchPdfBuffer("policy", data.policyId, data.orderHash));
-    }
-    if (data.padPolicyId) {
-      promises.push(
-        fetchPdfBuffer("policy", data.padPolicyId, data.orderHash)
-      );
-    }
+    // Euroins auto-creates the policy and blocks all document endpoints.
+    // Skip PDF fetch entirely to avoid errors; send notification-only email.
+    const isEuroins = data.vendorName?.toLowerCase().includes("euroins");
 
-    const results = await Promise.allSettled(promises);
-    const attachments = results
-      .filter(
-        (r): r is PromiseFulfilledResult<{ buffer: Buffer; filename: string }> =>
-          r.status === "fulfilled" && r.value !== null
-      )
-      .map((r) => ({
-        filename: r.value.filename,
-        content: r.value.buffer,
-      }));
+    let attachments: { filename: string; content: Buffer }[] = [];
+
+    if (!isEuroins) {
+      // Fetch documents in parallel (with PDF protection + hash logging)
+      const ctx = { email: data.email, productType: data.productType };
+      const promises: Promise<{ buffer: Buffer; filename: string } | null>[] = [
+        fetchPdfBuffer("offer", data.offerId, data.orderHash, ctx),
+      ];
+      if (data.policyId) {
+        promises.push(fetchPdfBuffer("policy", data.policyId, data.orderHash, ctx));
+      }
+      if (data.padPolicyId) {
+        promises.push(
+          fetchPdfBuffer("policy", data.padPolicyId, data.orderHash, ctx)
+        );
+      }
+
+      const results = await Promise.allSettled(promises);
+      attachments = results
+        .filter(
+          (r): r is PromiseFulfilledResult<{ buffer: Buffer; filename: string }> =>
+            r.status === "fulfilled" && r.value !== null
+        )
+        .map((r) => ({
+          filename: r.value.filename,
+          content: r.value.buffer,
+        }));
+    }
 
     const productLabel = getProductLabel(data.productType);
-    const html = buildEmailHtml(data, attachments.length > 0);
+    const html = buildEmailHtml(data, attachments.length > 0, isEuroins);
 
     const result = await getResend().emails.send({
       from: `Sigur.Ai <noreply@broker-asigurari.com>`,
       to: [data.email],
-      bcc: [BROKER_CC],
+      bcc: BROKER_CC,
       subject: `Polita ta ${productLabel}${data.policyNumber ? ` — ${data.policyNumber}` : ""}`,
       html,
       attachments,

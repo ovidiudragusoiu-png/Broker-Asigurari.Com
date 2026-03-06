@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Phone, Mail, Clock } from "lucide-react";
 import { btn } from "@/lib/ui/tokens";
+import EmailInput from "@/components/shared/EmailInput";
 
 interface ContactForm {
   name: string;
@@ -141,7 +142,8 @@ export default function ContactPage() {
               </div>
               <div>
                 <p className="text-xs font-medium text-gray-500">Email</p>
-                <p className="text-sm font-semibold text-gray-900 break-all">bucuresti@broker-asigurari.com</p>
+                <p className="text-sm font-semibold text-gray-900 break-all">office@sigur.ai</p>
+                <p className="text-xs text-gray-500 break-all">bucuresti@broker-asigurari.com</p>
               </div>
             </div>
 
@@ -173,12 +175,12 @@ export default function ContactPage() {
             </div>
             <div>
               <label className={labelCls}>Email</label>
-              <input
-                type="email"
-                className={inputCls}
+              <EmailInput
                 value={form.email}
-                onChange={(e) => set("email", e.target.value)}
+                onChange={(v) => set("email", v)}
                 placeholder="ion@exemplu.ro"
+                className={inputCls}
+                errorClassName={inputCls.replace("border-gray-200", "border-red-300")}
               />
             </div>
           </div>

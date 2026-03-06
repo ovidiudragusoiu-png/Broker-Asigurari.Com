@@ -132,6 +132,7 @@ export type RcaAction =
   | { type: "SET_SKIP_DNT"; skip: boolean }
   | { type: "SET_ORDER"; orderId: number; orderHash: string }
   | { type: "SET_OFFERS"; offers: RcaOffer[]; hasDirectSettlementData: boolean | null }
+  | { type: "APPEND_OFFERS"; offers: RcaOffer[] }
   | { type: "SET_LOADING_OFFERS"; loading: boolean }
   | { type: "SELECT_OFFER"; selected: SelectedOfferState }
   | { type: "SET_POLICY_DETAILS"; details: Partial<Pick<RcaFlowState, "registrationCertSeries" | "startDate" | "ownerFirstName" | "ownerLastName" | "companyName" | "registrationNumber" | "caenCode" | "idType" | "idSeries" | "idNumber">> }

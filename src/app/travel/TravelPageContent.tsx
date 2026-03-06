@@ -225,13 +225,9 @@ export default function TravelPage() {
         address: { ...t.address, streetTypeId: t.address.streetTypeId ?? 1 },
       }));
 
-      // Auto-sign consent documents
+      // Sign consent (required by v3 order API) — must succeed before order creation
       const firstTraveler = normalizedTravelers[0];
-      try {
-        await autoSignConsent(firstTraveler, "TRAVEL");
-      } catch {
-        // Consent failed - continue with order creation
-      }
+      await autoSignConsent(firstTraveler, "TRAVEL");
 
       // Add dateOfBirth to travelers (yyyy-MM-dd format per API docs)
       const travelersWithDob = normalizedTravelers.map((t) => {

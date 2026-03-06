@@ -4,7 +4,7 @@ import ContactPageContent from "./ContactPageContent";
 export const metadata: Metadata = {
   title: "Contact - Sigur.Ai",
   description:
-    "Contactează-ne pentru orice întrebare despre asigurări. Telefon: 0720 38 55 51. Email: bucuresti@broker-asigurari.com. Luni-Vineri 09:00-18:00.",
+    "Contactează-ne pentru orice întrebare despre asigurări. Telefon: 0720 38 55 51. Email: office@sigur.ai / bucuresti@broker-asigurari.com. Luni-Vineri 09:00-18:00.",
   openGraph: {
     title: "Contact - Sigur.Ai",
     description:

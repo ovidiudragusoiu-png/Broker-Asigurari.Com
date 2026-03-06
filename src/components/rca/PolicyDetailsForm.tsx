@@ -5,6 +5,7 @@ import { api } from "@/lib/api/client";
 import type { AddressRequest } from "@/types/insuretech";
 import type { OwnerType } from "@/types/rcaFlow";
 import { btn } from "@/lib/ui/tokens";
+import EmailInput from "@/components/shared/EmailInput";
 
 const inputCls = "w-full rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none";
 const selectCls = "w-full appearance-none rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none";
@@ -285,12 +286,12 @@ export default function PolicyDetailsForm({
           <label className={labelCls}>
             Email
           </label>
-          <input
-            type="email"
-            className={inputCls}
+          <EmailInput
             value={email}
-            onChange={(e) => onEmailChange(e.target.value)}
+            onChange={onEmailChange}
             placeholder="email@exemplu.ro"
+            className={inputCls}
+            errorClassName={inputCls.replace("border-gray-200", "border-red-300")}
           />
         </div>
         <div>

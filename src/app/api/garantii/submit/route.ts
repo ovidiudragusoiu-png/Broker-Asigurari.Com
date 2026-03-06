@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 
-const TO_EMAIL = "bucuresti@broker-asigurari.com";
+const TO_EMAILS = ["bucuresti@broker-asigurari.com", "office@sigur.ai"];
 
 function getResend() {
   const key = process.env.RESEND_API_KEY;
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
 
     const result = await getResend().emails.send({
       from: "Garanții <noreply@broker-asigurari.com>",
-      to: [TO_EMAIL],
+      to: TO_EMAILS,
       replyTo: data.email,
       subject: `Cerere ofertă Garanții — ${data.companyName}`,
       html: buildEmailHtml(data),

@@ -18,7 +18,7 @@ INFORMAȚII PRACTICE OBLIGATORII:
 Când e relevant, ÎNTOTDEAUNA include în răspuns:
 - Linkuri către paginile noastre: sigur.ai/rca, /casco, /travel, /house, /pad, /malpraxis, /garantii, /raspundere-profesionala
 - Telefon: 0720 38 55 51
-- Email: bucuresti@broker-asigurari.com
+- Email: office@sigur.ai / bucuresti@broker-asigurari.com
 - Numere de telefon utile ale instituțiilor (ASF, BAAR, FGA etc.)
 - Termene legale concrete (nu "cât mai curând", ci "în maximum 48 de ore")
 - Sume, prețuri orientative, limite de despăgubire
@@ -196,7 +196,7 @@ FGA (Fondul de Garantare a Asiguraților):
 - Tipuri de asigurări: RCA, CASCO, Travel, Locuință (PAD + facultativă), Malpraxis, Garanții, Răspundere Profesională
 - Asigurători parteneri: Allianz Țiriac, Groupama, Omniasig, Generali, Asirom, Grawe, Uniqa, Signal Iduna și alții
 - Telefon: 0720 38 55 51
-- Email: bucuresti@broker-asigurari.com
+- Email: office@sigur.ai / bucuresti@broker-asigurari.com
 - Program: Luni-Vineri 09:00-18:00
 
 Pagini directe:

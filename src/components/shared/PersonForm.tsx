@@ -9,11 +9,11 @@ import type {
 } from "@/types/insuretech";
 import AddressForm, { emptyAddress } from "./AddressForm";
 import DateInput from "./DateInput";
+import EmailInput from "./EmailInput";
 import { api } from "@/lib/api/client";
 import {
   validateCNP,
   validateCUI,
-  validateEmail,
   validatePhoneRO,
 } from "@/lib/utils/validation";
 
@@ -73,7 +73,6 @@ export default function PersonForm({
     value.legalType === "PJ" &&
     cifAsString.length > 0 &&
     !validateCUI(cifAsString);
-  const emailInvalid = value.email.length > 0 && !validateEmail(value.email);
   const phoneInvalid =
     value.phoneNumber.length > 0 && !validatePhoneRO(value.phoneNumber);
 
@@ -392,19 +391,15 @@ export default function PersonForm({
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className={labelCls}>Email</label>
-            <input
-              type="email"
-              className={emailInvalid ? inputErrCls : inputCls}
-              placeholder="exemplu@email.com"
+            <EmailInput
               value={value.email}
-              onChange={(e) => {
-                if (value.legalType === "PF") updatePF({ email: e.target.value });
-                else updatePJ({ email: e.target.value });
+              onChange={(v) => {
+                if (value.legalType === "PF") updatePF({ email: v });
+                else updatePJ({ email: v });
               }}
+              className={inputCls}
+              errorClassName={inputErrCls}
             />
-            {emailInvalid && (
-              <p className="mt-1 text-xs text-red-500">Email invalid</p>
-            )}
           </div>
           <div>
             <label className={labelCls}>Telefon</label>

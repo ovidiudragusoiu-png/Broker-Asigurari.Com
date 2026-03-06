@@ -9,6 +9,7 @@ import { btn } from "@/lib/ui/tokens";
 import DateInput from "@/components/shared/DateInput";
 import DntChoice from "@/components/rca/DntChoice";
 import TermsModal from "@/components/rca/TermsModal";
+import EmailInput from "@/components/shared/EmailInput";
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -641,10 +642,15 @@ export default function CascoPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
                 <div>
                   <label className={labelCls}>Email</label>
-                  <input type="email" className={`${inputCls} ${inputErr("email")}`} value={form.email} onChange={(e) => set("email", e.target.value)} onBlur={() => touch("email")} placeholder="email@exemplu.ro" />
-                  {shouldShowError("email") && fieldErrors.email && form.email.length > 0 && (
-                    <p className="mt-1 text-xs text-red-500">Adresa de email nu este validă</p>
-                  )}
+                  <EmailInput
+                    value={form.email}
+                    onChange={(v) => { set("email", v); touch("email"); }}
+                    placeholder="email@exemplu.ro"
+                    className={`${inputCls} ${inputErr("email")}`}
+                    errorClassName={`${inputCls} ${errBorder}`}
+                    showFormatError={shouldShowError("email") && form.email.length > 0}
+                    formatErrorLabel="Adresa de email nu este validă"
+                  />
                   {shouldShowError("email") && fieldErrors.email && form.email.length === 0 && (
                     <p className="mt-1 text-xs text-red-500">Emailul este obligatoriu</p>
                   )}

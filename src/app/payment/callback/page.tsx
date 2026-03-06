@@ -96,6 +96,7 @@ function PaymentCallbackContent() {
   const [creating, setCreating] = useState(false);
   const autoEmitAttempted = useRef(false);
   const emailSentTo = useRef("");
+  const insurerAutoCreated = useRef(false);
 
   const normalizedStatus = (status || "").toUpperCase();
   const isSuccess = normalizedStatus === "APPROVED";
@@ -109,35 +110,42 @@ function PaymentCallbackContent() {
     setCreating(true);
     setError(null);
     try {
-      // V3 docs: "Only create the policy after you validate that the payment was successfully processed."
-      // Verify payment via InsureTech API before proceeding to policy creation
-      try {
-        const padOid = urlPadOfferId && isValidPositiveInt(urlPadOfferId) ? [Number(urlPadOfferId)] : [];
-        const payCheck = await api.post<{ offerId: number; success: boolean; message: string }>(
-          `/online/offers/payment/check/v3?orderHash=${orderHash}`,
-          { offerIds: [Number(offerId), ...padOid] },
-          { Accept: "text/plain" }
-        );
-        if (!payCheck.success) {
-          setError(payCheck.message || "Plata nu a fost confirmata de procesatorul de plati.");
-          setCreating(false);
-          return;
+      // Verify payment via InsureTech API before proceeding to policy creation.
+      // The proxy hardcodes Accept: application/json for this endpoint.
+      const padOid = urlPadOfferId && isValidPositiveInt(urlPadOfferId) ? [Number(urlPadOfferId)] : [];
+      const checkPayload = { offerIds: [Number(offerId), ...padOid] };
+      let paymentVerified = false;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const payCheckRaw = await api.post<
+            { offerId: number; success: boolean; message: string }[]
+          >(
+            `/online/offers/payment/check/v3?orderHash=${orderHash}`,
+            checkPayload,
+            { Accept: "application/json" }
+          );
+          const payResults = Array.isArray(payCheckRaw) ? payCheckRaw : [payCheckRaw];
+          const failed = payResults.find((r) => !r.success);
+          if (failed) {
+            setError(failed.message || "Plata nu a fost confirmata de procesatorul de plati.");
+            setCreating(false);
+            return;
+          }
+          paymentVerified = true;
+          break;
+        } catch (checkErr) {
+          console.warn(`[PaymentCallback] payment check attempt ${attempt}/3 failed:`, checkErr);
+          if (attempt < 3) {
+            await new Promise((r) => setTimeout(r, 2000 * attempt));
+          }
         }
-      } catch (checkErr) {
-        console.warn("[PaymentCallback] payment check failed, proceeding anyway:", checkErr);
-        // Don't block policy creation if payment check itself errors — the redirect status is APPROVED
+      }
+      if (!paymentVerified) {
+        setError("Verificarea platii nu a putut fi finalizata. Va rugam asteptati cateve minute si reincercati.");
+        setCreating(false);
+        return;
       }
 
-      // Per V3 docs: RCA uses /policies/rca/v3, all others use /policies/v3
-      // HOUSE still uses non-v3 per its own docs
-      const endpoint =
-        productType === "RCA"
-          ? `/online/policies/rca/v3?orderHash=${orderHash}`
-          : productType === "HOUSE"
-            ? `/online/policies`
-            : `/online/policies/v3?orderHash=${orderHash}`;
-
-      let payload: Record<string, unknown>;
       let customerEmail = "";
       let vehicleVin = "";
       let vehiclePlate = "";
@@ -151,65 +159,151 @@ function PaymentCallbackContent() {
         // sessionStorage unavailable
       }
 
-      if (productType === "RCA") {
-        let savedData: Record<string, unknown> = {};
-        try {
-          const raw = localStorage.getItem("rcaPolicyData");
-          if (raw) {
-            savedData = JSON.parse(raw);
-            // Also check email from RCA policy data as fallback
-            if (!customerEmail) {
-              customerEmail = (savedData.email as string) || "";
-            }
-          }
-        } catch {
-          // Proceed without saved data
-        }
-
-        payload = {
-          rcaOfferId: Number(offerId),
-          paymentMethodType: "CardOnline",
-          ...savedData,
-        };
-        // Extract vehicle data for anti-fraud snapshot
-        const vd = savedData.vehicleDetails as Record<string, unknown> | undefined;
-        if (vd) {
-          vehicleVin = (vd.vin as string) || "";
-          vehiclePlate = (vd.plateNo as string) || "";
-          vehicleCategory = String(vd.vehicleCategoryId || "");
-        }
-        localStorage.removeItem("rcaPolicyData");
-      } else {
-        payload = { offerId: Number(offerId), paymentMethodType: "CardOnline" };
-        // For HOUSE with PAD: include padOfferId from URL param or sessionStorage
-        let resolvedPadOfferId = urlPadOfferId;
-        if (!resolvedPadOfferId || !isValidPositiveInt(resolvedPadOfferId)) {
-          try {
-            const saved = localStorage.getItem("housePolicyData");
-            if (saved) {
-              const data = JSON.parse(saved);
-              if (data.padOfferId) resolvedPadOfferId = String(data.padOfferId);
-            }
-          } catch { /* */ }
-        }
-        if (resolvedPadOfferId && isValidPositiveInt(resolvedPadOfferId)) {
-          payload.padOfferId = Number(resolvedPadOfferId);
-        }
+      // ── Step 1: Fetch offer details (safe GET, no side effects) ──
+      // Some insurers auto-create the policy after payment. Calling policies/v3
+      // when a policy already exists causes "Payment Reverted" — so we check first.
+      let offerDetails: Record<string, unknown> | null = null;
+      try {
+        const detailsEndpoint = productType === "MALPRAXIS"
+          ? `/online/offers/malpraxis/${offerId}/details/v3?orderHash=${orderHash}`
+          : productType === "TRAVEL"
+            ? `/online/offers/travel/${offerId}/details/v3?orderHash=${orderHash}`
+            : productType === "RCA"
+              ? `/online/offers/rca/${offerId}/details/v3?orderHash=${orderHash}`
+              : productType === "HOUSE"
+                ? `/online/offers/house/${offerId}/details/v3?orderHash=${orderHash}`
+                : `/online/offers/${offerId}/details/v3?orderHash=${orderHash}`;
+        offerDetails = await api.get<Record<string, unknown>>(detailsEndpoint, { timeoutMs: 15000 });
+        console.log("[PaymentCallback] offer details:", JSON.stringify(offerDetails));
+      } catch (detailsErr) {
+        console.warn("[PaymentCallback] Could not fetch offer details:", detailsErr);
       }
 
-      // Clean up
-      try { localStorage.removeItem("customerEmail"); } catch { /* */ }
+      // Extract vendor/dates from offer details (available for all products)
+      const pd = offerDetails?.productDetails as Record<string, unknown> | undefined;
+      const vd = pd?.vendorDetails as Record<string, unknown> | undefined;
+      const offerVendor = (vd?.commercialName as string) || (vd?.name as string) || null;
+      const offerStart = (offerDetails?.policyStartDate as string) || null;
+      const offerEnd = (offerDetails?.policyEndDate as string) || null;
 
-      const result = await api.post<PolicyCreateResponse>(
-        endpoint,
-        payload,
-        undefined,
-        { timeoutMs: 120000 }
-      );
-      setPolicyResponse(result);
+      // ── Step 2: Create policy ──
+      // Only Euroins (malpraxis) auto-creates the policy after payment.
+      // Calling policies/v3 when the policy already exists causes "Payment Reverted"
+      // which REVERSES the payment. Other insurers (ABC, Garanta, Uniqa) use normal flow.
+      const isEuroins = offerVendor?.toLowerCase().includes("euroins");
+      const skipPolicyCreation = isEuroins === true;
+      if (skipPolicyCreation) insurerAutoCreated.current = true;
 
-      // Normalize response (RCA has nested policies[], Travel is flat)
-      const info = extractPolicyInfo(result);
+      let info = {
+        policyId: null as number | null,
+        padPolicyId: null as number | null,
+        series: null as string | null,
+        number: null as string | null,
+        vendorName: offerVendor,
+        startDate: offerStart,
+        endDate: offerEnd,
+        error: false,
+        message: null as string | null,
+      };
+
+      if (skipPolicyCreation) {
+        // Insurer auto-created the policy — show success with offer details
+        console.log("[PaymentCallback] Skipping policies/v3 for", productType, "(insurer auto-creates policy)");
+        try { localStorage.removeItem("customerEmail"); } catch { /* */ }
+        try { localStorage.removeItem("rcaPolicyData"); } catch { /* */ }
+        setPolicyResponse({
+          orderId: (offerDetails?.orderId as number) || 0,
+          vendorName: offerVendor,
+          policyStartDate: offerStart,
+          policyEndDate: offerEnd,
+          error: false,
+          message: null,
+        });
+      } else {
+        // Normal flow: call policies/v3 to create the policy
+        const policyEndpoint =
+          productType === "RCA"
+            ? `/online/policies/rca/v3?orderHash=${orderHash}`
+            : productType === "HOUSE"
+              ? `/online/policies`
+              : `/online/policies/v3?orderHash=${orderHash}`;
+
+        let payload: Record<string, unknown>;
+
+        if (productType === "RCA") {
+          let savedData: Record<string, unknown> = {};
+          try {
+            const raw = localStorage.getItem("rcaPolicyData");
+            if (raw) {
+              savedData = JSON.parse(raw);
+              if (!customerEmail) {
+                customerEmail = (savedData.email as string) || "";
+              }
+            }
+          } catch { /* */ }
+
+          payload = {
+            rcaOfferId: Number(offerId),
+            paymentMethodType: "CardOnline",
+            ...savedData,
+          };
+          const savedVd = savedData.vehicleDetails as Record<string, unknown> | undefined;
+          if (savedVd) {
+            vehicleVin = (savedVd.vin as string) || "";
+            vehiclePlate = (savedVd.plateNo as string) || "";
+            vehicleCategory = String(savedVd.vehicleCategoryId || "");
+          }
+          localStorage.removeItem("rcaPolicyData");
+        } else {
+          payload = { offerId: Number(offerId), paymentMethodType: "CardOnline" };
+          let resolvedPadOfferId = urlPadOfferId;
+          if (!resolvedPadOfferId || !isValidPositiveInt(resolvedPadOfferId)) {
+            try {
+              const saved = localStorage.getItem("housePolicyData");
+              if (saved) {
+                const data = JSON.parse(saved);
+                if (data.padOfferId) resolvedPadOfferId = String(data.padOfferId);
+              }
+            } catch { /* */ }
+          }
+          if (resolvedPadOfferId && isValidPositiveInt(resolvedPadOfferId)) {
+            payload.padOfferId = Number(resolvedPadOfferId);
+          }
+        }
+
+        try { localStorage.removeItem("customerEmail"); } catch { /* */ }
+
+        const result = await api.post<PolicyCreateResponse>(
+          policyEndpoint,
+          payload,
+          { Accept: "application/json" },
+          { timeoutMs: 120000 }
+        );
+        console.log("[PaymentCallback] policies response:", JSON.stringify(result));
+
+        const policyInfo = extractPolicyInfo(result);
+
+        // Check if policies/v3 returned "already issued" — insurer auto-created
+        const alreadyIssued = policyInfo.error && policyInfo.message?.includes("Exista deja o polita emisa");
+
+        // Detect expired offer (midnight edge case: offer created yesterday, payment today)
+        const offerExpired = policyInfo.error && policyInfo.message?.includes("Data platii trebuie sa fie intre");
+
+        if (policyInfo.error && !alreadyIssued && !offerExpired) {
+          info = { ...info, error: true, message: policyInfo.message };
+        } else if (offerExpired) {
+          info = { ...info, error: true, message: "__OFFER_EXPIRED__" };
+        } else if (!alreadyIssued) {
+          info = policyInfo;
+        }
+        // If alreadyIssued, keep the info from offer details (vendor + dates)
+
+        setPolicyResponse(alreadyIssued
+          ? { orderId: result.orderId, policyId: info.policyId, series: info.series, number: info.number,
+              vendorName: info.vendorName, policyStartDate: info.startDate, policyEndDate: info.endDate,
+              error: false, message: null }
+          : result);
+      }
 
       if (info.error) {
         setError(
@@ -228,7 +322,7 @@ function PaymentCallbackContent() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              orderId: result.orderId,
+              orderId: (offerDetails?.orderId as number) || 0,
               orderHash,
               offerId: Number(offerId),
               policyId: info.policyId,
@@ -247,24 +341,35 @@ function PaymentCallbackContent() {
           console.warn("Failed to save policy to portal");
         }
 
-        // Fire-and-forget: send policy documents to customer email
+        // Send policy documents to customer email
         if (customerEmail) {
-          fetch("/api/email/documents", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              email: customerEmail,
-              productType: productType || "UNKNOWN",
-              offerId: Number(offerId),
-              policyId: info.policyId,
-              padPolicyId: info.padPolicyId || null,
-              orderHash,
-              policyNumber,
-              vendorName: info.vendorName,
-              startDate: info.startDate,
-              endDate: info.endDate,
-            }),
-          }).catch(() => {});
+          try {
+            const emailResp = await fetch("/api/email/documents", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                email: customerEmail,
+                productType: productType || "UNKNOWN",
+                offerId: Number(offerId),
+                policyId: info.policyId,
+                padPolicyId: info.padPolicyId || null,
+                orderHash,
+                policyNumber,
+                vendorName: info.vendorName,
+                startDate: info.startDate,
+                endDate: info.endDate,
+              }),
+            });
+            const emailResult = await emailResp.json().catch(() => ({}));
+            console.log("[PaymentCallback] Email result:", emailResp.status, emailResult);
+            if (!emailResp.ok) {
+              console.error("[PaymentCallback] Email failed:", emailResult);
+              emailSentTo.current = ""; // Don't show "sent" if it failed
+            }
+          } catch (emailErr) {
+            console.error("[PaymentCallback] Email error:", emailErr);
+            emailSentTo.current = "";
+          }
         }
       }
     } catch (err) {
@@ -290,18 +395,21 @@ function PaymentCallbackContent() {
     }
 
     try {
-      // Download through our proxy which applies PDF protection + audit logging
-      const params = new URLSearchParams({
-        type,
-        id: String(id),
-        orderHash,
-        productType: productType || "UNKNOWN",
-      });
-      const proxyUrl = `/api/documents/download?${params}`;
-
-      // Open protected PDF in new tab (triggers download via Content-Disposition)
-      window.open(proxyUrl, "_blank", "noopener,noreferrer");
+      // Get document URL from InsureTech via our proxy
+      const docEndpoint = type === "offer"
+        ? `/online/offers/${id}/document/v3?orderHash=${orderHash}`
+        : `/online/policies/${id}/document/v3?orderHash=${orderHash}`;
+      console.log("[Download] Fetching document URL:", docEndpoint);
+      const docResp = await api.get<{ url?: string } | string>(docEndpoint, { timeoutMs: 30000 });
+      console.log("[Download] Response:", docResp);
+      const docUrl = typeof docResp === "string" ? docResp : docResp?.url;
+      if (docUrl && docUrl.startsWith("http")) {
+        window.open(docUrl, "_blank", "noopener,noreferrer");
+        return;
+      }
+      throw new Error("Documentul nu este disponibil momentan. Incercati din nou mai tarziu.");
     } catch (err) {
+      console.error("[Download] Error:", err);
       setError(
         err instanceof Error ? err.message : "Eroare la descărcarea documentului."
       );
@@ -338,7 +446,9 @@ function PaymentCallbackContent() {
           </h1>
           <p className="mt-2 text-gray-500">
             {policyCreated
-              ? "Polita dumneavoastra a fost emisa si este gata de descarcare."
+              ? insurerAutoCreated.current
+                ? "Polita dumneavoastra a fost emisa automat de asigurator."
+                : "Polita dumneavoastra a fost emisa si este gata de descarcare."
               : creating
                 ? "Se emite polita dumneavoastra..."
                 : "Se proceseaza comanda..."}
@@ -390,6 +500,16 @@ function PaymentCallbackContent() {
           <div className="px-6 py-5 space-y-4">
             {/* Policy details grid */}
             <div className="space-y-3">
+              {!policyNumber && !policyId && (
+                <div className="flex items-center gap-3 rounded-lg bg-green-50 px-4 py-3">
+                  <CheckCircle2 className="h-5 w-5 shrink-0 text-green-600" />
+                  <p className="text-sm text-green-700">
+                    {insurerAutoCreated.current
+                      ? "Polita a fost emisa automat de asigurator. Veti primi documentele direct de la asigurator pe adresa de email."
+                      : "Polita a fost emisa de asigurator. Documentele vor fi trimise pe email."}
+                  </p>
+                </div>
+              )}
               {policyNumber && (
                 <div className="flex items-center gap-3">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#2563EB]/10">
@@ -437,42 +557,68 @@ function PaymentCallbackContent() {
               </div>
             )}
 
-            {/* Download buttons */}
-            <div className="flex flex-col gap-3 pt-2 sm:flex-row">
-              {policyId && (
-                <button
-                  onClick={() => downloadDocument("policy", policyId)}
-                  className={`${btn.primary} flex items-center justify-center gap-2 flex-1`}
-                >
-                  <Download className="h-4 w-4" />
-                  Descarca polita (PDF)
-                </button>
-              )}
-              {padPolicyId && (
-                <button
-                  onClick={() => downloadDocument("policy", padPolicyId)}
-                  className={`${btn.primary} flex items-center justify-center gap-2 flex-1`}
-                >
-                  <Download className="h-4 w-4" />
-                  Descarca polita PAD (PDF)
-                </button>
-              )}
-              {offerId && (
-                <button
-                  onClick={() => downloadDocument("offer", Number(offerId))}
-                  className={`${btn.secondary} flex items-center justify-center gap-2 flex-1`}
-                >
-                  <Download className="h-4 w-4" />
-                  Descarca oferta (PDF)
-                </button>
-              )}
+            {/* Download buttons — hidden when insurer auto-created the policy (e.g. Euroins blocks docs) */}
+            {!insurerAutoCreated.current && (
+              <div className="flex flex-col gap-3 pt-2 sm:flex-row">
+                {policyId && (
+                  <button
+                    onClick={() => downloadDocument("policy", policyId)}
+                    className={`${btn.primary} flex items-center justify-center gap-2 flex-1`}
+                  >
+                    <Download className="h-4 w-4" />
+                    Descarca polita (PDF)
+                  </button>
+                )}
+                {padPolicyId && (
+                  <button
+                    onClick={() => downloadDocument("policy", padPolicyId)}
+                    className={`${btn.primary} flex items-center justify-center gap-2 flex-1`}
+                  >
+                    <Download className="h-4 w-4" />
+                    Descarca polita PAD (PDF)
+                  </button>
+                )}
+                {offerId && (
+                  <button
+                    onClick={() => downloadDocument("offer", Number(offerId))}
+                    className={`${btn.secondary} flex items-center justify-center gap-2 flex-1`}
+                  >
+                    <Download className="h-4 w-4" />
+                    Descarca oferta (PDF)
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Expired offer (midnight edge case) ── */}
+      {error === "__OFFER_EXPIRED__" && (
+        <div className="mt-8 rounded-2xl border border-amber-200 bg-amber-50 p-6">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 shrink-0 text-amber-500 mt-0.5" />
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-amber-800">
+                Oferta a expirat deoarece plata a fost finalizata intr-o zi diferita fata de cea in care a fost creata oferta.
+              </p>
+              <p className="text-xs text-amber-600">
+                Plata a fost procesata cu succes si va fi rambursata automat. Va rugam sa reincepeti procesul de asigurare.
+              </p>
+              <Link
+                href={`/${(productType || "").toLowerCase()}`}
+                className={`${btn.primary} !bg-amber-600 hover:!bg-amber-700 !px-6 !py-2.5 text-sm inline-flex items-center gap-2`}
+              >
+                <ArrowRight className="h-4 w-4" />
+                Creeaza o oferta noua
+              </Link>
             </div>
           </div>
         </div>
       )}
 
       {/* ── Error state ── */}
-      {error && (
+      {error && error !== "__OFFER_EXPIRED__" && (
         <div className="mt-8 rounded-2xl border border-red-100 bg-red-50 p-6">
           <div className="flex items-start gap-3">
             <AlertTriangle className="h-5 w-5 shrink-0 text-red-500 mt-0.5" />

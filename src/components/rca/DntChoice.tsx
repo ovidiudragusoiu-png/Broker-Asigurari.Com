@@ -14,7 +14,7 @@ interface DntChoiceProps {
   directButtonLabel?: string;
 }
 
-const CONSULTATION_EMAIL = "bucuresti@broker-asigurari.com";
+const CONSULTATION_EMAIL = "office@sigur.ai";
 
 export default function DntChoice({ onContinueDirect, productLabel = "RCA", onBack, backLabel = "Inapoi la datele calatorilor", subtitle, directTitle, directDescription, directButtonLabel }: DntChoiceProps) {
   const [showPopup, setShowPopup] = useState(false);

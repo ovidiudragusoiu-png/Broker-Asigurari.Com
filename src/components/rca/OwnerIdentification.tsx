@@ -4,6 +4,7 @@ import { useState } from "react";
 import { validateCNP, validateCUI, validateEmail } from "@/lib/utils/validation";
 import type { OwnerType } from "@/types/rcaFlow";
 import { btn } from "@/lib/ui/tokens";
+import EmailInput from "@/components/shared/EmailInput";
 
 interface OwnerIdentificationProps {
   ownerType: OwnerType;
@@ -87,16 +88,13 @@ export default function OwnerIdentification({
         <label className="mb-1 block text-xs font-medium text-gray-500">
           Adresă de email
         </label>
-        <input
-          type="email"
-          className="w-full rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none"
+        <EmailInput
           value={email}
-          onChange={(e) => onEmailChange(e.target.value)}
+          onChange={onEmailChange}
           placeholder="email@exemplu.ro"
+          className="w-full rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none"
+          errorClassName="w-full rounded-xl border-2 border-red-300 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 focus:outline-none"
         />
-        {touched && email.length > 0 && !emailValid && (
-          <p className="mt-1 text-xs text-red-600">Email invalid</p>
-        )}
       </div>
 
       {/* GDPR notice */}

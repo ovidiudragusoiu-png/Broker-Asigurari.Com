@@ -120,17 +120,22 @@ export default function PaymentFlow({
   const checkPaymentStatus = async () => {
     setStatus("checking");
     try {
-      const result = await api.post<{ offerId: number; success: boolean; message: string }>(
+      const resultRaw = await api.post<
+        { offerId: number; success: boolean; message: string }[]
+      >(
         `/online/offers/payment/check/v3?orderHash=${orderHash}`,
         { offerIds: [offerId, ...(additionalOfferIds || [])] },
-        { Accept: "text/plain" }
+        { Accept: "application/json" }
       );
-      if (result.success) {
+      // API returns an array of results per offerId
+      const results = Array.isArray(resultRaw) ? resultRaw : [resultRaw];
+      const failed = results.find((r) => !r.success);
+      if (!failed) {
         setStatus("paid");
         setPaymentMessage("Plata a fost efectuata cu succes!");
       } else {
         setStatus("failed");
-        setPaymentMessage(result.message || "Plata nu a fost finalizata");
+        setPaymentMessage(failed.message || "Plata nu a fost finalizata");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Eroare verificare plata");

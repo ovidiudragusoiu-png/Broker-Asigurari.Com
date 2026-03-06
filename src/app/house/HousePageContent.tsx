@@ -209,12 +209,8 @@ export default function HousePage() {
     setLoadingOffers(true);
 
     try {
-      // Auto-sign consent in background (required by order v3 API)
-      try {
-        await autoSignConsent(contractor, "HOUSE");
-      } catch (consentErr) {
-        console.error("[HOUSE] consent submission failed:", consentErr);
-      }
+      // Sign consent (required by v3 order API) — must succeed before order creation
+      await autoSignConsent(contractor, "HOUSE");
 
       const startDateFormatted = formatDateTime(new Date(policyStartDate));
 

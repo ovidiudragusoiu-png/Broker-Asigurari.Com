@@ -188,14 +188,14 @@ export default function HeroSection() {
 
         {/* Categories Strip */}
         <div className="hero-categories mt-16 border-t border-gray-200/60 pt-8 pb-4">
-          <div className="relative flex items-center rounded-full border border-gray-100 bg-white p-2 shadow-sm">
+          <div className="relative flex items-center overflow-x-auto rounded-full border border-gray-100 bg-white p-2 shadow-sm scrollbar-hide">
             {CATEGORIES.map((cat) => {
               const Icon = cat.icon;
               const isHovered = hoveredCategory === cat.title;
               return (
                 <div
                   key={cat.title}
-                  className="relative flex-1"
+                  className="relative flex-shrink-0 sm:flex-1"
                   onMouseEnter={() => showCategory(cat.title)}
                   onMouseLeave={scheduleHide}
                 >

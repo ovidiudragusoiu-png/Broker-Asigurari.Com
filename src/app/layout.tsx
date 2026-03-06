@@ -34,7 +34,7 @@ export default function RootLayout({
               url: "https://sigur.ai",
               logo: "https://sigur.ai/images/logo.png",
               telephone: "+40720385551",
-              email: "bucuresti@broker-asigurari.com",
+              email: ["office@sigur.ai", "bucuresti@broker-asigurari.com"],
               address: {
                 "@type": "PostalAddress",
                 addressCountry: "RO",
@@ -98,7 +98,10 @@ export default function RootLayout({
                     <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/5">
                       <Mail className="h-4 w-4 text-[#F97316]" />
                     </div>
-                    <span>bucuresti@broker-asigurari.com</span>
+                    <div className="flex flex-col">
+                      <span>office@sigur.ai</span>
+                      <span className="text-xs text-slate-400">bucuresti@broker-asigurari.com</span>
+                    </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/5">

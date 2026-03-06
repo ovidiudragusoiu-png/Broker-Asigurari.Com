@@ -1,9 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getCurrentUser } from "@/lib/auth/session";
+import { getClientInfo } from "@/lib/audit/logger";
 
 // POST: Save a policy record (called from payment callback)
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const {
@@ -19,6 +20,9 @@ export async function POST(request: Request) {
       startDate,
       endDate,
       email,
+      vehicleVin,
+      vehiclePlate,
+      vehicleCategory,
     } = body;
 
     if (!orderId || !orderHash || !offerId || !policyId) {
@@ -70,6 +74,9 @@ export async function POST(request: Request) {
       if (userByEmail) userId = userByEmail.id;
     }
 
+    // Capture IP + user-agent server-side for anti-fraud
+    const { ipAddress, userAgent } = getClientInfo(request);
+
     const policy = await prisma.policy.create({
       data: {
         userId,
@@ -85,6 +92,11 @@ export async function POST(request: Request) {
         currency: currency || "RON",
         startDate: startDate || null,
         endDate: endDate || null,
+        vehicleVin: vehicleVin || null,
+        vehiclePlate: vehiclePlate || null,
+        vehicleCategory: vehicleCategory || null,
+        ipAddress,
+        userAgent,
       },
     });
 

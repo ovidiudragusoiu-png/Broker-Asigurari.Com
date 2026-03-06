@@ -608,7 +608,7 @@ export interface MalpraxisEligibilityRequest {
     category: string;
     categoryType: string;
     generalLimit: string;
-    customMoralDamagesLimit: number;
+    customMoralDamagesLimit: number | null;
     moralDamagesLimit: number;
     currency: string;
     operatingAuthorizationType: number;

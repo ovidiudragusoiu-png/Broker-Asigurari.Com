@@ -95,6 +95,7 @@ export default function MalpraxisPage() {
   const [subcategoryId, setSubcategoryId] = useState("");
   const [generalLimit, setGeneralLimit] = useState("");
   const [moralDamagesLimit, setMoralDamagesLimit] = useState("");
+  const [customMoralDamagesLimitValue, setCustomMoralDamagesLimitValue] = useState("");
   const [currencyId, setCurrencyId] = useState("EUR");
   const [authorizationTypeCode, setAuthorizationTypeCode] = useState("");
   const [installmentsNo, setInstallmentsNo] = useState(1);
@@ -164,17 +165,20 @@ export default function MalpraxisPage() {
     api
       .get<Record<string, unknown>>("/online/offers/malpraxis/comparator/utils")
       .then((data) => {
+        console.log("[Malpraxis Utils] moralDamagesLimit raw:", JSON.stringify(data.moralDamagesLimit));
         setProfessions(getArray<Profession>(data.profession));
         setAuthorizationTypes(getArray<CodeName>(data.operatingAuthorizationType));
         setMoralDamagesLimits(
-          getArray<CodeName>(data.moralDamagesLimit).sort((a, b) => {
-            const na = parseFloat(a.name);
-            const nb = parseFloat(b.name);
-            if (isNaN(na) && isNaN(nb)) return 0;
-            if (isNaN(na)) return 1;
-            if (isNaN(nb)) return -1;
-            return na - nb;
-          })
+          getArray<CodeName>(data.moralDamagesLimit)
+            .map((m) => m.name === "Fara" ? { ...m, name: "Fără" } : m)
+            .sort((a, b) => {
+              const na = parseFloat(a.name);
+              const nb = parseFloat(b.name);
+              if (isNaN(na) && isNaN(nb)) return 0;
+              if (isNaN(na)) return 1;
+              if (isNaN(nb)) return -1;
+              return na - nb;
+            })
         );
         setRetroactivePeriods(getArray<CodeName>(data.retroactivePeriod));
         setCurrencies(getArray<string>(data.currency));
@@ -216,7 +220,14 @@ export default function MalpraxisPage() {
   })();
 
   const policyEndDate = policyStartDate
-    ? formatDateTime(calculatePolicyEndDate(new Date(policyStartDate)))
+    ? (() => {
+        const end = calculatePolicyEndDate(new Date(policyStartDate));
+        // Use UTC date components to avoid timezone offset (T02:00:00 → T00:00:00)
+        const y = end.getUTCFullYear();
+        const m = String(end.getUTCMonth() + 1).padStart(2, "0");
+        const d = String(end.getUTCDate()).padStart(2, "0");
+        return `${y}-${m}-${d}T00:00:00`;
+      })()
     : "";
 
   const handleCreateOrderAndOffers = async () => {
@@ -226,54 +237,6 @@ export default function MalpraxisPage() {
     setLoadingOffers(true);
 
     try {
-      // Auto-sign consent in the background (required by v3 order API)
-      try {
-        await autoSignConsent(insured, "MALPRAXIS");
-      } catch (consentErr) {
-        console.error("[Malpraxis] consent submission failed:", consentErr);
-      }
-
-      const offerDetails = {
-        malpraxisProfessionId: String(effectiveComparatorId ?? professionId),
-        category: String(effectiveComparatorId ?? effectiveCategoryType),
-        categoryType: effectiveCategoryType,
-        generalLimit: String(Number(generalLimit) || 0),
-        customMoralDamagesLimit: Number(moralDamagesLimit) || 0,
-        moralDamagesLimit: Number(moralDamagesLimit) || 0,
-        currency: currencyId,
-        operatingAuthorizationType: Number(authorizationTypeCode) || 0,
-        installmentsNo,
-        retroactivePeriod: String(Number(retroactivePeriod) || 0),
-      };
-
-      // Build vendor-specific details with smart defaults (deduplicate by code)
-      // V3 docs: value must always be string
-      const specificDetails: { code: string; value: string }[] = [];
-      const seenCodes = new Set<string>();
-      for (const group of vendorSpecificDetails) {
-        for (const detail of group.details) {
-          if (seenCodes.has(detail.code)) continue;
-          seenCodes.add(detail.code);
-          if (detail.code === "OPERATING_LICENSE_TYPE") {
-            specificDetails.push({ code: detail.code, value: authorizationTypeCode });
-          } else if (detail.code === "EVENT_LIMIT_INSURED_AMOUNT") {
-            specificDetails.push({ code: detail.code, value: String(Number(generalLimit) || 0) });
-          } else if (detail.code === "SUBLIMIT_MORAL_DAMAGE_PER_EVENT") {
-            const moralPct = Number(moralDamagesLimit) || 0;
-            specificDetails.push({ code: detail.code, value: String(Math.round((Number(generalLimit) || 0) * moralPct / 100)) });
-          } else if (detail.code === "SUBLIMIT_MORAL_DAMAGE_PER_INSURANCE_PERIOD") {
-            const moralPct = Number(moralDamagesLimit) || 0;
-            specificDetails.push({ code: detail.code, value: String(Math.round((Number(generalLimit) || 0) * moralPct / 100)) });
-          } else if (detail.code === "PREVIOUS_CIVIL_LIABILITY") {
-            specificDetails.push({ code: detail.code, value: previousLiability ? "DA" : "NU" });
-          } else if (detail.code === "PRIOR_CIVIL_LIABILITY_DAMAGES") {
-            specificDetails.push({ code: detail.code, value: previousLiabilityDamages ? "DA" : "NU" });
-          }
-        }
-      }
-
-      const startDateFormatted = formatDateTime(new Date(policyStartDate));
-
       // Derive dateOfBirth from CNP for PF insured + normalize streetTypeId
       const insuredWithDob: PersonRequest = {
         ...insured,
@@ -283,17 +246,53 @@ export default function MalpraxisPage() {
           : {}),
       };
 
-      // Check eligibility to filter products (V3 docs: productIds as string[])
-      let eligibleProductIds = products.map((p) => p.id);
+      // Sign consent (required by v3 order API) — must succeed before order creation
+      await autoSignConsent(insuredWithDob, "MALPRAXIS");
+
+      console.log("[Malpraxis] moralDamagesLimit state value:", JSON.stringify(moralDamagesLimit), "→ Number:", Number(moralDamagesLimit));
+      const offerDetails: Record<string, unknown> = {
+        malpraxisProfessionId: effectiveComparatorId ?? (Number(professionId) || 0),
+        category: professionId,
+        categoryType: effectiveCategoryType,
+        generalLimit: Number(generalLimit) || 0,
+        moralDamagesLimit: Number(moralDamagesLimit) || 0,
+        customMoralDamagesLimit: customMoralDamagesLimitValue ? Number(customMoralDamagesLimitValue) : null,
+        currency: currencyId,
+        operatingAuthorizationType: authorizationTypeCode,
+        installmentsNo,
+        retroactivePeriod: Number(retroactivePeriod) || 0,
+      };
+      console.log("[Malpraxis] offerDetails:", JSON.stringify(offerDetails));
+
+      // Build vendor-specific details matching live portal format.
+      // Common fields are sent for all vendors; bodies endpoint customizes per product.
+      const moralPct = Number(moralDamagesLimit) || 0;
+      const moralAmount = String(Math.round((Number(generalLimit) || 0) * moralPct / 100));
+      const specificDetails: { code: string; value: string | null }[] = [
+        // Common across most vendors
+        { code: "EVENT_LIMIT_INSURED_AMOUNT", value: null },
+        // ASIROM-specific
+        { code: "OPERATING_LICENSE_TYPE", value: authorizationTypeCode || "0" },
+        { code: "SUBLIMIT_MORAL_DAMAGE_PER_EVENT", value: moralAmount },
+        { code: "SUBLIMIT_MORAL_DAMAGE_PER_INSURANCE_PERIOD", value: moralAmount },
+        // ABC-specific
+        { code: "PREVIOUS_CIVIL_LIABILITY", value: previousLiability ? "DA" : "NU" },
+        { code: "PRIOR_CIVIL_LIABILITY_DAMAGES", value: previousLiabilityDamages ? "DA" : "NU" },
+      ];
+
+      // Always use T00:00:00 — InsureTech expects midnight, not local timezone offset
+      const startDateFormatted = `${policyStartDate}T00:00:00`;
+
+      // Send all products to offer generation (like the live portal).
+      // Eligibility is informational only — don't filter products based on it.
+      const eligibleProductIds = products.map((p) => p.id);
       let ineligibleOffers: MalpraxisOffer[] = [];
       try {
         const eligible = await api.post<{ productId: number; isEligible: boolean; reason: string | null }[]>(
           `/online/offers/malpraxis/comparator/products/eligible`,
           { clientId: Number(insured.cif) || 0, productIds: eligibleProductIds.map(String), policyStartDate: startDateFormatted, policyEndDate, offerDetails }
         );
-        const eligibleOnly = eligible.filter((p) => p.isEligible);
-        if (eligibleOnly.length > 0) eligibleProductIds = eligibleOnly.map((p) => p.productId);
-        // Collect ineligible products to show in "Oferte indisponibile"
+        // Collect ineligible products for informational display only
         ineligibleOffers = eligible
           .filter((p) => !p.isEligible && p.reason)
           .map((p) => {
@@ -312,13 +311,13 @@ export default function MalpraxisPage() {
             };
           });
       } catch {
-        /* fall back to all products */
+        /* eligibility check failed — proceed with all products */
       }
 
       const { order, offers: results } = await createOrderAndOffers({
         orderPayload: buildMalpraxisOrderPayload(insuredWithDob),
-        fetchBodies: (createdOrder) =>
-          api.post<Record<string, unknown>[]>(
+        fetchBodies: async (createdOrder) => {
+          const bodies = await api.post<Record<string, unknown>[]>(
             `/online/offers/malpraxis/comparator/bodies/v3?orderHash=${createdOrder.hash}`,
             {
               orderId: createdOrder.id,
@@ -328,12 +327,18 @@ export default function MalpraxisPage() {
               offerDetails,
               specificDetails,
             }
-          ),
+          );
+          console.log("[Malpraxis] bodies response:", JSON.stringify(bodies.map(b => ({ productId: b.productId, productCode: b.productCode, specificDetails: b.specificDetails }))));
+          return bodies;
+        },
         fetchOffer: async (body, createdOrder) => {
+          const bObj = body as Record<string, unknown>;
+          console.log(`[Malpraxis] comparator request ${bObj.productCode}:`, JSON.stringify(body));
           const result = await api.post<MalpraxisOffer[]>(
             `/online/offers/malpraxis/comparator/v3?orderHash=${createdOrder.hash}`,
             body
           );
+          console.log(`[Malpraxis] comparator response ${bObj.productCode}:`, JSON.stringify(result));
           // API returns an array — take the first element
           const offer = Array.isArray(result) ? result[0] : (result as unknown as MalpraxisOffer);
           // Look up product info from our products list as fallback
@@ -349,7 +354,9 @@ export default function MalpraxisPage() {
           };
         },
         mapOfferError: (body, err) => {
-          const pid = Number((body as Record<string, unknown>).productId || 0);
+          const bObj = body as Record<string, unknown>;
+          console.error(`[Malpraxis] comparator FAILED ${bObj.productCode}:`, err);
+          const pid = Number(bObj.productId || 0);
           const prod = products.find((p) => p.id === pid);
           const vName = prod?.vendorDetails?.name || "";
           return {
@@ -454,7 +461,7 @@ export default function MalpraxisPage() {
       content: (
         <div className="mx-auto max-w-2xl space-y-4">
           <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm space-y-4">
-            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+            <div className="space-y-3">
               <div>
                 <label className={labelCls}>Profesie</label>
                 <select
@@ -519,9 +526,9 @@ export default function MalpraxisPage() {
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+            <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-3">
               <div>
-                <label className={labelCls}>Limita generala (suma asigurata)</label>
+                <label className={labelCls}>Suma asigurata</label>
                 <input
                   type="text"
                   className={inputCls}
@@ -531,7 +538,7 @@ export default function MalpraxisPage() {
                 />
               </div>
               <div>
-                <label className={labelCls}>Limita daune morale</label>
+                <label className={labelCls}>Limita daune morale (%)</label>
                 <select
                   className={selectCls}
                   value={moralDamagesLimit}
@@ -542,6 +549,16 @@ export default function MalpraxisPage() {
                     <option key={m.code} value={m.code}>{m.name}</option>
                   ))}
                 </select>
+              </div>
+              <div>
+                <label className={labelCls}>Limita personalizata daune morale</label>
+                <input
+                  type="text"
+                  className={inputCls}
+                  value={customMoralDamagesLimitValue}
+                  onChange={(e) => setCustomMoralDamagesLimitValue(e.target.value)}
+                  placeholder={currencyId || "EUR"}
+                />
               </div>
             </div>
 

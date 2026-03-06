@@ -622,6 +622,14 @@ export function rcaFlowReducer(state: RcaFlowState, action: import("@/types/rcaF
       return { ...state, orderId: action.orderId, orderHash: action.orderHash };
     case "SET_OFFERS":
       return { ...state, offers: action.offers, hasDirectSettlementData: action.hasDirectSettlementData, loadingOffers: false };
+    case "APPEND_OFFERS": {
+      const merged = [...state.offers, ...action.offers];
+      const hasDS = merged.some((o) => {
+        const n = (o.productName || "").toLowerCase();
+        return o.directSettlementPremium != null || o.policyPremiumWithDirectSettlement != null || o.withDirectSettlement === true || n.includes("direct settlement") || n.includes("decontare");
+      });
+      return { ...state, offers: merged, hasDirectSettlementData: hasDS };
+    }
     case "SET_LOADING_OFFERS":
       return { ...state, loadingOffers: action.loading };
     case "SELECT_OFFER":

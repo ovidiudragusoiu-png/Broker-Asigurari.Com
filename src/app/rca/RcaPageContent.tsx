@@ -96,13 +96,8 @@ function RcaPageInner() {
       const fullPerson = buildFullPersonFromFlowState(state);
       const normalizedPerson = normalizePersonForRca(fullPerson);
 
-      // Auto-sign consent (required by order API)
-      try {
-        await autoSignConsent(normalizedPerson, "RCA");
-      } catch (consentErr) {
-        console.error("[RCA] consent submission failed:", consentErr);
-        // Continue to order creation — it will fail if consent is truly required
-      }
+      // Sign consent (required by v3 order API) — must succeed before order creation
+      await autoSignConsent(normalizedPerson, "RCA");
 
       // 2. Get RCA products
       const allRcaProducts = await api.get<
@@ -146,12 +141,12 @@ function RcaPageInner() {
             vehicleCategoryId: state.vehicle.categoryId,
             vehicleSubCategoryId: state.vehicle.subcategoryId,
             fuelTypeId: state.vehicle.fuelTypeId,
-            activityTypeId: state.vehicle.activityTypeId,
+            activityTypeId: state.vehicle.activityTypeId ?? 11,
             engineCapacity: state.vehicle.engineCapacity,
             enginePowerKw: state.vehicle.enginePowerKw,
             maxWeight: state.vehicle.totalWeight,
             seatsNumber: state.vehicle.seats,
-            registrationTypeId: state.vehicle.registrationTypeId,
+            registrationTypeId: state.vehicle.registrationTypeId ?? 1,
             civ: state.registrationCertSeries,
             registrationCertificateNumber: state.registrationCertSeries,
             rafCode: "RAJ506943",
@@ -163,108 +158,92 @@ function RcaPageInner() {
 
       dispatch({ type: "SET_ORDER", orderId: order.id, orderHash: order.hash });
 
-      // 4. Request offers in batches of 3 to avoid API timeouts
-      const BATCH_SIZE = 3;
-      const OFFER_TIMEOUT = 60000; // 60s per insurer request
-      const results: ReturnType<typeof normalizeRcaOffer>[][] = [];
+      // 4. Fire ALL offer requests in parallel — each card appears as it arrives
+      const OFFER_TIMEOUT = 60000;
+      let completedCount = 0;
 
-      for (let i = 0; i < rcaProducts.length; i += BATCH_SIZE) {
-        const batch = rcaProducts.slice(i, i + BATCH_SIZE);
-        const batchResults = await Promise.all(
-          batch.map(async (product) => {
-            try {
-              const rafCode = "RAJ506943";
-              const mileageFields = { mileage: 50000, km: 50000 };
+      const offerPromises = rcaProducts.map(async (product) => {
+        try {
+          const offerPayload = {
+            orderId: order.id,
+            policyStartDate: toRcaDate(state.startDate),
+            periodMonths: ["1", "2", "3", "6", "12"],
+            isLeasing: false,
+            driversDetails,
+            rcaProductRequests: [
+              {
+                productId: Number(product.id),
+                specificFields: {
+                  civ: state.registrationCertSeries,
+                  registrationCertificateNumber: state.registrationCertSeries,
+                  rafCode: "RAJ506943",
+                  mileage: 50000,
+                  km: 50000,
+                  driverLicenceDate: "2010-02-01T00:00:00",
+                },
+              },
+            ],
+          };
+          const offerResponse = await api.post<RcaOfferApi | RcaOfferApi[]>(
+            `/online/offers/rca/v3?orderHash=${order.hash}`,
+            offerPayload,
+            undefined,
+            { timeoutMs: OFFER_TIMEOUT }
+          );
+          const responseList = extractRcaOffers(offerResponse);
+          const normalized = responseList.map((raw) =>
+            normalizeRcaOffer(raw, product.productName, product.id, product.vendorDetails?.commercialName)
+          );
 
-              const offerPayload = {
-                  orderId: order.id,
-                  policyStartDate: toRcaDate(state.startDate),
-                  periodMonths: ["1", "2", "3", "6", "12"],
-                  isLeasing: false,
-                  driversDetails,
-                  rcaProductRequests: [
-                    {
-                      productId: Number(product.id),
-                      specificFields: {
-                        civ: state.registrationCertSeries,
-                        registrationCertificateNumber: state.registrationCertSeries,
-                        rafCode,
-                        ...mileageFields,
-                        driverLicenceDate: "2010-02-01T00:00:00",
-                      },
-                    },
-                  ],
-              };
-              const offerResponse = await api.post<RcaOfferApi | RcaOfferApi[]>(
-                `/online/offers/rca/v3?orderHash=${order.hash}`,
-                offerPayload,
-                undefined,
-                { timeoutMs: OFFER_TIMEOUT }
-              );
-              const responseList = extractRcaOffers(offerResponse);
+          // Show this insurer's offers immediately
+          dispatch({ type: "APPEND_OFFERS", offers: normalized });
+          return normalized;
+        } catch (offerErr) {
+          let errorMessage =
+            offerErr instanceof Error ? offerErr.message : "Eroare la generarea ofertei";
+          if (offerErr instanceof ApiError && offerErr.data && typeof offerErr.data === "object") {
+            const apiData = offerErr.data as {
+              message?: string; detail?: string; title?: string;
+              errors?: Record<string, string[]>;
+            };
+            const details = apiData.errors
+              ? Object.entries(apiData.errors).map(([k, v]) => `${k}: ${v.join(", ")}`).join("; ")
+              : null;
+            errorMessage = details || apiData.message || apiData.detail || apiData.title || errorMessage;
+          }
 
-              return responseList.map((raw) =>
-                normalizeRcaOffer(
-                  raw,
-                  product.productName,
-                  product.id,
-                  product.vendorDetails?.commercialName
-                )
-              );
-            } catch (offerErr) {
-              let errorMessage =
-                offerErr instanceof Error ? offerErr.message : "Eroare la generarea ofertei";
-              if (offerErr instanceof ApiError && offerErr.data && typeof offerErr.data === "object") {
-                const apiData = offerErr.data as {
-                  message?: string; detail?: string; title?: string;
-                  errors?: Record<string, string[]>;
-                };
-                const details = apiData.errors
-                  ? Object.entries(apiData.errors).map(([k, v]) => `${k}: ${v.join(", ")}`).join("; ")
-                  : null;
-                errorMessage = details || apiData.message || apiData.detail || apiData.title || errorMessage;
-              }
-
-              return [{
-                id: 0,
-                productId: product.id,
-                productName: product.productName || "RCA",
-                vendorName: product.vendorDetails?.commercialName || product.productName || "",
-                policyPremium: 0,
-                currency: "RON",
-                error: errorMessage,
-              }];
-            }
-          })
-        );
-        results.push(...batchResults);
-      }
-
-      const flatResults = results.flat();
-      const hasDirectData = flatResults.some((offer) => {
-        const normalizedName = (offer.productName || "").toLowerCase();
-        return (
-          offer.directSettlementPremium != null ||
-          offer.policyPremiumWithDirectSettlement != null ||
-          offer.withDirectSettlement === true ||
-          normalizedName.includes("direct settlement") ||
-          normalizedName.includes("decontare")
-        );
+          const errorOffer = [{
+            id: 0,
+            productId: product.id,
+            productName: product.productName || "RCA",
+            vendorName: product.vendorDetails?.commercialName || product.productName || "",
+            policyPremium: 0,
+            currency: "RON",
+            error: errorMessage,
+          }];
+          dispatch({ type: "APPEND_OFFERS", offers: errorOffer });
+          return errorOffer;
+        } finally {
+          completedCount++;
+          // When all done, stop loading spinner
+          if (completedCount === rcaProducts.length) {
+            dispatch({ type: "SET_LOADING_OFFERS", loading: false });
+          }
+        }
       });
 
-      dispatch({
-        type: "SET_OFFERS",
-        offers: flatResults,
-        hasDirectSettlementData: hasDirectData,
-      });
+      // Wait for all to settle
+      const allResults = await Promise.allSettled(offerPromises);
+      const flatResults = allResults
+        .filter((r): r is PromiseFulfilledResult<ReturnType<typeof normalizeRcaOffer>[]> => r.status === "fulfilled")
+        .flatMap((r) => r.value);
 
-      const errorOffers = flatResults.filter((o) => o.error);
       const validOffers = flatResults.filter((o) => !o.error);
-
       if (validOffers.length === 0) {
-        const errorDetails = errorOffers
+        const errorDetails = flatResults
+          .filter((o) => o.error)
           .map((o) => o.error)
-          .filter((e, i, arr) => arr.indexOf(e) === i) // unique errors
+          .filter((e, i, arr) => arr.indexOf(e) === i)
           .join("; ");
         dispatch({
           type: "SET_ERROR",
@@ -332,13 +311,16 @@ function RcaPageInner() {
       vehicleDetails: {
         civ: state.registrationCertSeries,
         registrationCertificateNumber: state.registrationCertSeries,
+        vin: state.vehicle.vin,
+        plateNo: state.vehicle.licensePlate,
+        vehicleCategoryId: state.vehicle.categoryId,
       },
       policyStartDate: toRcaDate(state.startDate),
       email: normalizedPerson.email,
     };
-    sessionStorage.setItem("rcaPolicyData", JSON.stringify(policyData));
+    localStorage.setItem("rcaPolicyData", JSON.stringify(policyData));
     if (normalizedPerson.email) {
-      sessionStorage.setItem("customerEmail", normalizedPerson.email);
+      localStorage.setItem("customerEmail", normalizedPerson.email);
     }
 
     // Create payment link

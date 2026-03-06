@@ -72,8 +72,8 @@ export default function FinalCTA() {
             <a href="tel:+40720385551" className="flex items-center gap-2 hover:text-white transition-colors">
               <Phone className="h-4 w-4" /> 0720 385 551
             </a>
-            <a href="mailto:bucuresti@broker-asigurari.com" className="flex items-center gap-2 hover:text-white transition-colors">
-              <Mail className="h-4 w-4" /> bucuresti@broker-asigurari.com
+            <a href="mailto:office@sigur.ai" className="flex items-center gap-2 hover:text-white transition-colors">
+              <Mail className="h-4 w-4" /> office@sigur.ai
             </a>
           </div>
         </div>

@@ -179,12 +179,8 @@ export default function PadPage() {
       endDate.setFullYear(endDate.getFullYear() + 1);
       endDate.setDate(endDate.getDate() - 1); // T+1year-1day per PAD docs
 
-      // 0. Auto-submit consent (same approach as RCA/Travel)
-      try {
-        await autoSignConsent(contractor, "PAD");
-      } catch {
-        // Consent check/submit failed — continue anyway, order creation will validate
-      }
+      // Sign consent (required by v3 order API) — must succeed before order creation
+      await autoSignConsent(contractor, "PAD");
 
       // Normalize persons: add dateOfBirth (PF) + streetTypeId
       const normalizeAddress = (addr: typeof propertyAddress) => ({
