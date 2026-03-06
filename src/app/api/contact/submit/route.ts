@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
+import { validateBody, contactSchema, type ContactData } from "@/lib/validation/schemas";
 
 const TO_EMAILS = ["bucuresti@broker-asigurari.com", "office@sigur.ai"];
 
@@ -9,20 +10,12 @@ function getResend() {
   return new Resend(key);
 }
 
-interface ContactSubmission {
-  name: string;
-  email: string;
-  phone: string;
-  subject: string;
-  message: string;
-}
-
 function row(label: string, value: string | undefined): string {
   if (!value) return "";
   return `<tr><td style="padding:6px 12px;font-weight:600;color:#374151;white-space:nowrap">${label}</td><td style="padding:6px 12px;color:#4b5563">${value}</td></tr>`;
 }
 
-function buildEmailHtml(data: ContactSubmission): string {
+function buildEmailHtml(data: ContactData): string {
   const rows = [
     row("Nume", data.name),
     row("Email", data.email),
@@ -46,11 +39,9 @@ function buildEmailHtml(data: ContactSubmission): string {
 
 export async function POST(request: NextRequest) {
   try {
-    const data: ContactSubmission = await request.json();
-
-    if (!data.email || !data.name || !data.message) {
-      return NextResponse.json({ error: "Nume, email și mesaj sunt obligatorii" }, { status: 400 });
-    }
+    const parsed = await validateBody(request, contactSchema);
+    if ("error" in parsed) return parsed.error;
+    const data = parsed.data;
 
     const result = await getResend().emails.send({
       from: "Contact <noreply@broker-asigurari.com>",

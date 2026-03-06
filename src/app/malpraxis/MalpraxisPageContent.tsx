@@ -8,7 +8,7 @@ import PaymentFlow from "@/components/shared/PaymentFlow";
 import DntChoice from "@/components/rca/DntChoice";
 import { api } from "@/lib/api/client";
 import type { PersonRequest } from "@/types/insuretech";
-import { formatDateTime, calculatePolicyEndDate } from "@/lib/utils/formatters";
+import { calculatePolicyEndDate } from "@/lib/utils/formatters";
 import { isPersonValid } from "@/lib/utils/formGuards";
 import { dateOfBirthFromCNP } from "@/lib/utils/validation";
 import { autoSignConsent } from "@/lib/flows/consent";
@@ -17,6 +17,12 @@ import { buildMalpraxisOrderPayload } from "@/lib/flows/payloadBuilders";
 import DateInput from "@/components/shared/DateInput";
 import { getArray } from "@/lib/utils/dto";
 import { btn } from "@/lib/ui/tokens";
+import {
+  MALPRAXIS_TRACE_HEADER,
+  createMalpraxisTraceId,
+  logMalpraxisTrace,
+  serializeTraceError,
+} from "@/lib/debug/malpraxisTrace";
 
 /* ---- Local design tokens (match PAD/Travel) ---- */
 const selectCls =
@@ -24,6 +30,21 @@ const selectCls =
 const inputCls =
   "w-full rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none";
 const labelCls = "mb-1 block text-xs font-medium text-gray-500";
+
+const normalizeVendorKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
+const isPharmacistSelection = (...values: Array<string | undefined>) => values.some((value) => /farmac/i.test(value || ""));
+const MALPRAXIS_VENDOR_MATRIX = {
+  none: {
+    noRetro: ["omniasig", "asirom", "signalidunaasigurari", "garanta", "uniqa", "abc", "euroins"],
+    retro12Or24: ["omniasig", "asirom", "garanta"],
+    retro36: ["omniasig", "asirom"],
+  },
+  percent: {
+    noRetro: ["omniasig", "signalidunaasigurari", "garanta"],
+    retro12Or24: ["omniasig", "garanta"],
+    retro36: ["omniasig"],
+  },
+} as const;
 
 interface MalpraxisOffer {
   id: number;
@@ -78,7 +99,11 @@ interface VendorSpecificGroup {
   details: VendorSpecificDetail[];
 }
 
-export default function MalpraxisPage() {
+interface MalpraxisPageContentProps {
+  debugEnabled?: boolean;
+}
+
+export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageContentProps) {
   // Utils
   const [professions, setProfessions] = useState<Profession[]>([]);
   const [authorizationTypes, setAuthorizationTypes] = useState<CodeName[]>([]);
@@ -86,7 +111,7 @@ export default function MalpraxisPage() {
   const [retroactivePeriods, setRetroactivePeriods] = useState<CodeName[]>([]);
   const [currencies, setCurrencies] = useState<string[]>([]);
   const [installmentsOptions, setInstallmentsOptions] = useState<number[]>([]);
-  const [vendorSpecificDetails, setVendorSpecificDetails] = useState<VendorSpecificGroup[]>([]);
+  const [, setVendorSpecificDetails] = useState<VendorSpecificGroup[]>([]);
   const [products, setProducts] = useState<{ id: number; productName: string; vendorDetails?: { name: string; linkLogo?: string } }[]>([]);
 
   // Form
@@ -108,6 +133,7 @@ export default function MalpraxisPage() {
   // Order
   const [orderId, setOrderId] = useState<number | null>(null);
   const [orderHash, setOrderHash] = useState<string | null>(null);
+  const [debugTraceId, setDebugTraceId] = useState<string | null>(null);
 
   // Offers
   const [offers, setOffers] = useState<MalpraxisOffer[]>([]);
@@ -130,8 +156,28 @@ export default function MalpraxisPage() {
 
   // Guard against double offer generation
   const generatingRef = useRef(false);
+  const activeRunIdRef = useRef(0);
 
   const { currentStep, next, prev, goTo } = useWizard(4);
+
+  const logClientTrace = (
+    traceId: string | null,
+    phase: string,
+    payload?: unknown,
+    extra?: { path?: string; status?: number; durationMs?: number }
+  ) => {
+    logMalpraxisTrace(
+      {
+        traceId,
+        phase,
+        path: extra?.path,
+        status: extra?.status,
+        durationMs: extra?.durationMs,
+        payload,
+      },
+      debugEnabled
+    );
+  };
 
   const selectedProfession = professions.find((p) => p.code === professionId);
   const categories = selectedProfession?.categories || [];
@@ -165,7 +211,6 @@ export default function MalpraxisPage() {
     api
       .get<Record<string, unknown>>("/online/offers/malpraxis/comparator/utils")
       .then((data) => {
-        console.log("[Malpraxis Utils] moralDamagesLimit raw:", JSON.stringify(data.moralDamagesLimit));
         setProfessions(getArray<Profession>(data.profession));
         setAuthorizationTypes(getArray<CodeName>(data.operatingAuthorizationType));
         setMoralDamagesLimits(
@@ -200,9 +245,9 @@ export default function MalpraxisPage() {
       setOffers([]);
       setOrderId(null);
       setOrderHash(null);
+      setDebugTraceId(null);
       setSelectedOffer(null);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStep]);
 
   /* ---- Auto-generate offers when reaching step 3 (index 2) ---- */
@@ -236,8 +281,12 @@ export default function MalpraxisPage() {
     setError(null);
     setLoadingOffers(true);
 
+    const runId = ++activeRunIdRef.current;
+    const currentTraceId = createMalpraxisTraceId();
+    const traceHeaders = { [MALPRAXIS_TRACE_HEADER]: currentTraceId };
+    setDebugTraceId(currentTraceId);
+
     try {
-      // Derive dateOfBirth from CNP for PF insured + normalize streetTypeId
       const insuredWithDob: PersonRequest = {
         ...insured,
         address: { ...insured.address, streetTypeId: insured.address.streetTypeId ?? 1 },
@@ -246,53 +295,164 @@ export default function MalpraxisPage() {
           : {}),
       };
 
-      // Sign consent (required by v3 order API) — must succeed before order creation
+      const isNumericMoralDamagesMode = customMoralDamagesLimitValue.trim().length > 0;
+      const retroactivityGroup = retroactivePeriod === "36"
+        ? "retro36"
+        : retroactivePeriod === "12" || retroactivePeriod === "24"
+          ? "retro12Or24"
+          : "noRetro";
+      const moralDamagesMode = moralDamagesLimit === "0" ? "none" : "percent";
+      const allowedVendorKeys: Set<string> | null = isNumericMoralDamagesMode
+        ? null
+        : new Set(MALPRAXIS_VENDOR_MATRIX[moralDamagesMode][retroactivityGroup]);
+      const pharmacistContext = isPharmacistSelection(
+        selectedProfession?.name,
+        selectedCategory?.name,
+        selectedCategory?.type,
+        selectedSubcategory?.name,
+        selectedSubcategory?.type
+      );
+      const candidateProducts = products.filter((product) => {
+        const vendorKey = normalizeVendorKey(product.vendorDetails?.name || "");
+        if (!vendorKey) {
+          return false;
+        }
+
+        if (vendorKey === "omniasig") {
+          const isPharmacistProduct = /farmac/i.test(product.productName || "");
+          if (pharmacistContext !== isPharmacistProduct) {
+            return false;
+          }
+        }
+
+        return allowedVendorKeys ? allowedVendorKeys.has(vendorKey) : true;
+      });
+      const selectedProductIds = candidateProducts.map((product) => product.id);
+      logClientTrace(currentTraceId, "client_snapshot", {
+        selectedProfession: selectedProfession
+          ? { code: selectedProfession.code, name: selectedProfession.name }
+          : null,
+        selectedCategory: selectedCategory
+          ? { type: selectedCategory.type, name: selectedCategory.name }
+          : null,
+        selectedSubcategory: selectedSubcategory
+          ? { type: selectedSubcategory.type, name: selectedSubcategory.name }
+          : null,
+        effectiveComparatorId,
+        generalLimit,
+        moralDamagesLimit,
+        customMoralDamagesLimit: customMoralDamagesLimitValue,
+        authorizationTypeCode,
+        retroactivePeriod,
+        installmentsNo,
+        selectedProductIds,
+        allowedVendors: allowedVendorKeys ? Array.from(allowedVendorKeys) : "eligibility-driven",
+        pharmacistContext,
+        isNumericMoralDamagesMode,
+      });
+
       await autoSignConsent(insuredWithDob, "MALPRAXIS");
 
-      console.log("[Malpraxis] moralDamagesLimit state value:", JSON.stringify(moralDamagesLimit), "→ Number:", Number(moralDamagesLimit));
+      const normalizedProfessionId = String(effectiveComparatorId ?? professionId);
+      const normalizedCategory = selectedCategory?.type || categoryId;
+      const normalizedGeneralLimit = generalLimit.trim();
+      const normalizedOperatingAuthorizationType = Number.parseInt(authorizationTypeCode, 10);
+      const normalizedRetroactivePeriod = retroactivePeriod;
       const offerDetails: Record<string, unknown> = {
-        malpraxisProfessionId: effectiveComparatorId ?? (Number(professionId) || 0),
-        category: professionId,
+        malpraxisProfessionId: normalizedProfessionId,
+        category: normalizedCategory,
         categoryType: effectiveCategoryType,
-        generalLimit: Number(generalLimit) || 0,
+        generalLimit: normalizedGeneralLimit,
         moralDamagesLimit: Number(moralDamagesLimit) || 0,
         customMoralDamagesLimit: customMoralDamagesLimitValue ? Number(customMoralDamagesLimitValue) : null,
         currency: currencyId,
-        operatingAuthorizationType: authorizationTypeCode,
+        operatingAuthorizationType: Number.isFinite(normalizedOperatingAuthorizationType)
+          ? normalizedOperatingAuthorizationType
+          : 0,
         installmentsNo,
-        retroactivePeriod: Number(retroactivePeriod) || 0,
+        retroactivePeriod: normalizedRetroactivePeriod,
       };
-      console.log("[Malpraxis] offerDetails:", JSON.stringify(offerDetails));
+      logClientTrace(currentTraceId, "offer_details_normalized", { offerDetails });
 
-      // Build vendor-specific details matching live portal format.
-      // Common fields are sent for all vendors; bodies endpoint customizes per product.
       const moralPct = Number(moralDamagesLimit) || 0;
       const moralAmount = String(Math.round((Number(generalLimit) || 0) * moralPct / 100));
       const specificDetails: { code: string; value: string | null }[] = [
-        // Common across most vendors
-        { code: "EVENT_LIMIT_INSURED_AMOUNT", value: null },
-        // ASIROM-specific
+        { code: "EVENT_LIMIT_INSURED_AMOUNT", value: normalizedGeneralLimit || null },
         { code: "OPERATING_LICENSE_TYPE", value: authorizationTypeCode || "0" },
         { code: "SUBLIMIT_MORAL_DAMAGE_PER_EVENT", value: moralAmount },
         { code: "SUBLIMIT_MORAL_DAMAGE_PER_INSURANCE_PERIOD", value: moralAmount },
-        // ABC-specific
         { code: "PREVIOUS_CIVIL_LIABILITY", value: previousLiability ? "DA" : "NU" },
         { code: "PRIOR_CIVIL_LIABILITY_DAMAGES", value: previousLiabilityDamages ? "DA" : "NU" },
       ];
+      const mergeComparatorSpecificDetails = (bodySpecificDetails: unknown) => {
+        const merged = new Map<string, Record<string, unknown>>();
 
-      // Always use T00:00:00 — InsureTech expects midnight, not local timezone offset
+        for (const detail of specificDetails) {
+          merged.set(detail.code, { ...detail });
+        }
+
+        if (!Array.isArray(bodySpecificDetails)) {
+          return Array.from(merged.values());
+        }
+
+        for (const entry of bodySpecificDetails) {
+          if (!entry || typeof entry !== "object") {
+            continue;
+          }
+
+          const detailRecord = entry as Record<string, unknown>;
+          const code = typeof detailRecord.code === "string" ? detailRecord.code : "";
+          if (!code) {
+            continue;
+          }
+
+          const requestDetail = merged.get(code);
+          const requestValue = requestDetail?.value;
+          const entryValue = detailRecord.value;
+          const shouldRestoreRequestValue =
+            code === "EVENT_LIMIT_INSURED_AMOUNT" &&
+            (entryValue === 0 || entryValue === "0" || entryValue == null || entryValue === "") &&
+            requestValue != null &&
+            requestValue !== "" &&
+            requestValue !== 0 &&
+            requestValue !== "0";
+
+          merged.set(
+            code,
+            shouldRestoreRequestValue
+              ? { ...detailRecord, value: requestValue }
+              : { ...(requestDetail || {}), ...detailRecord }
+          );
+        }
+
+        return Array.from(merged.values());
+      };
+
       const startDateFormatted = `${policyStartDate}T00:00:00`;
-
-      // Send all products to offer generation (like the live portal).
-      // Eligibility is informational only — don't filter products based on it.
-      const eligibleProductIds = products.map((p) => p.id);
+      const requestedProductIds = selectedProductIds.map((productId) => String(productId));
+      let eligibleProductIds = requestedProductIds;
+      const eligibilityPath = "/online/offers/malpraxis/comparator/products/eligible";
+      const eligibilityPayload = {
+        clientId: Number(insured.cif) || 0,
+        productIds: requestedProductIds,
+        policyStartDate: startDateFormatted,
+        policyEndDate,
+        offerDetails,
+      };
       let ineligibleOffers: MalpraxisOffer[] = [];
+
       try {
+        logClientTrace(currentTraceId, "eligibility_request", eligibilityPayload, { path: eligibilityPath });
         const eligible = await api.post<{ productId: number; isEligible: boolean; reason: string | null }[]>(
-          `/online/offers/malpraxis/comparator/products/eligible`,
-          { clientId: Number(insured.cif) || 0, productIds: eligibleProductIds.map(String), policyStartDate: startDateFormatted, policyEndDate, offerDetails }
+          eligibilityPath,
+          eligibilityPayload,
+          traceHeaders
         );
-        // Collect ineligible products for informational display only
+        logClientTrace(currentTraceId, "eligibility_response", eligible, { path: eligibilityPath });
+        const eligibleProductIdSet = new Set(
+          eligible.filter((product) => product.isEligible).map((product) => String(product.productId))
+        );
+        eligibleProductIds = requestedProductIds.filter((productId) => eligibleProductIdSet.has(productId));
         ineligibleOffers = eligible
           .filter((p) => !p.isEligible && p.reason)
           .map((p) => {
@@ -310,54 +470,121 @@ export default function MalpraxisPage() {
               message: p.reason,
             };
           });
-      } catch {
-        /* eligibility check failed — proceed with all products */
+      } catch (eligibilityErr) {
+        logClientTrace(
+          currentTraceId,
+          "eligibility_error",
+          { error: serializeTraceError(eligibilityErr) },
+          { path: eligibilityPath }
+        );
+      }
+
+      if (eligibleProductIds.length === 0) {
+        logClientTrace(currentTraceId, "offers_ready", { orderId: null, orderHash: null, offers: ineligibleOffers });
+        setOffers(ineligibleOffers);
+        return;
       }
 
       const { order, offers: results } = await createOrderAndOffers({
         orderPayload: buildMalpraxisOrderPayload(insuredWithDob),
         fetchBodies: async (createdOrder) => {
+          const bodiesPath = "/online/offers/malpraxis/comparator/bodies/v3";
+          const bodiesPayload = {
+            orderId: createdOrder.id,
+            productIds: eligibleProductIds,
+            policyStartDate: startDateFormatted,
+            policyEndDate,
+            offerDetails,
+            specificDetails,
+          };
+
+          logClientTrace(currentTraceId, "bodies_request", bodiesPayload, { path: bodiesPath });
           const bodies = await api.post<Record<string, unknown>[]>(
-            `/online/offers/malpraxis/comparator/bodies/v3?orderHash=${createdOrder.hash}`,
-            {
-              orderId: createdOrder.id,
-              productIds: eligibleProductIds,
-              policyStartDate: startDateFormatted,
-              policyEndDate,
-              offerDetails,
-              specificDetails,
-            }
+            `${bodiesPath}?orderHash=${createdOrder.hash}`,
+            bodiesPayload,
+            traceHeaders
           );
-          console.log("[Malpraxis] bodies response:", JSON.stringify(bodies.map(b => ({ productId: b.productId, productCode: b.productCode, specificDetails: b.specificDetails }))));
+          logClientTrace(
+            currentTraceId,
+            "bodies_response",
+            {
+              bodies: bodies.map((body) => ({
+                productId: body.productId,
+                productCode: body.productCode,
+                specificDetails: body.specificDetails,
+              })),
+            },
+            { path: bodiesPath }
+          );
           return bodies;
         },
         fetchOffer: async (body, createdOrder) => {
-          const bObj = body as Record<string, unknown>;
-          console.log(`[Malpraxis] comparator request ${bObj.productCode}:`, JSON.stringify(body));
+          const comparatorPath = "/online/offers/malpraxis/comparator/v3";
+          const bodyObject = body as Record<string, unknown>;
+          const comparatorPayload = {
+            ...bodyObject,
+            offerDetails: {
+              ...((bodyObject.offerDetails as Record<string, unknown> | undefined) || {}),
+              ...offerDetails,
+            },
+            specificDetails: mergeComparatorSpecificDetails(bodyObject.specificDetails),
+          };
+
+          logClientTrace(currentTraceId, "comparator_request", comparatorPayload, { path: comparatorPath });
           const result = await api.post<MalpraxisOffer[]>(
-            `/online/offers/malpraxis/comparator/v3?orderHash=${createdOrder.hash}`,
-            body
+            `${comparatorPath}?orderHash=${createdOrder.hash}`,
+            comparatorPayload,
+            traceHeaders
           );
-          console.log(`[Malpraxis] comparator response ${bObj.productCode}:`, JSON.stringify(result));
-          // API returns an array — take the first element
+          logClientTrace(currentTraceId, "comparator_response", result, { path: comparatorPath });
+
           const offer = Array.isArray(result) ? result[0] : (result as unknown as MalpraxisOffer);
-          // Look up product info from our products list as fallback
-          const bodyProductId = (body as Record<string, unknown>).productId;
-          const prod = products.find((p) => p.id === offer?.productDetails?.id || p.id === bodyProductId);
-          const vendorName = offer.productDetails?.vendorDetails?.commercialName || prod?.vendorDetails?.name || "";
-          const logo = offer.productDetails?.vendorDetails?.linkLogo;
-          return {
+          const bodyProductId = Number(bodyObject.productId || 0);
+          const responseProduct = (offer as { product?: Record<string, unknown> }).product;
+          const responseVendorDetails = responseProduct?.vendorDetails as Record<string, unknown> | undefined;
+          const resolvedProductId = Number(
+            offer?.productId ||
+            offer?.productDetails?.id ||
+            responseProduct?.id ||
+            bodyProductId ||
+            0
+          );
+          const prod = products.find((product) => product.id === resolvedProductId || product.id === bodyProductId);
+          const vendorName =
+            offer.productDetails?.vendorDetails?.commercialName ||
+            (responseVendorDetails?.commercialName as string | undefined) ||
+            (responseVendorDetails?.name as string | undefined) ||
+            prod?.vendorDetails?.name ||
+            "";
+          const logo =
+            offer.productDetails?.vendorDetails?.linkLogo ||
+            (responseVendorDetails?.linkLogo as string | undefined);
+          const normalizedOffer = {
             ...offer,
-            productName: vendorName ? `${vendorName} Malpraxis` : (prod?.productName || "Malpraxis"),
+            productId: resolvedProductId,
+            productName: vendorName
+              ? `${vendorName} Malpraxis`
+              : ((responseProduct?.productName as string | undefined) || prod?.productName || "Malpraxis"),
             vendorName,
             vendorLogo: logo || undefined,
           };
+
+          logClientTrace(currentTraceId, "normalized_offer", normalizedOffer, { path: comparatorPath });
+          return normalizedOffer;
         },
         mapOfferError: (body, err) => {
-          const bObj = body as Record<string, unknown>;
-          console.error(`[Malpraxis] comparator FAILED ${bObj.productCode}:`, err);
-          const pid = Number(bObj.productId || 0);
-          const prod = products.find((p) => p.id === pid);
+          const bodyObject = body as Record<string, unknown>;
+          logClientTrace(
+            currentTraceId,
+            "comparator_error",
+            {
+              productCode: bodyObject.productCode,
+              error: serializeTraceError(err),
+            },
+            { path: "/online/offers/malpraxis/comparator/v3" }
+          );
+          const pid = Number(bodyObject.productId || 0);
+          const prod = products.find((product) => product.id === pid);
           const vName = prod?.vendorDetails?.name || "";
           return {
             id: 0,
@@ -373,19 +600,17 @@ export default function MalpraxisPage() {
         },
       });
 
-      // Deduplicate: collect all productIds already covered by comparator results
-      const coveredProductIds = new Set(results.map((r) => r.productId));
-
-      // Detect products that were eligible but silently dropped by bodies endpoint
+      const coveredProductIds = new Set(results.map((result) => String(result.productId)));
       const droppedOffers: MalpraxisOffer[] = eligibleProductIds
         .filter((pid) => !coveredProductIds.has(pid))
         .map((pid) => {
           coveredProductIds.add(pid);
-          const prod = products.find((p) => p.id === pid);
+          const numericProductId = Number(pid);
+          const prod = products.find((product) => product.id === numericProductId);
           const vName = prod?.vendorDetails?.name || "";
           return {
             id: 0,
-            productId: pid,
+            productId: numericProductId,
             productName: vName ? `${vName} Malpraxis` : "Malpraxis",
             vendorName: vName,
             vendorLogo: undefined,
@@ -396,29 +621,50 @@ export default function MalpraxisPage() {
           };
         });
 
-      // Filter out ineligible offers for products already covered
-      const uniqueIneligible = ineligibleOffers.filter((o) => !coveredProductIds.has(o.productId));
+      const uniqueIneligible = ineligibleOffers.filter((offer) => !coveredProductIds.has(String(offer.productId)));
+
+      if (runId !== activeRunIdRef.current) {
+        return;
+      }
 
       setOrderId(order.id);
       setOrderHash(order.hash);
 
-      // Deduplicate error offers by vendor name (same vendor may have multiple productIds)
       const allOffers = [...results, ...droppedOffers, ...uniqueIneligible];
-      const seenErrorVendors = new Set<string>();
-      const deduped = allOffers.filter((o) => {
-        if (!o.error) return true; // keep all valid offers
-        if (seenErrorVendors.has(o.vendorName)) return false;
-        seenErrorVendors.add(o.vendorName);
+      const seenErrorVendors = new Set(
+        allOffers
+          .filter((offer) => !offer.error)
+          .map((offer) => normalizeVendorKey(offer.vendorName || offer.productName || ""))
+          .filter(Boolean)
+      );
+      const deduped = allOffers.filter((offer) => {
+        if (!offer.error) return true;
+        const vendorKey = normalizeVendorKey(offer.vendorName || offer.productName || "");
+        if (!vendorKey) return true;
+        if (seenErrorVendors.has(vendorKey)) return false;
+        seenErrorVendors.add(vendorKey);
         return true;
+      });
+
+      logClientTrace(currentTraceId, "offers_ready", {
+        orderId: order.id,
+        orderHash: order.hash,
+        offers: deduped,
       });
       setOffers(deduped);
     } catch (err) {
+      if (runId !== activeRunIdRef.current) {
+        return;
+      }
+      logClientTrace(currentTraceId, "offer_generation_error", { error: serializeTraceError(err) });
       const apiErr = err as { message?: string; data?: unknown };
       const detail = apiErr.data ? JSON.stringify(apiErr.data) : "";
       setError(`${apiErr.message || "Eroare la crearea comenzii"}${detail ? ` | ${detail}` : ""}`);
     } finally {
-      generatingRef.current = false;
-      setLoadingOffers(false);
+      if (runId === activeRunIdRef.current) {
+        generatingRef.current = false;
+        setLoadingOffers(false);
+      }
     }
   };
 
@@ -449,6 +695,7 @@ export default function MalpraxisPage() {
     setOffers([]);
     setOrderId(null);
     setOrderHash(null);
+    setDebugTraceId(null);
     setSelectedOffer(null);
     setError(null);
     setShowErrorOffers(false);
@@ -887,6 +1134,7 @@ export default function MalpraxisPage() {
             currency={selectedOffer.currency}
             productType="MALPRAXIS"
             customerEmail={insured.email}
+            debugTraceId={debugTraceId || undefined}
             onBack={prev}
           />
         </div>
@@ -928,3 +1176,13 @@ export default function MalpraxisPage() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+

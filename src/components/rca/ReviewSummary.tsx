@@ -204,7 +204,7 @@ export default function ReviewSummary({
         {processing ? (
           <div className="flex items-center justify-center gap-2 text-gray-500">
             <span className="h-5 w-5 animate-spin rounded-full border-2 border-[#2563EB] border-t-transparent" />
-            <span className="text-sm">Se proceseaza plata...</span>
+            <span className="text-sm">Se redirectioneaza catre plata...</span>
           </div>
         ) : (
           <button

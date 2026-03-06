@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import dns from "dns/promises";
+import { validateBody, emailValidateSchema } from "@/lib/validation/schemas";
 
 /**
  * Validates an email domain by checking for MX (mail exchange) records.
@@ -8,9 +9,11 @@ import dns from "dns/promises";
  */
 export async function POST(request: NextRequest) {
   try {
-    const { email } = (await request.json()) as { email?: string };
+    const parsed = await validateBody(request, emailValidateSchema);
+    if ("error" in parsed) return NextResponse.json({ valid: false, reason: "invalid_format" });
+    const { email } = parsed.data;
 
-    if (!email || typeof email !== "string" || !email.includes("@")) {
+    if (!email.includes("@")) {
       return NextResponse.json({ valid: false, reason: "invalid_format" });
     }
 
@@ -19,23 +22,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ valid: false, reason: "invalid_domain" });
     }
 
-    // Check MX records (does this domain accept email?)
+    // Check MX records first, then fall back to A record (RFC 5321 §5)
     try {
       const records = await dns.resolveMx(domain);
-      if (!records || records.length === 0) {
-        return NextResponse.json({ valid: false, reason: "no_mx_records" });
+      if (records && records.length > 0) {
+        return NextResponse.json({ valid: true });
       }
-      return NextResponse.json({ valid: true });
-    } catch (dnsErr) {
-      const code = (dnsErr as NodeJS.ErrnoException).code;
-      // ENOTFOUND = domain doesn't exist, ENODATA = no MX records
-      if (code === "ENOTFOUND" || code === "ENODATA" || code === "SERVFAIL") {
-        return NextResponse.json({ valid: false, reason: "domain_not_found" });
-      }
-      // DNS timeout or transient error — don't block the user
-      console.warn("[EmailValidate] DNS error for", domain, code);
-      return NextResponse.json({ valid: true, reason: "dns_timeout" });
+    } catch {
+      // MX lookup failed — fall through to A record check
     }
+
+    // Fallback: if domain has an A/AAAA record it can still receive mail
+    try {
+      await dns.resolve4(domain);
+      return NextResponse.json({ valid: true });
+    } catch {
+      // No A record either
+    }
+
+    try {
+      await dns.resolve6(domain);
+      return NextResponse.json({ valid: true });
+    } catch {
+      // No AAAA record either
+    }
+
+    // No MX, A, or AAAA — domain likely doesn't exist
+    return NextResponse.json({ valid: false, reason: "domain_not_found" });
   } catch {
     // If anything fails, don't block the user
     return NextResponse.json({ valid: true });

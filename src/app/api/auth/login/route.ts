@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { verifyPassword } from "@/lib/auth/password";
 import { signToken, setAuthCookie } from "@/lib/auth/jwt";
+import { validateBody, loginSchema } from "@/lib/validation/schemas";
 
 // In-memory rate limiter
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
@@ -38,15 +39,14 @@ export async function POST(request: Request) {
   }
 
   try {
-    const body = await request.json();
-    const { email, password } = body;
-
-    if (!email || !password) {
+    const parsed = await validateBody(request, loginSchema);
+    if ("error" in parsed) {
       return NextResponse.json(
         { error: "Email și parola sunt obligatorii." },
         { status: 400 }
       );
     }
+    const { email, password } = parsed.data;
 
     const emailLower = email.toLowerCase().trim();
 

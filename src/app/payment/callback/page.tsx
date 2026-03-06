@@ -3,6 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { useState, useEffect, useRef, Suspense } from "react";
 import { api } from "@/lib/api/client";
+import { MALPRAXIS_TRACE_HEADER } from "@/lib/debug/malpraxisTrace";
 import Link from "next/link";
 import { btn } from "@/lib/ui/tokens";
 import { CheckCircle2, ShieldCheck, Building2, Calendar, Download, AlertTriangle, ArrowRight, Mail } from "lucide-react";
@@ -49,6 +50,13 @@ interface PolicyCreateResponse {
   vendorName?: string | null;
 }
 
+interface CallbackErrorPresentation {
+  kind: "insurer" | "generic";
+  title: string;
+  detail: string;
+  hint: string;
+}
+
 // Normalize both response formats into a common shape
 function extractPolicyInfo(result: PolicyCreateResponse) {
   // RCA format: nested in policies array
@@ -80,14 +88,70 @@ function extractPolicyInfo(result: PolicyCreateResponse) {
   };
 }
 
+function getCallbackErrorPresentation(
+  error: string | null,
+  paymentApproved: boolean
+): CallbackErrorPresentation | null {
+  if (!error || error === "__OFFER_EXPIRED__") {
+    return null;
+  }
+
+  const trimmed = error.trim();
+
+  if (paymentApproved) {
+    const insurerDetail = trimmed.replace(/^Payment Reverted due to:\s*/i, "").trim();
+    if (/mesaj asigurator|INS-\d+/i.test(insurerDetail)) {
+      return {
+        kind: "insurer",
+        title: "Plata a fost confirmata, dar polita nu a putut fi emisa automat",
+        detail: insurerDetail,
+        hint: "Problema vine din raspunsul asiguratorului. Puteti reincerca sau transmite acest mesaj catre suport.",
+      };
+    }
+
+    return {
+      kind: "generic",
+      title: "Plata a fost confirmata, dar emiterea politei a esuat",
+      detail: trimmed,
+      hint: "Puteti reincerca. Daca problema persista, va rugam sa ne contactati.",
+    };
+  }
+
+  return {
+    kind: "generic",
+    title: "Plata nu a putut fi finalizata",
+    detail: trimmed,
+    hint: "Daca problema persista, va rugam sa ne contactati.",
+  };
+}
+
+// Checkout session data loaded from server
+interface SessionData {
+  orderId: number;
+  offerId: number;
+  orderHash: string;
+  productType: string;
+  email: string | null;
+  padOfferId: number | null;
+  policyData: Record<string, unknown> | null;
+}
+
 function PaymentCallbackContent() {
   const params = useSearchParams();
   const status = params.get("status");
   const message = params.get("message");
-  const offerId = params.get("offerId");
-  const orderHash = params.get("orderHash");
-  const productType = (params.get("productType") || "").toUpperCase();
-  const urlPadOfferId = params.get("padOfferId");
+  const sessionToken = params.get("session");
+  const traceId = params.get("traceId");
+
+  // Legacy URL params (fallback for in-flight payments during migration)
+  const legacyOfferId = params.get("offerId");
+  const legacyOrderHash = params.get("orderHash");
+  const legacyProductType = (params.get("productType") || "").toUpperCase();
+  const legacyPadOfferId = params.get("padOfferId");
+
+  const [session, setSession] = useState<SessionData | null>(null);
+  const [sessionLoading, setSessionLoading] = useState(!!sessionToken);
+  const [sessionError, setSessionError] = useState<string | null>(null);
 
   const [policyCreated, setPolicyCreated] = useState(false);
   const [policyResponse, setPolicyResponse] =
@@ -98,9 +162,40 @@ function PaymentCallbackContent() {
   const emailSentTo = useRef("");
   const insurerAutoCreated = useRef(false);
 
+  // Resolved values (from session or legacy params)
+  const offerId = session ? String(session.offerId) : legacyOfferId;
+  const orderHash = session ? session.orderHash : legacyOrderHash;
+  const productType = session ? session.productType : legacyProductType;
+  const resolvedPadOfferId = session?.padOfferId ?? (legacyPadOfferId && isValidPositiveInt(legacyPadOfferId) ? Number(legacyPadOfferId) : null);
+
   const normalizedStatus = (status || "").toUpperCase();
   const isSuccess = normalizedStatus === "APPROVED";
   const hasRequiredParams = isValidPositiveInt(offerId) && !!orderHash;
+
+  // Load checkout session from server
+  useEffect(() => {
+    if (!sessionToken) {
+      // Legacy flow — no session token, use URL params directly
+      setSessionLoading(false);
+      return;
+    }
+    (async () => {
+      try {
+        const resp = await fetch(`/api/checkout/session?token=${sessionToken}`);
+        if (!resp.ok) {
+          const body = await resp.json().catch(() => ({}));
+          setSessionError(body.error || "Sesiune invalida sau expirata.");
+          return;
+        }
+        const data: SessionData = await resp.json();
+        setSession(data);
+      } catch {
+        setSessionError("Nu s-a putut incarca sesiunea de plata.");
+      } finally {
+        setSessionLoading(false);
+      }
+    })();
+  }, [sessionToken]);
 
   const createPolicy = async () => {
     if (!isValidPositiveInt(offerId) || !orderHash) {
@@ -111,8 +206,7 @@ function PaymentCallbackContent() {
     setError(null);
     try {
       // Verify payment via InsureTech API before proceeding to policy creation.
-      // The proxy hardcodes Accept: application/json for this endpoint.
-      const padOid = urlPadOfferId && isValidPositiveInt(urlPadOfferId) ? [Number(urlPadOfferId)] : [];
+      const padOid = resolvedPadOfferId ? [resolvedPadOfferId] : [];
       const checkPayload = { offerIds: [Number(offerId), ...padOid] };
       let paymentVerified = false;
       for (let attempt = 1; attempt <= 3; attempt++) {
@@ -146,22 +240,18 @@ function PaymentCallbackContent() {
         return;
       }
 
-      let customerEmail = "";
+      // Use email from server-side session (preferred) or legacy localStorage fallback
+      let customerEmail = session?.email || "";
+      if (!customerEmail) {
+        try { customerEmail = localStorage.getItem("customerEmail") || ""; } catch { /* */ }
+      }
+      if (customerEmail) emailSentTo.current = customerEmail;
+
       let vehicleVin = "";
       let vehiclePlate = "";
       let vehicleCategory = "";
 
-      // Retrieve saved email (set by PaymentFlow before redirect)
-      try {
-        customerEmail = localStorage.getItem("customerEmail") || "";
-        if (customerEmail) emailSentTo.current = customerEmail;
-      } catch {
-        // sessionStorage unavailable
-      }
-
       // ── Step 1: Fetch offer details (safe GET, no side effects) ──
-      // Some insurers auto-create the policy after payment. Calling policies/v3
-      // when a policy already exists causes "Payment Reverted" — so we check first.
       let offerDetails: Record<string, unknown> | null = null;
       try {
         const detailsEndpoint = productType === "MALPRAXIS"
@@ -179,7 +269,7 @@ function PaymentCallbackContent() {
         console.warn("[PaymentCallback] Could not fetch offer details:", detailsErr);
       }
 
-      // Extract vendor/dates from offer details (available for all products)
+      // Extract vendor/dates from offer details
       const pd = offerDetails?.productDetails as Record<string, unknown> | undefined;
       const vd = pd?.vendorDetails as Record<string, unknown> | undefined;
       const offerVendor = (vd?.commercialName as string) || (vd?.name as string) || null;
@@ -187,9 +277,7 @@ function PaymentCallbackContent() {
       const offerEnd = (offerDetails?.policyEndDate as string) || null;
 
       // ── Step 2: Create policy ──
-      // Only Euroins (malpraxis) auto-creates the policy after payment.
-      // Calling policies/v3 when the policy already exists causes "Payment Reverted"
-      // which REVERSES the payment. Other insurers (ABC, Garanta, Uniqa) use normal flow.
+      // Only Euroins auto-creates the policy after payment.
       const isEuroins = offerVendor?.toLowerCase().includes("euroins");
       const skipPolicyCreation = isEuroins === true;
       if (skipPolicyCreation) insurerAutoCreated.current = true;
@@ -207,12 +295,9 @@ function PaymentCallbackContent() {
       };
 
       if (skipPolicyCreation) {
-        // Insurer auto-created the policy — show success with offer details
         console.log("[PaymentCallback] Skipping policies/v3 for", productType, "(insurer auto-creates policy)");
-        try { localStorage.removeItem("customerEmail"); } catch { /* */ }
-        try { localStorage.removeItem("rcaPolicyData"); } catch { /* */ }
         setPolicyResponse({
-          orderId: (offerDetails?.orderId as number) || 0,
+          orderId: session?.orderId || (offerDetails?.orderId as number) || 0,
           vendorName: offerVendor,
           policyStartDate: offerStart,
           policyEndDate: offerEnd,
@@ -231,16 +316,18 @@ function PaymentCallbackContent() {
         let payload: Record<string, unknown>;
 
         if (productType === "RCA") {
-          let savedData: Record<string, unknown> = {};
-          try {
-            const raw = localStorage.getItem("rcaPolicyData");
-            if (raw) {
-              savedData = JSON.parse(raw);
-              if (!customerEmail) {
-                customerEmail = (savedData.email as string) || "";
-              }
-            }
-          } catch { /* */ }
+          // Load policy data from server-side session (preferred) or legacy localStorage
+          let savedData: Record<string, unknown> = session?.policyData || {};
+          if (!session?.policyData) {
+            try {
+              const raw = localStorage.getItem("rcaPolicyData");
+              if (raw) savedData = JSON.parse(raw);
+            } catch { /* */ }
+          }
+          if (!customerEmail && savedData.email) {
+            customerEmail = savedData.email as string;
+            emailSentTo.current = customerEmail;
+          }
 
           payload = {
             rcaOfferId: Number(offerId),
@@ -253,21 +340,11 @@ function PaymentCallbackContent() {
             vehiclePlate = (savedVd.plateNo as string) || "";
             vehicleCategory = String(savedVd.vehicleCategoryId || "");
           }
-          localStorage.removeItem("rcaPolicyData");
+          try { localStorage.removeItem("rcaPolicyData"); } catch { /* */ }
         } else {
           payload = { offerId: Number(offerId), paymentMethodType: "CardOnline" };
-          let resolvedPadOfferId = urlPadOfferId;
-          if (!resolvedPadOfferId || !isValidPositiveInt(resolvedPadOfferId)) {
-            try {
-              const saved = localStorage.getItem("housePolicyData");
-              if (saved) {
-                const data = JSON.parse(saved);
-                if (data.padOfferId) resolvedPadOfferId = String(data.padOfferId);
-              }
-            } catch { /* */ }
-          }
-          if (resolvedPadOfferId && isValidPositiveInt(resolvedPadOfferId)) {
-            payload.padOfferId = Number(resolvedPadOfferId);
+          if (resolvedPadOfferId) {
+            payload.padOfferId = resolvedPadOfferId;
           }
         }
 
@@ -276,17 +353,19 @@ function PaymentCallbackContent() {
         const result = await api.post<PolicyCreateResponse>(
           policyEndpoint,
           payload,
-          { Accept: "application/json" },
+          {
+            Accept: "application/json",
+            ...(traceId && productType === "MALPRAXIS"
+              ? { [MALPRAXIS_TRACE_HEADER]: traceId }
+              : {}),
+          },
           { timeoutMs: 120000 }
         );
         console.log("[PaymentCallback] policies response:", JSON.stringify(result));
 
         const policyInfo = extractPolicyInfo(result);
 
-        // Check if policies/v3 returned "already issued" — insurer auto-created
         const alreadyIssued = policyInfo.error && policyInfo.message?.includes("Exista deja o polita emisa");
-
-        // Detect expired offer (midnight edge case: offer created yesterday, payment today)
         const offerExpired = policyInfo.error && policyInfo.message?.includes("Data platii trebuie sa fie intre");
 
         if (policyInfo.error && !alreadyIssued && !offerExpired) {
@@ -296,7 +375,6 @@ function PaymentCallbackContent() {
         } else if (!alreadyIssued) {
           info = policyInfo;
         }
-        // If alreadyIssued, keep the info from offer details (vendor + dates)
 
         setPolicyResponse(alreadyIssued
           ? { orderId: result.orderId, policyId: info.policyId, series: info.series, number: info.number,
@@ -313,32 +391,37 @@ function PaymentCallbackContent() {
       } else {
         setPolicyCreated(true);
 
-        // Save policy to portal database
+        // Save policy to portal database when the insurer returned a policy id.
         const policyNumber = info.series && info.number
           ? `${info.series} ${info.number}`
           : info.number || null;
-        try {
-          await fetch("/api/portal/policies", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              orderId: (offerDetails?.orderId as number) || 0,
-              orderHash,
-              offerId: Number(offerId),
-              policyId: info.policyId,
-              productType: productType || "UNKNOWN",
-              policyNumber,
-              vendorName: info.vendorName,
-              startDate: info.startDate,
-              endDate: info.endDate,
-              email: customerEmail,
-              vehicleVin: vehicleVin || undefined,
-              vehiclePlate: vehiclePlate || undefined,
-              vehicleCategory: vehicleCategory || undefined,
-            }),
-          });
-        } catch {
-          console.warn("Failed to save policy to portal");
+        const canPersistPortalPolicy = typeof info.policyId === "number" && info.policyId > 0;
+        if (canPersistPortalPolicy) {
+          try {
+            await fetch("/api/portal/policies", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                orderId: session?.orderId || (offerDetails?.orderId as number) || 0,
+                orderHash,
+                offerId: Number(offerId),
+                policyId: info.policyId,
+                productType: productType || "UNKNOWN",
+                policyNumber,
+                vendorName: info.vendorName,
+                startDate: info.startDate,
+                endDate: info.endDate,
+                email: customerEmail,
+                vehicleVin: vehicleVin || undefined,
+                vehiclePlate: vehiclePlate || undefined,
+                vehicleCategory: vehicleCategory || undefined,
+              }),
+            });
+          } catch {
+            console.warn("Failed to save policy to portal");
+          }
+        } else {
+          console.log("[PaymentCallback] Skipping portal save because policyId is unavailable");
         }
 
         // Send policy documents to customer email
@@ -364,7 +447,7 @@ function PaymentCallbackContent() {
             console.log("[PaymentCallback] Email result:", emailResp.status, emailResult);
             if (!emailResp.ok) {
               console.error("[PaymentCallback] Email failed:", emailResult);
-              emailSentTo.current = ""; // Don't show "sent" if it failed
+              emailSentTo.current = "";
             }
           } catch (emailErr) {
             console.error("[PaymentCallback] Email error:", emailErr);
@@ -379,14 +462,15 @@ function PaymentCallbackContent() {
     }
   };
 
-  // Auto-emit policy when payment is approved
+  // Auto-emit policy when payment is approved and session is loaded
   useEffect(() => {
+    if (sessionLoading) return;
     if (isSuccess && hasRequiredParams && !autoEmitAttempted.current) {
       autoEmitAttempted.current = true;
       createPolicy();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSuccess, hasRequiredParams]);
+  }, [isSuccess, hasRequiredParams, sessionLoading]);
 
   const downloadDocument = async (type: "offer" | "policy", id: number) => {
     if (!orderHash || !Number.isFinite(id) || id <= 0) {
@@ -425,6 +509,35 @@ function PaymentCallbackContent() {
       ? `${policyInfo.series} ${policyInfo.number}`
       : policyInfo?.number || null;
   const vendorName = policyInfo?.vendorName || null;
+  const callbackError = getCallbackErrorPresentation(error, isSuccess);
+
+  // Show loading while session is being fetched
+  if (sessionLoading) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-10 w-10 animate-spin rounded-full border-[3px] border-gray-200 border-t-[#2563EB]" />
+          <p className="text-sm text-gray-500">Se incarca sesiunea de plata...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error if session could not be loaded
+  if (sessionError) {
+    return (
+      <div className="mx-auto max-w-xl px-4 pt-28 pb-16 text-center">
+        <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-red-500 to-orange-500 shadow-lg shadow-red-500/25">
+          <AlertTriangle className="h-10 w-10 text-white" strokeWidth={2.5} />
+        </div>
+        <h1 className="mt-6 text-2xl font-bold text-gray-900">Sesiune invalida</h1>
+        <p className="mt-2 text-gray-500">{sessionError}</p>
+        <Link href="/" className={`${btn.primary} mt-6 inline-flex items-center gap-2`}>
+          Inapoi la pagina principala
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="relative mx-auto max-w-xl px-4 pt-28 pb-16">
@@ -505,7 +618,7 @@ function PaymentCallbackContent() {
                   <CheckCircle2 className="h-5 w-5 shrink-0 text-green-600" />
                   <p className="text-sm text-green-700">
                     {insurerAutoCreated.current
-                      ? "Polita a fost emisa automat de asigurator. Veti primi documentele direct de la asigurator pe adresa de email."
+                      ? "Polita a fost emisa automat de asigurator. API-ul nu ne-a returnat un PDF descarcabil pentru acest caz, iar documentele vor fi trimise direct de asigurator."
                       : "Polita a fost emisa de asigurator. Documentele vor fi trimise pe email."}
                   </p>
                 </div>
@@ -552,7 +665,9 @@ function PaymentCallbackContent() {
               <div className="flex items-center gap-2 rounded-lg bg-blue-50 px-4 py-3">
                 <Mail className="h-4 w-4 shrink-0 text-[#2563EB]" />
                 <p className="text-xs text-[#2563EB]">
-                  Documentele au fost trimise pe adresa {emailSentTo.current}.
+                  {insurerAutoCreated.current
+                    ? <>Am trimis o notificare pe adresa {emailSentTo.current}. Documentele vor fi trimise direct de asigurator.</>
+                    : <>Documentele au fost trimise pe adresa {emailSentTo.current}.</>}
                 </p>
               </div>
             )}
@@ -618,12 +733,44 @@ function PaymentCallbackContent() {
       )}
 
       {/* ── Error state ── */}
-      {error && error !== "__OFFER_EXPIRED__" && (
-        <div className="mt-8 rounded-2xl border border-red-100 bg-red-50 p-6">
+      {callbackError && (
+        <div
+          className={`mt-8 rounded-2xl border p-6 ${
+            callbackError.kind === "insurer"
+              ? "border-amber-200 bg-amber-50"
+              : "border-red-100 bg-red-50"
+          }`}
+        >
           <div className="flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 shrink-0 text-red-500 mt-0.5" />
+            <AlertTriangle
+              className={`mt-0.5 h-5 w-5 shrink-0 ${
+                callbackError.kind === "insurer" ? "text-amber-500" : "text-red-500"
+              }`}
+            />
             <div className="space-y-2">
-              <p className="text-sm font-medium text-red-800">{error}</p>
+              <p
+                className={`text-sm font-medium ${
+                  callbackError.kind === "insurer" ? "text-amber-800" : "text-red-800"
+                }`}
+              >
+                {callbackError.title}
+              </p>
+              <p
+                className={`text-sm ${
+                  callbackError.kind === "insurer" ? "text-amber-700" : "text-red-700"
+                }`}
+              >
+                {callbackError.detail}
+              </p>
+              {traceId && isSuccess && (
+                <p
+                  className={`text-xs ${
+                    callbackError.kind === "insurer" ? "text-amber-600" : "text-red-500"
+                  }`}
+                >
+                  Trace ID: {traceId}
+                </p>
+              )}
               {isSuccess && !policyCreated && !creating && (
                 <button
                   onClick={() => {
@@ -631,13 +778,21 @@ function PaymentCallbackContent() {
                     autoEmitAttempted.current = false;
                     createPolicy();
                   }}
-                  className={`${btn.primary} !bg-red-600 hover:!bg-red-700 !px-6 !py-2 text-xs`}
+                  className={`${btn.primary} ${
+                    callbackError.kind === "insurer"
+                      ? "!bg-amber-600 hover:!bg-amber-700"
+                      : "!bg-red-600 hover:!bg-red-700"
+                  } !px-6 !py-2 text-xs`}
                 >
                   Incearca din nou
                 </button>
               )}
-              <p className="text-xs text-red-400">
-                Daca problema persista, va rugam sa ne contactati.
+              <p
+                className={`text-xs ${
+                  callbackError.kind === "insurer" ? "text-amber-500" : "text-red-400"
+                }`}
+              >
+                {callbackError.hint}
               </p>
             </div>
           </div>
@@ -686,3 +841,9 @@ export default function PaymentCallbackPage() {
     </Suspense>
   );
 }
+
+
+
+
+
+

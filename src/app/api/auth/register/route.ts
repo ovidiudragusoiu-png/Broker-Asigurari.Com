@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { hashPassword } from "@/lib/auth/password";
 import { signToken, setAuthCookie } from "@/lib/auth/jwt";
+import { validateBody, registerSchema } from "@/lib/validation/schemas";
 
 // In-memory rate limiter
 const registerAttempts = new Map<string, { count: number; resetAt: number }>();
@@ -42,22 +43,14 @@ export async function POST(request: Request) {
   }
 
   try {
-    const body = await request.json();
-    const { email, password, firstName, lastName, phone } = body;
-
-    if (!email || !password) {
+    const parsed = await validateBody(request, registerSchema);
+    if ("error" in parsed) {
       return NextResponse.json(
-        { error: "Email și parola sunt obligatorii." },
+        { error: "Email și parola sunt obligatorii (minim 8 caractere)." },
         { status: 400 }
       );
     }
-
-    if (password.length < 8) {
-      return NextResponse.json(
-        { error: "Parola trebuie să aibă minim 8 caractere." },
-        { status: 400 }
-      );
-    }
+    const { email, password, firstName, lastName, phone } = parsed.data;
 
     const emailLower = email.toLowerCase().trim();
 

@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { api } from "@/lib/api/client";
 import type { RcaFlowState } from "@/types/rcaFlow";
 import { getLocalVendorLogo, periodText } from "@/lib/utils/rcaHelpers";
 import TermsModal from "./TermsModal";

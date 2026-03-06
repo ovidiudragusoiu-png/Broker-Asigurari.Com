@@ -203,7 +203,6 @@ export default function TravelPage() {
       setOrderId(null);
       setOrderHash(null);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStep]);
 
   // Auto-generate offers when entering the Offers step

@@ -21,6 +21,7 @@ export default function LocalitySelect({ countyId, countyName, onSelect }: Local
   const [selectedCityId, setSelectedCityId] = useState<number | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data-fetch loading toggle
     setLoading(true);
     api
       .get<CityOption[]>(`/online/address/utils/cities?countyId=${countyId}`)

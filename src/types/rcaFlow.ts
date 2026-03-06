@@ -134,7 +134,7 @@ export type RcaAction =
   | { type: "SET_OFFERS"; offers: RcaOffer[]; hasDirectSettlementData: boolean | null }
   | { type: "APPEND_OFFERS"; offers: RcaOffer[] }
   | { type: "SET_LOADING_OFFERS"; loading: boolean }
-  | { type: "SELECT_OFFER"; selected: SelectedOfferState }
+  | { type: "SELECT_OFFER"; selected: SelectedOfferState | null }
   | { type: "SET_POLICY_DETAILS"; details: Partial<Pick<RcaFlowState, "registrationCertSeries" | "startDate" | "ownerFirstName" | "ownerLastName" | "companyName" | "registrationNumber" | "caenCode" | "idType" | "idSeries" | "idNumber">> }
   | { type: "SET_COMPANY_DATA"; companyName: string; registrationNumber: string; caenCode: string | null; companyTypeId: number | null }
   | { type: "SET_ADDRESS"; address: AddressRequest }

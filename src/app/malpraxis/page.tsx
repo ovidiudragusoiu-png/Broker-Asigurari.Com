@@ -14,5 +14,7 @@ export const metadata: Metadata = {
 };
 
 export default function MalpraxisPage() {
-  return <MalpraxisPageContent />;
+  return <MalpraxisPageContent debugEnabled={process.env.MALPRAXIS_DEBUG === "1"} />;
 }
+
+

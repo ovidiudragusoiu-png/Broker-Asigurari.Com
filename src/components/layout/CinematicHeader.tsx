@@ -16,6 +16,8 @@ export default function CinematicHeader() {
 
   useEffect(() => {
     if (!isHome) {
+      // Non-home pages are always scrolled — intentional sync from prop
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setScrolled(true);
       return;
     }

@@ -140,6 +140,7 @@ export default function AddressForm({
 
   /* Sync streetQuery when value.streetName changes externally (e.g. copy address) */
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync from prop
     setStreetQuery(value.streetName || "");
   }, [value.streetName]);
 

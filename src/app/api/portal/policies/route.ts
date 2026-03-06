@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getClientInfo } from "@/lib/audit/logger";
+import { validateBody, portalPolicySchema } from "@/lib/validation/schemas";
 
 // POST: Save a policy record (called from payment callback)
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const parsed = await validateBody(request, portalPolicySchema);
+    if ("error" in parsed) return parsed.error;
     const {
       orderId,
       orderHash,
@@ -23,43 +25,7 @@ export async function POST(request: NextRequest) {
       vehicleVin,
       vehiclePlate,
       vehicleCategory,
-    } = body;
-
-    if (!orderId || !orderHash || !offerId || !policyId) {
-      return NextResponse.json(
-        { error: "Date insuficiente pentru salvarea poliței." },
-        { status: 400 }
-      );
-    }
-
-    // Validate productType enum
-    const VALID_PRODUCT_TYPES = [
-      "RCA", "TRAVEL", "HOUSE", "PAD", "MALPRAXIS",
-      "CASCO", "GARANTII", "RASPUNDERE", "UNKNOWN",
-    ];
-    if (productType && !VALID_PRODUCT_TYPES.includes(String(productType).toUpperCase())) {
-      return NextResponse.json(
-        { error: "Tip produs invalid." },
-        { status: 400 }
-      );
-    }
-
-    // Validate email format
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email))) {
-      return NextResponse.json(
-        { error: "Format email invalid." },
-        { status: 400 }
-      );
-    }
-
-    // Validate currency
-    const VALID_CURRENCIES = ["RON", "EUR", "USD"];
-    if (currency && !VALID_CURRENCIES.includes(String(currency).toUpperCase())) {
-      return NextResponse.json(
-        { error: "Monedă invalidă." },
-        { status: 400 }
-      );
-    }
+    } = parsed.data;
 
     // Check if user is logged in
     const user = await getCurrentUser();
@@ -81,17 +47,17 @@ export async function POST(request: NextRequest) {
       data: {
         userId,
         email: emailLower || user?.email || "unknown",
-        orderId: Number(orderId),
-        orderHash: String(orderHash),
-        offerId: Number(offerId),
-        policyId: Number(policyId),
-        productType: String(productType || "UNKNOWN"),
-        policyNumber: policyNumber || null,
-        vendorName: vendorName || null,
-        premium: premium ? Number(premium) : null,
-        currency: currency || "RON",
-        startDate: startDate || null,
-        endDate: endDate || null,
+        orderId,
+        orderHash,
+        offerId,
+        policyId,
+        productType: productType.toUpperCase(),
+        policyNumber,
+        vendorName,
+        premium,
+        currency,
+        startDate,
+        endDate,
         vehicleVin: vehicleVin || null,
         vehiclePlate: vehiclePlate || null,
         vehicleCategory: vehicleCategory || null,

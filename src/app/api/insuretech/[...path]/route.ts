@@ -1,53 +1,58 @@
 import { NextRequest, NextResponse } from "next/server";
 import { appEnv, insureTechEnv } from "@/lib/config/env";
 import { logAudit, getClientInfo } from "@/lib/audit/logger";
+import {
+  MALPRAXIS_TRACE_HEADER,
+  isMalpraxisDebugEnabled,
+  logMalpraxisTrace,
+  parseTraceBody,
+  serializeTraceError,
+} from "@/lib/debug/malpraxisTrace";
 
 const API_URL = insureTechEnv.apiUrl;
 const USERNAME = insureTechEnv.username;
 const PASSWORD = insureTechEnv.password;
 const API_KEY = insureTechEnv.apiKey;
 
-// ---- Security: endpoint whitelist ----
 const ALLOWED_PATHS: RegExp[] = [
-  /^online\/vehicles($|\?)/, // VIN lookup
-  /^online\/vehicles\/categories(\/|$)/, // categories, subcategories
-  /^online\/vehicles\/makes($|\?)/, // makes
-  /^online\/vehicles\/registrationtypes($|\?)/, // registration types
-  /^online\/vehicles\/fueltypes($|\?)/, // fuel types
-  /^online\/vehicles\/activitytypes($|\?)/, // activity types
-  /^online\/address\/utils\//, // counties, cities, postal codes, street types, floors
-  /^online\/companies\/utils\//, // company lookup
-  /^online\/products\/rca($|\?)/, // RCA products list
-  /^online\/products\/travel($|\?)/, // travel products
-  /^online\/products\/house\//, // house products
-  /^online\/products\/malpraxis($|\?)/, // malpraxis products
-  /^online\/offers\/rca\/order(\/v3($|\?)|\/v3\/\d+)/, // create/update RCA order
-  /^online\/offers\/rca\/v3($|\?)/, // generate RCA offers
-  /^online\/offers\/rca\/\d+\/details\/v3($|\?)/, // offer details
-  /^online\/offers\/order\/v3($|\?|\/)/, // order operations (v3)
-  /^online\/offers\/order($|\?)/, // order operations (non-v3, PAD)
-  /^online\/offers\/payment\/v3($|\?)/, // create payment (v3)
-  /^online\/offers\/payment($|\?)/, // create payment (non-v3, PAD)
-  /^online\/offers\/payment\/check\/v3($|\?)/, // check payment
-  /^online\/offers\/payment\/loan\/v3($|\?)/, // loan payment (v3)
-  /^online\/offers\/payment\/loan($|\?)/, // loan payment (non-v3, PAD)
-  /^online\/offers\/paid\/pad(\/v3)?($|\?)/, // PAD offer creation (v3 + non-v3)
-  /^online\/offers\/\d+\/document\/v3($|\?)/, // offer document
-  /^online\/offers\/travel\//, // travel offers
-  /^online\/offers\/house\//, // house offers
-  /^online\/offers\/malpraxis\//, // malpraxis offers
-  /^online\/client\/documents\//, // consent documents
-  /^online\/policies($|\/)/, // policy creation & documents
-  /^online\/idtypes($|\?)/, // ID types
-  /^online\/companytypes($|\?)/, // company types
-  /^online\/caencodes($|\?)/, // CAEN codes
-  /^online\/utils\//, // building structures, seismic risk, etc.
-  /^online\/paid\/pad\//, // PAD
+  /^online\/vehicles($|\?)/,
+  /^online\/vehicles\/categories(\/|$)/,
+  /^online\/vehicles\/makes($|\?)/,
+  /^online\/vehicles\/registrationtypes($|\?)/,
+  /^online\/vehicles\/fueltypes($|\?)/,
+  /^online\/vehicles\/activitytypes($|\?)/,
+  /^online\/address\/utils\//,
+  /^online\/companies\/utils\//,
+  /^online\/products\/rca($|\?)/,
+  /^online\/products\/travel($|\?)/,
+  /^online\/products\/house\//,
+  /^online\/products\/malpraxis($|\?)/,
+  /^online\/offers\/rca\/order(\/v3($|\?)|\/v3\/\d+)/,
+  /^online\/offers\/rca\/v3($|\?)/,
+  /^online\/offers\/rca\/\d+\/details\/v3($|\?)/,
+  /^online\/offers\/order\/v3($|\?|\/)/,
+  /^online\/offers\/order($|\?)/,
+  /^online\/offers\/payment\/v3($|\?)/,
+  /^online\/offers\/payment($|\?)/,
+  /^online\/offers\/payment\/check\/v3($|\?)/,
+  /^online\/offers\/payment\/loan\/v3($|\?)/,
+  /^online\/offers\/payment\/loan($|\?)/,
+  /^online\/offers\/paid\/pad(\/v3)?($|\?)/,
+  /^online\/offers\/\d+\/document\/v3($|\?)/,
+  /^online\/offers\/travel\//,
+  /^online\/offers\/house\//,
+  /^online\/offers\/malpraxis\//,
+  /^online\/client\/documents\//,
+  /^online\/policies($|\/)/,
+  /^online\/idtypes($|\?)/,
+  /^online\/companytypes($|\?)/,
+  /^online\/caencodes($|\?)/,
+  /^online\/utils\//,
+  /^online\/paid\/pad\//,
 ];
 
-const MAX_BODY_SIZE = 1_048_576; // 1 MB
+const MAX_BODY_SIZE = 1_048_576;
 
-// Sensitive operations that warrant audit logging
 const AUDIT_PATHS: { pattern: RegExp; action: string }[] = [
   { pattern: /^online\/offers\/rca\/order\/v3/, action: "ORDER_CREATED" },
   { pattern: /^online\/offers\/order\/v3/, action: "ORDER_CREATED" },
@@ -55,6 +60,13 @@ const AUDIT_PATHS: { pattern: RegExp; action: string }[] = [
   { pattern: /^online\/policies/, action: "POLICY_CREATED" },
   { pattern: /^online\/offers\/payment\/v3/, action: "PAYMENT_INITIATED" },
   { pattern: /^online\/offers\/payment($|\?)/, action: "PAYMENT_INITIATED" },
+];
+
+const ACCEPT_TEXT_PLAIN: RegExp[] = [
+  /^online\/offers\/payment\/v3($|\?)/,
+  /^online\/offers\/payment\/loan\/v3($|\?)/,
+  /^online\/offers\/payment($|\?)/,
+  /^online\/offers\/payment\/loan($|\?)/,
 ];
 
 function getAuditAction(path: string): string | null {
@@ -68,6 +80,10 @@ function isPathAllowed(path: string): boolean {
   return ALLOWED_PATHS.some((re) => re.test(path));
 }
 
+function isTraceableMalpraxisPath(path: string): boolean {
+  return path.startsWith("online/offers/malpraxis/") || path.startsWith("online/policies");
+}
+
 function getAuthHeaders(): Record<string, string> {
   const credentials = Buffer.from(`${USERNAME}:${PASSWORD}`).toString("base64");
   return {
@@ -77,34 +93,21 @@ function getAuthHeaders(): Record<string, string> {
 }
 
 async function proxyRequest(req: NextRequest, method: string) {
+  const startedAt = Date.now();
   const url = new URL(req.url);
-  // Extract the path after /api/insuretech/
   const pathSegments = url.pathname.replace(/^\/api\/insuretech\//, "");
+  const traceId = req.headers.get(MALPRAXIS_TRACE_HEADER);
+  const shouldTrace = isMalpraxisDebugEnabled() && !!traceId && isTraceableMalpraxisPath(pathSegments);
 
-  // Security: reject paths not in the whitelist
   if (!isPathAllowed(pathSegments)) {
-    return NextResponse.json(
-      { message: "Forbidden" },
-      { status: 403 }
-    );
+    return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
 
   const targetUrl = `${API_URL}/${pathSegments}${url.search}`;
-
-  // ── Accept header contract (authoritative, from InsureTech team) ──
-  // payment/v3 and payment/loan/v3: MUST use text/plain (returns redirect URL)
-  // payment/check/v3: MUST use application/json
-  // policies/*: MUST use application/json
-  // Everything else: application/json
-  const ACCEPT_TEXT_PLAIN: RegExp[] = [
-    /^online\/offers\/payment\/v3($|\?)/,
-    /^online\/offers\/payment\/loan\/v3($|\?)/,
-    /^online\/offers\/payment($|\?)/,       // non-v3 PAD payment
-    /^online\/offers\/payment\/loan($|\?)/,  // non-v3 PAD loan
-  ];
   const acceptHeader = ACCEPT_TEXT_PLAIN.some((re) => re.test(pathSegments))
     ? "text/plain"
     : "application/json";
+
   const headers: Record<string, string> = {
     ...getAuthHeaders(),
     Accept: acceptHeader,
@@ -112,15 +115,11 @@ async function proxyRequest(req: NextRequest, method: string) {
 
   const fetchOptions: RequestInit = { method, headers };
   const controller = new AbortController();
-  // Policy creation can be slow — allow 2 minutes for those endpoints
   const isSlowEndpoint = /^online\/(policies|offers\/payment)(\/|$)/.test(pathSegments);
   const timeoutMs = isSlowEndpoint
     ? Math.max(appEnv.requestTimeoutMs, 120000)
     : appEnv.requestTimeoutMs;
-  const timeoutId = setTimeout(
-    () => controller.abort(),
-    timeoutMs
-  );
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   fetchOptions.signal = controller.signal;
 
   let requestBody = "";
@@ -130,34 +129,42 @@ async function proxyRequest(req: NextRequest, method: string) {
       headers["Content-Type"] = contentType;
     }
     requestBody = await req.text();
-    // Security: enforce body size limit
     if (requestBody.length > MAX_BODY_SIZE) {
       clearTimeout(timeoutId);
-      return NextResponse.json(
-        { message: "Request body too large" },
-        { status: 413 }
-      );
+      return NextResponse.json({ message: "Request body too large" }, { status: 413 });
     }
     if (requestBody) {
       fetchOptions.body = requestBody;
     }
   }
 
+  if (shouldTrace) {
+    logMalpraxisTrace({
+      traceId,
+      phase: "proxy_request",
+      path: pathSegments,
+      payload: {
+        method,
+        query: Object.fromEntries(url.searchParams.entries()),
+        headers,
+        body: parseTraceBody(requestBody),
+      },
+    });
+  }
+
   try {
     const response = await fetch(targetUrl, fetchOptions);
 
     const responseHeaders = new Headers();
-    const contentType = response.headers.get("content-type");
+    const contentType = response.headers.get("content-type") || "";
     if (contentType) {
       responseHeaders.set("content-type", contentType);
     }
-    // Forward content-disposition for file downloads
     const contentDisposition = response.headers.get("content-disposition");
     if (contentDisposition) {
       responseHeaders.set("content-disposition", contentDisposition);
     }
 
-    // Use arrayBuffer for binary responses (PDF, etc.), text for everything else
     const isTextResponse =
       !contentType ||
       contentType.includes("json") ||
@@ -166,12 +173,27 @@ async function proxyRequest(req: NextRequest, method: string) {
 
     if (isTextResponse) {
       const responseBody = await response.text();
+      const parsedResponseBody = parseTraceBody(responseBody);
+      const durationMs = Date.now() - startedAt;
 
-      if (!response.ok) {
-        console.error(`[InsureTech API] ${method} ${pathSegments} → ${response.status}`, responseBody);
+      if (shouldTrace) {
+        logMalpraxisTrace({
+          traceId,
+          phase: response.ok ? "proxy_response" : "proxy_error",
+          path: pathSegments,
+          status: response.status,
+          durationMs,
+          payload: {
+            contentType,
+            body: parsedResponseBody,
+          },
+        });
       }
 
-      // Audit logging for sensitive POST/PUT operations
+      if (!response.ok) {
+        console.error(`[InsureTech API] ${method} ${pathSegments} -> ${response.status}`, responseBody);
+      }
+
       if (response.ok && (method === "POST" || method === "PUT")) {
         const auditAction = getAuditAction(pathSegments);
         if (auditAction) {
@@ -179,14 +201,18 @@ async function proxyRequest(req: NextRequest, method: string) {
           let payload: Record<string, unknown> | undefined;
           try {
             payload = requestBody ? JSON.parse(requestBody) : undefined;
-          } catch { /* not JSON */ }
+          } catch {
+            // ignore non-JSON payloads
+          }
 
-          // Extract orderHash from URL search params
           const orderHash = url.searchParams.get("orderHash") || undefined;
 
-          // Extract identifiers from response
           let respData: Record<string, unknown> = {};
-          try { respData = JSON.parse(responseBody); } catch { /* */ }
+          try {
+            respData = JSON.parse(responseBody);
+          } catch {
+            // ignore non-JSON payloads
+          }
 
           await logAudit({
             action: auditAction,
@@ -204,25 +230,45 @@ async function proxyRequest(req: NextRequest, method: string) {
         status: response.status,
         headers: responseHeaders,
       });
-    } else {
-      const responseBody = await response.arrayBuffer();
-      return new NextResponse(responseBody, {
+    }
+
+    const responseBody = await response.arrayBuffer();
+    if (shouldTrace) {
+      logMalpraxisTrace({
+        traceId,
+        phase: response.ok ? "proxy_response" : "proxy_error",
+        path: pathSegments,
         status: response.status,
-        headers: responseHeaders,
+        durationMs: Date.now() - startedAt,
+        payload: {
+          contentType,
+          byteLength: responseBody.byteLength,
+          body: "[binary response omitted]",
+        },
       });
     }
+
+    return new NextResponse(responseBody, {
+      status: response.status,
+      headers: responseHeaders,
+    });
   } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") {
-      return NextResponse.json(
-        { message: "InsureTech API timeout" },
-        { status: 504 }
-      );
+    if (shouldTrace) {
+      logMalpraxisTrace({
+        traceId,
+        phase: "proxy_exception",
+        path: pathSegments,
+        durationMs: Date.now() - startedAt,
+        payload: serializeTraceError(error),
+      });
     }
+
+    if (error instanceof Error && error.name === "AbortError") {
+      return NextResponse.json({ message: "InsureTech API timeout" }, { status: 504 });
+    }
+
     console.error("InsureTech API proxy error:", error instanceof Error ? error.message : "Unknown error");
-    return NextResponse.json(
-      { message: "Failed to connect to InsureTech API" },
-      { status: 502 }
-    );
+    return NextResponse.json({ message: "Failed to connect to InsureTech API" }, { status: 502 });
   } finally {
     clearTimeout(timeoutId);
   }

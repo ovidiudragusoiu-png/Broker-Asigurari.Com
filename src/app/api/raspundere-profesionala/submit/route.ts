@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
+import { validateBody, raspundereSchema, type RaspundereData } from "@/lib/validation/schemas";
 
 const TO_EMAILS = ["bucuresti@broker-asigurari.com", "office@sigur.ai"];
 
@@ -9,27 +10,12 @@ function getResend() {
   return new Resend(key);
 }
 
-interface RPSubmission {
-  professionType: string;
-  ownerType: "PF" | "PJ";
-  lastName: string;
-  firstName: string;
-  companyName: string;
-  cui: string;
-  cnp: string;
-  email: string;
-  phone: string;
-  countyName: string;
-  cityName: string;
-  observations: string;
-}
-
 function row(label: string, value: string | undefined): string {
   if (!value) return "";
   return `<tr><td style="padding:6px 12px;font-weight:600;color:#374151;white-space:nowrap">${label}</td><td style="padding:6px 12px;color:#4b5563">${value}</td></tr>`;
 }
 
-function buildEmailHtml(data: RPSubmission): string {
+function buildEmailHtml(data: RaspundereData): string {
   const name = data.ownerType === "PF"
     ? `${data.lastName} ${data.firstName}`
     : data.companyName;
@@ -59,11 +45,9 @@ function buildEmailHtml(data: RPSubmission): string {
 
 export async function POST(request: NextRequest) {
   try {
-    const data: RPSubmission = await request.json();
-
-    if (!data.email || !data.phone) {
-      return NextResponse.json({ error: "Email și telefon sunt obligatorii" }, { status: 400 });
-    }
+    const parsed = await validateBody(request, raspundereSchema);
+    if ("error" in parsed) return parsed.error;
+    const data = parsed.data;
 
     const name = data.ownerType === "PF"
       ? `${data.lastName} ${data.firstName}`

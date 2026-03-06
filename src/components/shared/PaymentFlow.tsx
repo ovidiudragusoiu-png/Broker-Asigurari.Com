@@ -18,6 +18,7 @@ interface PaymentFlowProps {
   padPremium?: number;
   padCurrency?: string;
   customerEmail?: string;
+  debugTraceId?: string;
   onBack?: () => void;
 }
 
@@ -34,6 +35,7 @@ export default function PaymentFlow({
   padPremium,
   padCurrency,
   customerEmail,
+  debugTraceId,
   onBack,
 }: PaymentFlowProps) {
   const [status, setStatus] = useState<PaymentStatus>("idle");
@@ -42,9 +44,28 @@ export default function PaymentFlow({
   const [showTerms, setShowTerms] = useState(false);
   const [pendingAction, setPendingAction] = useState<"card" | "loan" | null>(null);
 
-  const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
   const padOfferId = additionalOfferIds?.length ? additionalOfferIds[0] : null;
-  const redirectURL = `${baseUrl}/payment/callback?orderId=${orderId}&offerId=${offerId}&orderHash=${orderHash}${productType ? `&productType=${productType}` : ""}${padOfferId ? `&padOfferId=${padOfferId}` : ""}`;
+
+  /** Create server-side checkout session and return the callback redirect URL. */
+  const createSessionRedirectURL = async (): Promise<string> => {
+    const resp = await fetch("/api/checkout/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orderId,
+        offerId,
+        orderHash,
+        productType: productType || "UNKNOWN",
+        email: customerEmail || "",
+        ...(padOfferId ? { padOfferId } : {}),
+      }),
+    });
+    if (!resp.ok) throw new Error("Nu s-a putut crea sesiunea de plata.");
+    const { token } = await resp.json();
+    const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+    const traceQuery = debugTraceId ? `&traceId=${encodeURIComponent(debugTraceId)}` : "";
+    return `${baseUrl}/payment/callback?session=${token}${traceQuery}`;
+  };
 
   // All products now use V3 payment endpoints
   const useNonV3 = false;
@@ -53,6 +74,7 @@ export default function PaymentFlow({
     setError(null);
     setStatus("creating");
     try {
+      const redirectURL = await createSessionRedirectURL();
       const endpoint = useNonV3
         ? "/online/offers/payment"
         : `/online/offers/payment/v3?orderHash=${orderHash}`;
@@ -65,7 +87,6 @@ export default function PaymentFlow({
         },
         { Accept: "text/plain" }
       );
-      if (customerEmail) localStorage.setItem("customerEmail", customerEmail);
       setStatus("redirecting");
       // Validate payment URL before redirect
       try {
@@ -87,6 +108,7 @@ export default function PaymentFlow({
     setError(null);
     setStatus("creating");
     try {
+      const redirectURL = await createSessionRedirectURL();
       const loanEndpoint = useNonV3
         ? "/online/offers/payment/loan"
         : `/online/offers/payment/loan/v3?orderHash=${orderHash}`;
@@ -99,7 +121,6 @@ export default function PaymentFlow({
         },
         { Accept: "text/plain" }
       );
-      if (customerEmail) localStorage.setItem("customerEmail", customerEmail);
       setStatus("redirecting");
       // Validate loan URL before redirect
       try {
@@ -369,3 +390,5 @@ export default function PaymentFlow({
     </div>
   );
 }
+
+

@@ -65,7 +65,7 @@ export default function PadPage() {
   const [selectedCesionari, setSelectedCesionari] = useState<PadCesionar[]>([]);
   const [notesCesionari, setNotesCesionari] = useState("");
   const [isRenewal, setIsRenewal] = useState(false);
-  const [previousPolicySeries, setPreviousPolicySeries] = useState("RA-065");
+  const [previousPolicySeries] = useState("RA-065");
   const [previousPolicyNumber, setPreviousPolicyNumber] = useState("");
   const [policyStartDate, setPolicyStartDate] = useState(() => {
     const d = new Date();
@@ -97,7 +97,6 @@ export default function PadPage() {
       setOrderHash(null);
       setError(null);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStep]);
 
   /* ---- Auto-generate offer when reaching step 3 (index 2) ---- */
@@ -173,7 +172,6 @@ export default function PadPage() {
     setLoadingOffer(true);
 
     try {
-      const insuredPerson = sameAsContractor ? contractor : insured;
       const startDate = new Date(policyStartDate);
       const endDate = new Date(startDate);
       endDate.setFullYear(endDate.getFullYear() + 1);

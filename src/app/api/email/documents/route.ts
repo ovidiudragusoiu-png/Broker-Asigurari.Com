@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { insuretechFetch } from "@/lib/api/insuretech";
 import { logAudit, hashSha256 } from "@/lib/audit/logger";
+import { validateBody, emailDocumentsSchema, type EmailDocumentsData } from "@/lib/validation/schemas";
 
 export const maxDuration = 60;
 
@@ -11,19 +12,6 @@ function getResend() {
   const key = process.env.RESEND_API_KEY;
   if (!key) throw new Error("RESEND_API_KEY is not configured");
   return new Resend(key);
-}
-
-interface DocumentEmailRequest {
-  email: string;
-  productType: string;
-  offerId: number;
-  policyId: number | null;
-  padPolicyId?: number | null;
-  orderHash: string;
-  policyNumber: string | null;
-  vendorName: string | null;
-  startDate: string | null;
-  endDate: string | null;
 }
 
 async function fetchPdfBuffer(
@@ -90,7 +78,7 @@ function getProductLabel(productType: string): string {
 }
 
 function buildEmailHtml(
-  data: DocumentEmailRequest,
+  data: EmailDocumentsData,
   hasAttachments: boolean,
   isEuroins = false
 ): string {
@@ -161,21 +149,9 @@ function buildEmailHtml(
 
 export async function POST(request: NextRequest) {
   try {
-    const data: DocumentEmailRequest = await request.json();
-
-    if (!data.email || !data.orderHash || !data.offerId) {
-      return NextResponse.json(
-        { error: "Email, orderHash, and offerId are required" },
-        { status: 400 }
-      );
-    }
-
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
-      return NextResponse.json(
-        { error: "Invalid email format" },
-        { status: 400 }
-      );
-    }
+    const parsed = await validateBody(request, emailDocumentsSchema);
+    if ("error" in parsed) return parsed.error;
+    const data = parsed.data;
 
     // Euroins auto-creates the policy and blocks all document endpoints.
     // Skip PDF fetch entirely to avoid errors; send notification-only email.

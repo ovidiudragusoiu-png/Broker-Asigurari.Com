@@ -160,7 +160,7 @@ export default function CategorySelect({ onSelect }: CategorySelectProps) {
     if (!cat) return;
     setSubmitting(true);
     try {
-      const subs = await api.get<SelectOption[]>(
+      await api.get<SelectOption[]>(
         `/online/vehicles/categories/${cat.id}/subcategories`
       );
       // Don't pre-select a subcategory — VIN lookup or user will pick the correct one

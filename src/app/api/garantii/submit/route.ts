@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
+import { validateBody, garantiiSchema, type GarantiiData } from "@/lib/validation/schemas";
 
 const TO_EMAILS = ["bucuresti@broker-asigurari.com", "office@sigur.ai"];
 
@@ -9,23 +10,12 @@ function getResend() {
   return new Resend(key);
 }
 
-interface GarantiiSubmission {
-  guaranteeType: string;
-  companyName: string;
-  cui: string;
-  countyName: string;
-  cityName: string;
-  email: string;
-  phone: string;
-  observations: string;
-}
-
 function row(label: string, value: string | undefined): string {
   if (!value) return "";
   return `<tr><td style="padding:6px 12px;font-weight:600;color:#374151;white-space:nowrap">${label}</td><td style="padding:6px 12px;color:#4b5563">${value}</td></tr>`;
 }
 
-function buildEmailHtml(data: GarantiiSubmission): string {
+function buildEmailHtml(data: GarantiiData): string {
   const rows = [
     row("Tip garanție", data.guaranteeType),
     row("Denumire firmă", data.companyName),
@@ -49,12 +39,9 @@ function buildEmailHtml(data: GarantiiSubmission): string {
 
 export async function POST(request: NextRequest) {
   try {
-    const data: GarantiiSubmission = await request.json();
-
-    // Basic validation
-    if (!data.email || !data.phone) {
-      return NextResponse.json({ error: "Email și telefon sunt obligatorii" }, { status: 400 });
-    }
+    const parsed = await validateBody(request, garantiiSchema);
+    if ("error" in parsed) return parsed.error;
+    const data = parsed.data;
 
     const result = await getResend().emails.send({
       from: "Garanții <noreply@broker-asigurari.com>",

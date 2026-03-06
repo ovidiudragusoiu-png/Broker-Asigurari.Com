@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { INSURANCE_SYSTEM_PROMPT } from "@/lib/ai/insurance-prompt";
+import { validateBody, aiChatSchema } from "@/lib/validation/schemas";
 
 function getClient() {
   const key = process.env.ANTHROPIC_API_KEY;
@@ -10,20 +11,15 @@ function getClient() {
   return new Anthropic({ apiKey: key });
 }
 
-interface ChatMessage {
-  role: "user" | "assistant";
-  content: string;
-}
-
 const MAX_HISTORY = 10;
 
 export async function POST(request: NextRequest) {
   try {
-    const { messages } = (await request.json()) as { messages: ChatMessage[] };
-
-    if (!messages || !Array.isArray(messages) || messages.length === 0) {
+    const parsed = await validateBody(request, aiChatSchema);
+    if ("error" in parsed) {
       return NextResponse.json({ error: "Mesajele sunt obligatorii" }, { status: 400 });
     }
+    const { messages } = parsed.data;
 
     // Limit conversation history
     const trimmed = messages.slice(-MAX_HISTORY);

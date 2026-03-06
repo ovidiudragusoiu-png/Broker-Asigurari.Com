@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
+import { validateBody, cascoSchema, type CascoData } from "@/lib/validation/schemas";
 
 const TO_EMAILS = ["bucuresti@broker-asigurari.com", "office@sigur.ai"];
 
@@ -9,63 +10,12 @@ function getResend() {
   return new Resend(key);
 }
 
-interface FileAttachment {
-  name: string;
-  content: string; // base64
-  type: string;
-}
-
-interface CascoSubmission {
-  ownerType: "PF" | "PJ";
-  lastName: string;
-  firstName: string;
-  companyName: string;
-  cui: string;
-  cnp: string;
-  email: string;
-  phone: string;
-  hasLicense: string;
-  licenseDate: string;
-  countyName: string;
-  cityName: string;
-  maritalStatus: string;
-  inputMode: "form" | "upload";
-  files: FileAttachment[];
-  plateNumber: string;
-  categoryName: string;
-  subcategoryName: string;
-  makeName: string;
-  model: string;
-  version: string;
-  year: string;
-  firstRegistrationDate: string;
-  vin: string;
-  bodyType: string;
-  transmission: string;
-  km: string;
-  fuelType: string;
-  seats: string;
-  engineCc: string;
-  engineKw: string;
-  maxWeight: string;
-  ownerHistory: string;
-  ridesharing: string;
-  currentInsurer: string;
-  startDate: string;
-  paymentFrequency: string;
-  deductible: string;
-  isNewCar: string;
-  invoiceValue: string;
-  invoiceCurrency: string;
-  observations: string;
-}
-
 function row(label: string, value: string | undefined): string {
   if (!value) return "";
   return `<tr><td style="padding:6px 12px;font-weight:600;color:#374151;white-space:nowrap">${label}</td><td style="padding:6px 12px;color:#4b5563">${value}</td></tr>`;
 }
 
-function buildEmailHtml(data: CascoSubmission): string {
+function buildEmailHtml(data: CascoData): string {
   const name =
     data.ownerType === "PF"
       ? `${data.lastName} ${data.firstName}`
@@ -137,12 +87,9 @@ function buildEmailHtml(data: CascoSubmission): string {
 
 export async function POST(request: NextRequest) {
   try {
-    const data: CascoSubmission = await request.json();
-
-    // Basic validation
-    if (!data.email || !data.phone) {
-      return NextResponse.json({ error: "Email și telefon sunt obligatorii" }, { status: 400 });
-    }
+    const parsed = await validateBody(request, cascoSchema);
+    if ("error" in parsed) return parsed.error;
+    const data = parsed.data;
 
     const name =
       data.ownerType === "PF"

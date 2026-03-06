@@ -47,6 +47,24 @@ model Policy {
   @@index([email])
 }
 
+model CheckoutSession {
+  id           String   @id @default(cuid())
+  token        String   @unique
+  orderId      Int
+  offerId      Int
+  orderHash    String
+  productType  String
+  email        String?
+  padOfferId   Int?
+  policyData   String?
+  status       String   @default("pending")
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime
+
+  @@index([token])
+  @@index([orderHash])
+}
+
 model AuditLog {
   id          String   @id @default(cuid())
   action      String

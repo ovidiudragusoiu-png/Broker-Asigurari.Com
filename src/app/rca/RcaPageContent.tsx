@@ -58,8 +58,21 @@ export default function RcaPage() {
 
 function RcaPageInner() {
   const [state, dispatch] = useReducer(rcaFlowReducer, null, emptyRcaFlowState);
-  const { currentStep, next, goTo } = useWizardUrlSync(7);
+  const { currentStep, next, goTo: rawGoTo } = useWizardUrlSync(7);
   const [plateCountyName, setPlateCountyName] = useState("");
+
+  // Wrap goTo: navigating back to steps before offers (step 5 = index 4)
+  // clears stale offers so they regenerate with updated data
+  const OFFERS_STEP = 4;
+  const goTo = useCallback((step: number) => {
+    if (step < OFFERS_STEP && currentStep >= OFFERS_STEP) {
+      dispatch({ type: "SET_OFFERS", offers: [], hasDirectSettlementData: null });
+      dispatch({ type: "SET_ORDER", orderId: 0, orderHash: "" });
+      dispatch({ type: "SELECT_OFFER", selected: null });
+      dispatch({ type: "SET_ERROR", error: null });
+    }
+    rawGoTo(step);
+  }, [currentStep, rawGoTo]);
 
   // ----- Session storage restore -----
   useEffect(() => {
@@ -96,13 +109,13 @@ function RcaPageInner() {
       const fullPerson = buildFullPersonFromFlowState(state);
       const normalizedPerson = normalizePersonForRca(fullPerson);
 
-      // Sign consent (required by v3 order API) — must succeed before order creation
-      await autoSignConsent(normalizedPerson, "RCA");
-
-      // 2. Get RCA products
-      const allRcaProducts = await api.get<
-        { id: string | number; productName: string; vendorDetails?: { commercialName?: string; [key: string]: unknown } }[]
-      >("/online/products/rca");
+      // Sign consent + fetch products in parallel (both independent)
+      const [, allRcaProducts] = await Promise.all([
+        autoSignConsent(normalizedPerson, "RCA"),
+        api.get<
+          { id: string | number; productName: string; vendorDetails?: { commercialName?: string; [key: string]: unknown } }[]
+        >("/online/products/rca"),
+      ]);
 
       // Filter: keep only "Hellas Next Ins", exclude plain "Hellas"
       const rcaProducts = allRcaProducts.filter(p => {
@@ -318,14 +331,23 @@ function RcaPageInner() {
       policyStartDate: toRcaDate(state.startDate),
       email: normalizedPerson.email,
     };
-    localStorage.setItem("rcaPolicyData", JSON.stringify(policyData));
-    if (normalizedPerson.email) {
-      localStorage.setItem("customerEmail", normalizedPerson.email);
-    }
-
-    // Create payment link
+    // Create server-side checkout session (replaces localStorage)
+    const sessionResp = await fetch("/api/checkout/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orderId: state.orderId,
+        offerId: state.selectedOffer.offer.id,
+        orderHash: state.orderHash,
+        productType: "RCA",
+        email: normalizedPerson.email || "",
+        policyData,
+      }),
+    });
+    if (!sessionResp.ok) throw new Error("Nu s-a putut crea sesiunea de plata.");
+    const { token: sessionToken } = await sessionResp.json();
     const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
-    const redirectURL = `${baseUrl}/payment/callback?orderId=${state.orderId}&offerId=${state.selectedOffer.offer.id}&orderHash=${state.orderHash}&productType=RCA`;
+    const redirectURL = `${baseUrl}/payment/callback?session=${sessionToken}`;
 
     const paymentUrl = await api.post<string>(
       `/online/offers/payment/v3?orderHash=${state.orderHash}`,

@@ -8,7 +8,6 @@ import { btn } from "@/lib/ui/tokens";
 import EmailInput from "@/components/shared/EmailInput";
 
 const inputCls = "w-full rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none";
-const selectCls = "w-full appearance-none rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none";
 const labelCls = "mb-1 block text-xs font-medium text-gray-500";
 
 // Bucharest sectors: each is a separate county + city in the InsureTech API
