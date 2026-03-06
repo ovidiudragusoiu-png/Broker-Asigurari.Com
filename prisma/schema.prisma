@@ -68,16 +68,3 @@ model AuditLog {
   @@index([policyId])
 }
 
-model DebugLog {
-  id             String   @id @default(cuid())
-  timestamp      DateTime @default(now())
-  method         String
-  path           String
-  requestBody    String?
-  responseStatus Int
-  responseBody   String?
-  curlCommand    String?
-
-  @@index([timestamp])
-  @@index([path])
-}

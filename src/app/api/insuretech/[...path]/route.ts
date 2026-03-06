@@ -91,15 +91,23 @@ async function proxyRequest(req: NextRequest, method: string) {
 
   const targetUrl = `${API_URL}/${pathSegments}${url.search}`;
 
-  // Payment URL endpoints (payment/v3, payment/loan/v3) need Accept: text/plain
-  // to return the redirect URL. Everything else MUST use application/json —
-  // sending text/plain to payment/check or policies causes 500 errors.
-  const isPaymentUrlEndpoint =
-    /^online\/offers\/payment\/(v3|loan\/v3|loan)($|\?)/.test(pathSegments) &&
-    !/check/.test(pathSegments);
+  // ── Accept header contract (authoritative, from InsureTech team) ──
+  // payment/v3 and payment/loan/v3: MUST use text/plain (returns redirect URL)
+  // payment/check/v3: MUST use application/json
+  // policies/*: MUST use application/json
+  // Everything else: application/json
+  const ACCEPT_TEXT_PLAIN: RegExp[] = [
+    /^online\/offers\/payment\/v3($|\?)/,
+    /^online\/offers\/payment\/loan\/v3($|\?)/,
+    /^online\/offers\/payment($|\?)/,       // non-v3 PAD payment
+    /^online\/offers\/payment\/loan($|\?)/,  // non-v3 PAD loan
+  ];
+  const acceptHeader = ACCEPT_TEXT_PLAIN.some((re) => re.test(pathSegments))
+    ? "text/plain"
+    : "application/json";
   const headers: Record<string, string> = {
     ...getAuthHeaders(),
-    Accept: isPaymentUrlEndpoint ? "text/plain" : "application/json",
+    Accept: acceptHeader,
   };
 
   const fetchOptions: RequestInit = { method, headers };
@@ -158,35 +166,6 @@ async function proxyRequest(req: NextRequest, method: string) {
 
     if (isTextResponse) {
       const responseBody = await response.text();
-
-      // DEBUG: verbose curl-format logging for payment/policy/malpraxis endpoints
-      // Persisted to DebugLog table so we never lose them
-      const isDebugEndpoint = /^online\/(policies|offers\/(malpraxis|payment))/.test(pathSegments);
-      if (isDebugEndpoint) {
-        const ts = new Date().toISOString();
-        const curlHeaders = Object.entries(headers)
-          .filter(([k]) => k !== "Authorization" && k !== "Api_key")
-          .map(([k, v]) => `-H "${k}: ${v}"`)
-          .join(" \\\n  ");
-        const curlBody = requestBody ? `\\\n  -d '${requestBody}'` : "";
-        const curlCommand = `curl -X ${method} "${targetUrl}" \\\n  ${curlHeaders} ${curlBody}`;
-        console.log(`\n[DEBUG ${ts}] ${curlCommand}\n[DEBUG ${ts}] Response: ${response.status}\n${responseBody}\n`);
-
-        // Persist to database (fire-and-forget)
-        import("@/lib/db/prisma").then(({ prisma }) =>
-          prisma.debugLog.create({
-            data: {
-              id: `dbg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-              method,
-              path: pathSegments,
-              requestBody: requestBody || null,
-              responseStatus: response.status,
-              responseBody: responseBody.substring(0, 4000),
-              curlCommand,
-            },
-          }).catch(() => {})
-        );
-      }
 
       if (!response.ok) {
         console.error(`[InsureTech API] ${method} ${pathSegments} → ${response.status}`, responseBody);
