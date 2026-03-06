@@ -309,9 +309,7 @@ function PaymentCallbackContent() {
         const policyEndpoint =
           productType === "RCA"
             ? `/online/policies/rca/v3?orderHash=${orderHash}`
-            : productType === "HOUSE"
-              ? `/online/policies`
-              : `/online/policies/v3?orderHash=${orderHash}`;
+            : `/online/policies/v3?orderHash=${orderHash}`;
 
         let payload: Record<string, unknown>;
 
