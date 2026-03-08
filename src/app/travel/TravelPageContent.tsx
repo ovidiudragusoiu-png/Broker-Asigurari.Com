@@ -147,6 +147,7 @@ export default function TravelPage() {
   }, [travelZone, countries, zones]);
 
   const { currentStep, next, prev, goTo } = useWizard(4);
+  const [showErrors, setShowErrors] = useState(false);
   const isTripStepValid =
     !!travelZone &&
     !!destinationCountryId &&
@@ -264,7 +265,7 @@ export default function TravelPage() {
               travelPurpose,
               travelMethod,
               destinationCountryId: Number(destinationCountryId),
-              residencyCountryId: 185,
+              residencyCountryId: isClientInRomania ? 185 : Number(destinationCountryId),
               summerSports,
               winterSports,
               withStorno,
@@ -346,7 +347,9 @@ export default function TravelPage() {
         `/online/offers/${offerId}/document/v3?orderHash=${orderHash}`
       );
       if (res.url) {
-        window.open(res.url, "_blank");
+        const safeUrl = new URL(res.url, window.location.origin);
+        if (!["http:", "https:"].includes(safeUrl.protocol)) throw new Error("Link invalid");
+        window.open(safeUrl.toString(), "_blank", "noopener,noreferrer");
       } else {
         setDownloadErrors((prev) => ({ ...prev, [cardKey]: "Documentul nu este disponibil momentan." }));
       }
@@ -514,6 +517,7 @@ export default function TravelPage() {
                     setTravelers(updated);
                   }}
                   title={`Calator ${i + 1}`}
+                  showErrors={showErrors}
                   onCopyAddress={i > 0 ? () => {
                     const updated = [...travelers];
                     updated[i] = { ...updated[i], address: { ...travelers[0].address } };
@@ -593,7 +597,7 @@ export default function TravelPage() {
                     Inapoi
                   </span>
                 </button>
-                <button type="button" onClick={() => isTravelersStepValid && setShowDntSubstep(true)} disabled={!isTravelersStepValid} className={`${btn.primary} px-8`}>
+                <button type="button" onClick={() => { if (isTravelersStepValid) { setShowErrors(false); setShowDntSubstep(true); } else { setShowErrors(true); } }} className={`${btn.primary} px-8`}>
                   <span className="flex items-center gap-2">
                     Continua
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>

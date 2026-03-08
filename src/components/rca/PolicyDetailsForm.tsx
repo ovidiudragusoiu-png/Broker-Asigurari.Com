@@ -6,6 +6,7 @@ import type { AddressRequest } from "@/types/insuretech";
 import type { OwnerType } from "@/types/rcaFlow";
 import { btn } from "@/lib/ui/tokens";
 import EmailInput from "@/components/shared/EmailInput";
+import DateInput from "@/components/shared/DateInput";
 
 const inputCls = "w-full rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none";
 const labelCls = "mb-1 block text-xs font-medium text-gray-500";
@@ -42,6 +43,7 @@ interface PolicyDetailsFormProps {
   email: string;
   phoneNumber: string;
   address: AddressRequest;
+  driverLicenceDate?: string;
   isBucharest: boolean;
   onFieldChange: (field: string, value: string) => void;
   onCaenChange: (code: string | null) => void;
@@ -65,6 +67,7 @@ export default function PolicyDetailsForm({
   email,
   phoneNumber,
   address,
+  driverLicenceDate,
   isBucharest,
   onFieldChange,
   onCaenChange,
@@ -119,7 +122,7 @@ export default function PolicyDetailsForm({
     setStreetQuery(value);
     setStreetSelected(false);
     // Also update the raw streetName so it persists if user doesn't pick from dropdown
-    onAddressChange({ ...address, streetName: value, postalCode: "", streetTypeId: null });
+    onAddressChange({ ...address, streetName: value, streetTypeId: null });
     searchStreets(value);
   };
 
@@ -207,6 +210,17 @@ export default function PolicyDetailsForm({
               onChange={(e) => onFieldChange("idNumber", e.target.value)}
               placeholder="NUMAR CI"
             />
+          </div>
+
+          {/* Driver licence date */}
+          <div>
+            <label className={labelCls}>Data obținere permis conducere</label>
+            <DateInput
+              value={driverLicenceDate ?? ""}
+              onChange={(v) => onFieldChange("driverLicenceDate", v)}
+              max={new Date().toISOString().slice(0, 10)}
+            />
+            <p className="mt-1 text-xs text-gray-400">Dacă nu aveți permis, alegeți ziua de azi.</p>
           </div>
         </>
       ) : (
@@ -350,11 +364,6 @@ export default function PolicyDetailsForm({
             placeholder={address.cityId ? "Introduceți min. 3 litere..." : "Selectează sectorul mai întâi"}
             disabled={!address.cityId}
           />
-          {streetSelected && address.postalCode && (
-            <p className="mt-0.5 text-xs text-green-600">
-              CP: {address.postalCode}
-            </p>
-          )}
           {showStreetDropdown && streetResults.length > 0 && (
             <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-xl border border-gray-200 bg-white shadow-lg">
               {streetResults.map((r) => (
@@ -411,8 +420,20 @@ export default function PolicyDetailsForm({
         </div>
       </div>
       <div className="grid grid-cols-6 gap-3">
-        <div className="col-span-3" />
+        <div className="col-span-2">
+          <label className={labelCls}>Cod poștal</label>
+          <input
+            type="text"
+            className={inputCls}
+            value={address.postalCode}
+            onChange={(e) => updateAddress("postalCode", e.target.value)}
+            placeholder="Ex: 235200"
+            maxLength={6}
+            readOnly={streetSelected}
+          />
+        </div>
         <div className="col-span-1">
+          <label className={labelCls}>&nbsp;</label>
           <input
             type="text"
             className={inputCls}
@@ -421,7 +442,8 @@ export default function PolicyDetailsForm({
             placeholder="ETAJ"
           />
         </div>
-        <div className="col-span-2">
+        <div className="col-span-1">
+          <label className={labelCls}>&nbsp;</label>
           <input
             type="text"
             className={inputCls}
@@ -430,6 +452,7 @@ export default function PolicyDetailsForm({
             placeholder="AP."
           />
         </div>
+        <div className="col-span-2" />
       </div>
 
       {/* Continue */}

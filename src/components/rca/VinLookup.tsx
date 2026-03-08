@@ -19,9 +19,11 @@ interface VinLookupProps {
   vehicle: VehicleData;
   onChange: (vehicle: Partial<VehicleData>) => void;
   onContinue: () => void;
+  mileage?: string;
+  onMileageChange?: (value: string) => void;
 }
 
-export default function VinLookup({ vehicle, onChange, onContinue }: VinLookupProps) {
+export default function VinLookup({ vehicle, onChange, onContinue, mileage, onMileageChange }: VinLookupProps) {
   const [makes, setMakes] = useState<SelectOption[]>([]);
   const [fuelTypes, setFuelTypes] = useState<SelectOption[]>([]);
   const [activityTypes, setActivityTypes] = useState<SelectOption[]>([]);
@@ -150,6 +152,9 @@ export default function VinLookup({ vehicle, onChange, onContinue }: VinLookupPr
         totalWeight: readNumber(data, ["maxWeight", "totalWeight"]) ?? vehicle.totalWeight,
         seats: readNumber(data, ["seatsNumber", "seats", "seatsNo"]) ?? vehicle.seats,
         registrationTypeId: readNumber(data, ["registrationTypeId", "vehicleRegistrationTypeId", "registrationType"]) ?? vehicle.registrationTypeId,
+        firstRegistration: readString(data, ["firstRegistration", "firstRegistrationDate", "registrationDate"]) || vehicle.firstRegistration,
+        itpExpiration: readString(data, ["itpExpiration", "itpExpiryDate", "inspectionExpiration"]) || vehicle.itpExpiration,
+        vignetteExpiration: readString(data, ["vignetteExpiration", "rovignetteExpiration"]) || vehicle.vignetteExpiration,
       });
       setLookupDone(true);
     } catch {
@@ -170,7 +175,8 @@ export default function VinLookup({ vehicle, onChange, onContinue }: VinLookupPr
     vehicle.fuelTypeId !== null &&
     vehicle.engineCapacity !== null &&
     !powerInvalid &&
-    vehicle.seats !== null;
+    vehicle.seats !== null &&
+    (!onMileageChange || (!!mileage && Number(mileage) > 0));
 
   return (
     <div className="space-y-6">
@@ -368,6 +374,19 @@ export default function VinLookup({ vehicle, onChange, onContinue }: VinLookupPr
                 readOnly
               />
             </div>
+            {onMileageChange && (
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-500">Kilometraj (km)</label>
+                <input
+                  type="number"
+                  className="w-full rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none"
+                  value={mileage ?? ""}
+                  onChange={(e) => onMileageChange(e.target.value)}
+                  placeholder="Ex: 50000"
+                  min={0}
+                />
+              </div>
+            )}
           </div>
 
           <div className="pt-2 text-center">

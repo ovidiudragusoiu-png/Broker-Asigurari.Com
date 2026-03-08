@@ -327,17 +327,16 @@ function PaymentCallbackContent() {
             emailSentTo.current = customerEmail;
           }
 
-          payload = {
-            rcaOfferId: Number(offerId),
-            paymentMethodType: "CardOnline",
-            ...savedData,
-          };
           const savedVd = savedData.vehicleDetails as Record<string, unknown> | undefined;
           if (savedVd) {
             vehicleVin = (savedVd.vin as string) || "";
             vehiclePlate = (savedVd.plateNo as string) || "";
             vehicleCategory = String(savedVd.vehicleCategoryId || "");
           }
+          payload = {
+            rcaOfferId: Number(offerId),
+            paymentMethodType: "CardOnline",
+          };
           try { localStorage.removeItem("rcaPolicyData"); } catch { /* */ }
         } else {
           payload = { offerId: Number(offerId), paymentMethodType: "CardOnline" };

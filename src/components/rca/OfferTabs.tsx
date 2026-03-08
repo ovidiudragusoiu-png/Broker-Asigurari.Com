@@ -305,6 +305,8 @@ export default function OfferTabs({
               vendorOffers.find((o) => o.vendorLogoUrl)?.vendorLogoUrl ||
               getLocalVendorLogo(vendor);
 
+            // Check if this vendor has only error offers
+            const vendorError = vendorOffers.find((o) => o.error)?.error;
             // Check if this vendor has any valid offers in current tab
             const vendorHasOffers = currentTabConfig.columns.some((col) => {
               const match = pickOfferByVariant(
@@ -317,6 +319,37 @@ export default function OfferTabs({
                 : null;
               return price != null && price > 0;
             });
+
+            // Show error card for vendors that failed
+            if (!vendorHasOffers && vendorError) {
+              return (
+                <div
+                  key={vendor}
+                  className="rounded-xl border border-red-100 bg-red-50/50 p-4 shadow-sm opacity-60"
+                >
+                  <div className="flex flex-col gap-2 md:flex-row md:items-center">
+                    <div className="flex shrink-0 items-center gap-3 md:w-44 md:flex-col md:items-start md:gap-1">
+                      {logoUrl ? (
+                        <Image
+                          src={logoUrl}
+                          alt={vendor}
+                          width={140}
+                          height={42}
+                          className="h-9 w-auto object-contain grayscale"
+                          unoptimized
+                        />
+                      ) : (
+                        <span className="text-base font-bold text-gray-400">{vendor}</span>
+                      )}
+                    </div>
+                    <div className="flex-1 text-sm text-red-600">
+                      {vendorError}
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
             if (!vendorHasOffers) return null;
 
             return (

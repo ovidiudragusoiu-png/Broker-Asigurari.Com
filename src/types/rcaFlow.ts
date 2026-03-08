@@ -42,6 +42,9 @@ export interface VehicleData {
   totalWeight: number | null;
   seats: number | null;
   registrationTypeId: number | null;
+  firstRegistration: string | null;
+  itpExpiration: string | null;
+  vignetteExpiration: string | null;
 }
 
 // ----- Additional driver -----
@@ -78,6 +81,9 @@ export interface RcaFlowState {
   email: string;
   skipDnt: boolean;
 
+  // Vehicle mileage (user input in Step 1)
+  mileage: string;
+
   // Plate-derived location (for offer generation)
   plateCountyId: number | null;
   plateCityId: number | null;
@@ -106,6 +112,9 @@ export interface RcaFlowState {
   idNumber: string;
   address: AddressRequest;
 
+  // Driver licence date (PF only, Step 4)
+  driverLicenceDate: string;
+
   // Additional driver
   hasAdditionalDriver: boolean;
   additionalDriver: AdditionalDriver | null;
@@ -129,13 +138,14 @@ export type RcaAction =
   | { type: "SET_OWNER_TYPE"; ownerType: OwnerType }
   | { type: "SET_CNP_OR_CUI"; value: string }
   | { type: "SET_EMAIL"; email: string }
+  | { type: "SET_MILEAGE"; mileage: string }
   | { type: "SET_SKIP_DNT"; skip: boolean }
   | { type: "SET_ORDER"; orderId: number; orderHash: string }
   | { type: "SET_OFFERS"; offers: RcaOffer[]; hasDirectSettlementData: boolean | null }
   | { type: "APPEND_OFFERS"; offers: RcaOffer[] }
   | { type: "SET_LOADING_OFFERS"; loading: boolean }
   | { type: "SELECT_OFFER"; selected: SelectedOfferState | null }
-  | { type: "SET_POLICY_DETAILS"; details: Partial<Pick<RcaFlowState, "registrationCertSeries" | "startDate" | "ownerFirstName" | "ownerLastName" | "companyName" | "registrationNumber" | "caenCode" | "idType" | "idSeries" | "idNumber">> }
+  | { type: "SET_POLICY_DETAILS"; details: Partial<Pick<RcaFlowState, "registrationCertSeries" | "startDate" | "ownerFirstName" | "ownerLastName" | "companyName" | "registrationNumber" | "caenCode" | "idType" | "idSeries" | "idNumber" | "driverLicenceDate">> }
   | { type: "SET_COMPANY_DATA"; companyName: string; registrationNumber: string; caenCode: string | null; companyTypeId: number | null }
   | { type: "SET_ADDRESS"; address: AddressRequest }
   | { type: "SET_ADDITIONAL_DRIVER_TOGGLE"; has: boolean }

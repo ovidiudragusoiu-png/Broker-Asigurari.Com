@@ -36,7 +36,11 @@ interface PersonFormProps {
   onCopyAddress?: () => void;
   /** Label for the copy address button */
   copyAddressLabel?: string;
+  /** When true, highlight empty mandatory fields with red borders */
+  showErrors?: boolean;
 }
+
+const errBorder = "!border-red-300 focus:!border-red-500 focus:!ring-red-500/20";
 
 export default function PersonForm({
   value,
@@ -46,6 +50,7 @@ export default function PersonForm({
   hideIdDocument = false,
   onCopyAddress,
   copyAddressLabel = "Copiaza adresa",
+  showErrors = false,
 }: PersonFormProps) {
   const [companyTypes, setCompanyTypes] = useState<
     { id: number; type: string }[]
@@ -197,7 +202,7 @@ export default function PersonForm({
               <label className={labelCls}>Nume</label>
               <input
                 type="text"
-                className={inputCls}
+                className={`${inputCls} ${showErrors && !value.lastName.trim() ? errBorder : ""}`}
                 placeholder="Ex: Popescu"
                 value={value.lastName}
                 onChange={(e) => updatePF({ lastName: e.target.value })}
@@ -207,7 +212,7 @@ export default function PersonForm({
               <label className={labelCls}>Prenume</label>
               <input
                 type="text"
-                className={inputCls}
+                className={`${inputCls} ${showErrors && !value.firstName.trim() ? errBorder : ""}`}
                 placeholder="Ex: Ion"
                 value={value.firstName}
                 onChange={(e) => updatePF({ firstName: e.target.value })}
@@ -220,7 +225,7 @@ export default function PersonForm({
             <label className={labelCls}>CNP</label>
             <input
               type="text"
-              className={cnpInvalid ? inputErrCls : inputCls}
+              className={cnpInvalid || (showErrors && !cifAsString) ? inputErrCls : inputCls}
               placeholder="Cod numeric personal (13 cifre)"
               value={value.cif || ""}
               onChange={(e) =>
@@ -296,7 +301,7 @@ export default function PersonForm({
               <label className={labelCls}>CUI</label>
               <input
                 type="text"
-                className={cuiInvalid ? inputErrCls : inputCls}
+                className={cuiInvalid || (showErrors && !cifAsString) ? inputErrCls : inputCls}
                 placeholder="Cod unic de inregistrare"
                 value={value.cif || ""}
                 onChange={(e) => {
@@ -332,7 +337,7 @@ export default function PersonForm({
             <label className={labelCls}>Denumire firma</label>
             <input
               type="text"
-              className={inputCls}
+              className={`${inputCls} ${showErrors && !value.companyName.trim() ? errBorder : ""}`}
               placeholder="Denumirea companiei"
               value={value.companyName}
               onChange={(e) => updatePJ({ companyName: e.target.value })}
@@ -344,7 +349,7 @@ export default function PersonForm({
               <label className={labelCls}>Nr. Inregistrare (Reg. Com.)</label>
               <input
                 type="text"
-                className={inputCls}
+                className={`${inputCls} ${showErrors && !value.registrationNumber.trim() ? errBorder : ""}`}
                 placeholder="J40/1234/2020"
                 value={value.registrationNumber}
                 onChange={(e) =>
@@ -397,7 +402,7 @@ export default function PersonForm({
                 if (value.legalType === "PF") updatePF({ email: v });
                 else updatePJ({ email: v });
               }}
-              className={inputCls}
+              className={showErrors && !value.email.trim() ? inputErrCls : inputCls}
               errorClassName={inputErrCls}
             />
           </div>
@@ -405,7 +410,7 @@ export default function PersonForm({
             <label className={labelCls}>Telefon</label>
             <input
               type="tel"
-              className={phoneInvalid ? inputErrCls : inputCls}
+              className={phoneInvalid || (showErrors && !value.phoneNumber.trim()) ? inputErrCls : inputCls}
               placeholder="07xx xxx xxx"
               value={value.phoneNumber}
               onChange={(e) => {
@@ -450,6 +455,7 @@ export default function PersonForm({
             if (value.legalType === "PF") updatePF({ address });
             else updatePJ({ address });
           }}
+          showErrors={showErrors}
         />
       </div>
     </div>

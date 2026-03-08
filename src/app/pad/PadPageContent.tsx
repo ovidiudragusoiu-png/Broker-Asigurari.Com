@@ -88,6 +88,7 @@ export default function PadPage() {
   const [error, setError] = useState<string | null>(null);
 
   const { currentStep, next, prev, goTo } = useWizard(4);
+  const [showErrors, setShowErrors] = useState(false);
 
   /* ---- Clear stale offer/order when navigating back to earlier steps ---- */
   useEffect(() => {
@@ -116,7 +117,7 @@ export default function PadPage() {
     !!constructionYear && Number(constructionYear) > 1800 &&
     !!area && Number(area) > 0 &&
     !!noOfRooms && Number(noOfRooms) > 0 &&
-    !!noOfFloors && Number(noOfFloors) > 0 &&
+    noOfFloors !== "" && Number(noOfFloors) >= 0 &&
     !!noOfConstructedBuildings && Number(noOfConstructedBuildings) > 0 &&
     !!policyStartDate &&
     (!isRenewal || (!!previousPolicySeries.trim() && !!previousPolicyNumber.trim())) &&
@@ -571,7 +572,7 @@ export default function PadPage() {
                 </svg>
                 <span className="text-xs font-medium text-gray-500">Adresa proprietate</span>
               </div>
-              <AddressForm value={propertyAddress} onChange={setPropertyAddress} />
+              <AddressForm value={propertyAddress} onChange={setPropertyAddress} showErrors={showErrors} />
             </div>
           </div>
 
@@ -709,8 +710,8 @@ export default function PadPage() {
           <div className="text-center pt-2">
             <button
               type="button"
-              onClick={() => isPropertyStepValid && next()}
-              disabled={!isPropertyStepValid}
+              onClick={() => { if (isPropertyStepValid) { setShowErrors(false); next(); } else { setShowErrors(true); } }}
+              disabled={false}
               className={`${btn.primary} px-8`}
             >
               <span className="flex items-center gap-2">
@@ -742,6 +743,7 @@ export default function PadPage() {
             onChange={setContractor}
             title="Contractant"
             hideIdDocument
+            showErrors={showErrors}
             onCopyAddress={() =>
               setContractor((prev) => ({
                 ...prev,
@@ -779,7 +781,7 @@ export default function PadPage() {
           </button>
 
           {!sameAsContractor && (
-            <PersonForm value={insured} onChange={setInsured} title="Asigurat" hideIdDocument />
+            <PersonForm value={insured} onChange={setInsured} title="Asigurat" hideIdDocument showErrors={showErrors} />
           )}
 
           <div className="flex justify-center gap-3 pt-2">
@@ -793,8 +795,8 @@ export default function PadPage() {
             </button>
             <button
               type="button"
-              onClick={() => isPeopleStepValid && setShowDnt(true)}
-              disabled={!isPeopleStepValid}
+              onClick={() => { if (isPeopleStepValid) { setShowErrors(false); setShowDnt(true); } else { setShowErrors(true); } }}
+              disabled={false}
               className={`${btn.primary} px-8`}
             >
               <span className="flex items-center gap-2">

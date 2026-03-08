@@ -59,6 +59,10 @@ export default function RcaPage() {
 function RcaPageInner() {
   const [state, dispatch] = useReducer(rcaFlowReducer, null, emptyRcaFlowState);
   const { currentStep, next, goTo: rawGoTo } = useWizardUrlSync(7);
+  const toMidnightIso = (value: string | null | undefined) => {
+    if (!value) return null;
+    return value.includes("T") ? value : `${value}T00:00:00`;
+  };
   const [plateCountyName, setPlateCountyName] = useState("");
 
   // Wrap goTo: navigating back to steps before offers (step 5 = index 4)
@@ -74,17 +78,13 @@ function RcaPageInner() {
     rawGoTo(step);
   }, [currentStep, rawGoTo]);
 
-  // ----- Session storage restore -----
+  // ----- On fresh page load, always start at step 0 -----
   useEffect(() => {
-    try {
-      const saved = sessionStorage.getItem("rcaWizardState");
-      if (saved) {
-        const parsed = JSON.parse(saved) as RcaFlowState;
-        dispatch({ type: "RESTORE", state: { ...emptyRcaFlowState(), ...parsed } });
-      }
-    } catch {
-      // ignore
+    sessionStorage.removeItem("rcaWizardState");
+    if (currentStep > 0) {
+      rawGoTo(0);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ----- Session storage persist (exclude sensitive payment/order fields) -----
@@ -98,7 +98,7 @@ function RcaPageInner() {
   // Step 5: Create order + generate offers (NOW with real data)
   // ============================================================
 
-  const handleCreateOrderAndOffers = useCallback(async () => {
+  const handleCreateOrderAndOffers = async () => {
     if (state.offers.length > 0 || state.loadingOffers) return;
 
     dispatch({ type: "SET_LOADING_OFFERS", loading: true });
@@ -108,6 +108,26 @@ function RcaPageInner() {
       // Build person with REAL data (collected in steps 3-4)
       const fullPerson = buildFullPersonFromFlowState(state);
       const normalizedPerson = normalizePersonForRca(fullPerson);
+      const mainDriverLicenceDate = toMidnightIso(state.driverLicenceDate);
+      const mileageVal = Number(state.mileage);
+
+      if (state.ownerType === "PF" && !mainDriverLicenceDate) {
+        dispatch({
+          type: "SET_ERROR",
+          error: "Data obtinerii permisului este obligatorie pentru ofertele RCA.",
+        });
+        dispatch({ type: "SET_LOADING_OFFERS", loading: false });
+        return;
+      }
+
+      if (!Number.isFinite(mileageVal) || mileageVal <= 0) {
+        dispatch({
+          type: "SET_ERROR",
+          error: "Kilometrajul trebuie sa fie un numar mai mare decat zero.",
+        });
+        dispatch({ type: "SET_LOADING_OFFERS", loading: false });
+        return;
+      }
 
       // Sign consent + fetch products in parallel (both independent)
       const [, allRcaProducts] = await Promise.all([
@@ -134,10 +154,12 @@ function RcaPageInner() {
             idSeries: state.idSeries || "XX",
             idNumber: state.idNumber || "000000",
             phoneNumber: state.phoneNumber || "0700000000",
-            driverLicenceDate: "2010-01-01T00:00:00",
+            driverLicenceDate: mainDriverLicenceDate,
             dateOfBirth: dateOfBirthFromCNP(state.cnpOrCui),
           }]
         : [];
+
+
 
       // 3. Create order with REAL person data
       const order = await api.post<{ id: number; productType: string; hash: string }>(
@@ -157,14 +179,16 @@ function RcaPageInner() {
             activityTypeId: state.vehicle.activityTypeId ?? 11,
             engineCapacity: state.vehicle.engineCapacity,
             enginePowerKw: state.vehicle.enginePowerKw,
+            firstRegistration: toMidnightIso(state.vehicle.firstRegistration),
+            itpExpiration: toMidnightIso(state.vehicle.itpExpiration),
+            vignetteExpiration: toMidnightIso(state.vehicle.vignetteExpiration),
             maxWeight: state.vehicle.totalWeight,
             seatsNumber: state.vehicle.seats,
             registrationTypeId: state.vehicle.registrationTypeId ?? 1,
             civ: state.registrationCertSeries,
             registrationCertificateNumber: state.registrationCertSeries,
             rafCode: "RAJ506943",
-            mileage: 50000,
-            km: 50000,
+            kilometersNumber: mileageVal,
           },
         }
       );
@@ -190,9 +214,10 @@ function RcaPageInner() {
                   civ: state.registrationCertSeries,
                   registrationCertificateNumber: state.registrationCertSeries,
                   rafCode: "RAJ506943",
-                  mileage: 50000,
-                  km: 50000,
-                  driverLicenceDate: "2010-02-01T00:00:00",
+                  kilometersNumber: mileageVal,
+                  mileage: mileageVal,
+                  km: mileageVal,
+                  driverLicenceDate: mainDriverLicenceDate,
                 },
               },
             ],
@@ -278,7 +303,7 @@ function RcaPageInner() {
       dispatch({ type: "SET_ERROR", error: errorMsg });
       dispatch({ type: "SET_LOADING_OFFERS", loading: false });
     }
-  }, [state.offers.length, state.loadingOffers, state.ownerType, state.cnpOrCui, state.email, state.vehicle, state.startDate, state.plateCountyId, state.plateCityId, state.platePostalCode, state.ownerFirstName, state.ownerLastName, state.idType, state.idSeries, state.idNumber, state.phoneNumber, state.address, state.registrationCertSeries, state.companyName, state.registrationNumber, state.caenCode, state.companyTypeId]);
+  };
 
   // ============================================================
   // Step 7: Payment (no more order update needed — order has real data)
@@ -290,6 +315,18 @@ function RcaPageInner() {
     // Build real person data
     const fullPerson = buildFullPersonFromFlowState(state);
     const normalizedPerson = normalizePersonForRca(fullPerson);
+    const mainDriverLicenceDate = toMidnightIso(state.driverLicenceDate);
+    const mileageVal = Number(state.mileage);
+
+    if (state.ownerType === "PF" && !mainDriverLicenceDate) {
+      dispatch({ type: "SET_ERROR", error: "Data obtinerii permisului este obligatorie." });
+      return;
+    }
+
+    if (!Number.isFinite(mileageVal) || mileageVal <= 0) {
+      dispatch({ type: "SET_ERROR", error: "Kilometrajul trebuie completat corect." });
+      return;
+    }
 
     // Build driver details: main driver (PF) + additional driver
     const driversDetails: Record<string, unknown>[] = [];
@@ -302,7 +339,7 @@ function RcaPageInner() {
         idSeries: state.idSeries,
         idNumber: state.idNumber,
         phoneNumber: state.phoneNumber,
-        driverLicenceDate: "2010-01-01T00:00:00",
+        driverLicenceDate: mainDriverLicenceDate,
         dateOfBirth: dateOfBirthFromCNP(state.cnpOrCui),
       });
     }
@@ -310,13 +347,11 @@ function RcaPageInner() {
       const addDriver = toDriverFromAdditional(state.additionalDriver);
       driversDetails.push({
         ...addDriver,
-        driverLicenceDate: state.additionalDriver.driverLicenceDate
-          ? `${state.additionalDriver.driverLicenceDate}T00:00:00`
-          : "2010-02-01T00:00:00",
+        driverLicenceDate: toMidnightIso(state.additionalDriver.driverLicenceDate),
       });
     }
 
-    // Save policy creation data to sessionStorage (needed after payment redirect)
+    // Save RCA quote context for callback follow-up after the payment redirect.
     const policyData = {
       rcaOwnerDetails: normalizedPerson,
       rcaUserDetails: normalizedPerson,
@@ -327,6 +362,19 @@ function RcaPageInner() {
         vin: state.vehicle.vin,
         plateNo: state.vehicle.licensePlate,
         vehicleCategoryId: state.vehicle.categoryId,
+        kilometersNumber: mileageVal,
+        firstRegistration: toMidnightIso(state.vehicle.firstRegistration),
+        itpExpiration: toMidnightIso(state.vehicle.itpExpiration),
+        vignetteExpiration: toMidnightIso(state.vehicle.vignetteExpiration),
+      },
+      rcaProductSpecificFields: {
+        civ: state.registrationCertSeries,
+        registrationCertificateNumber: state.registrationCertSeries,
+        rafCode: "RAJ506943",
+        kilometersNumber: mileageVal,
+        mileage: mileageVal,
+        km: mileageVal,
+        driverLicenceDate: mainDriverLicenceDate,
       },
       policyStartDate: toRcaDate(state.startDate),
       email: normalizedPerson.email,
@@ -510,6 +558,7 @@ function RcaPageInner() {
         ownerLastName: state.ownerLastName,
         idSeries: state.idSeries,
         idNumber: state.idNumber,
+        driverLicenceDate: state.driverLicenceDate,
         address: state.address,
         startDate: state.startDate,
       })
@@ -567,6 +616,8 @@ function RcaPageInner() {
             vehicle={state.vehicle}
             onChange={(v) => dispatch({ type: "SET_VEHICLE", vehicle: v })}
             onContinue={handleVinComplete}
+            mileage={state.mileage}
+            onMileageChange={(v) => dispatch({ type: "SET_MILEAGE", mileage: v })}
           />
         );
     }
@@ -675,6 +726,7 @@ function RcaPageInner() {
       companyFound={state.companyFound}
       idSeries={state.idSeries}
       idNumber={state.idNumber}
+      driverLicenceDate={state.driverLicenceDate}
       email={state.email}
       phoneNumber={state.phoneNumber}
       address={state.address}

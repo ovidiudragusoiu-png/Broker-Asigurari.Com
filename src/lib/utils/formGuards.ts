@@ -100,10 +100,11 @@ export function isMinimalOwnerValid(ownerType: "PF" | "PJ", cnpOrCui: string, em
 /**
  * Validate post-offer policy details (collected after user selects an offer).
  */
-/** Lighter address check for step 5: postal code is auto-resolved, not required */
+/** Address check for RCA step 4: postal code is required (manual or auto-resolved) */
 function isStepAddressValid(address: AddressRequest): boolean {
   if (!address.countryId) return false;
   if (!address.streetName?.trim() || !address.streetNumber?.trim()) return false;
+  if (!address.postalCode?.trim()) return false;
   const isForeign = address.countryId !== ROMANIA_COUNTRY_ID;
   if (isForeign) {
     return !!address.foreignCountyName?.trim() && !!address.foreignCityName?.trim();
@@ -116,6 +117,7 @@ export function isPostOfferDetailsPFValid(details: {
   ownerLastName: string;
   idSeries: string;
   idNumber: string;
+  driverLicenceDate?: string;
   address: AddressRequest;
   startDate: string;
 }): boolean {
@@ -124,6 +126,7 @@ export function isPostOfferDetailsPFValid(details: {
     !!details.ownerLastName?.trim() &&
     !!details.idSeries?.trim() &&
     !!details.idNumber?.trim() &&
+    !!details.driverLicenceDate &&
     !!details.startDate &&
     isStepAddressValid(details.address)
   );

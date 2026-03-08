@@ -72,6 +72,10 @@ export type RcaOfferApi = {
     periodMonths?: number;
     error?: boolean;
     message?: string | null;
+    detail?: string | null;
+    title?: string | null;
+    errorMessage?: string | null;
+    description?: string | null;
     withDirectSettlement?: boolean;
     directSettlement?: {
       premium?: number;
@@ -84,6 +88,10 @@ export type RcaOfferApi = {
   };
   error?: boolean;
   message?: string | null;
+  detail?: string | null;
+  title?: string | null;
+  errorMessage?: string | null;
+  description?: string | null;
   premium?: number | string;
   totalPremium?: number | string;
   periodMonths?: number;
@@ -171,6 +179,29 @@ export function getGreenCardExclusions(vendorName: string): string[] {
   return VENDOR_GREEN_CARD_EXCLUSIONS[vendorName] ?? [];
 }
 
+function getRcaOfferErrorMessage(raw: RcaOfferApi): string | undefined {
+  const candidates = [
+    raw.offerDetails?.message,
+    raw.offerDetails?.detail,
+    raw.offerDetails?.title,
+    raw.offerDetails?.errorMessage,
+    raw.offerDetails?.description,
+    raw.message,
+    raw.detail,
+    raw.title,
+    raw.errorMessage,
+    raw.description,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+
+  return undefined;
+}
+
 export function normalizeRcaOffer(
   raw: RcaOfferApi,
   fallbackProductName: string,
@@ -222,7 +253,7 @@ export function normalizeRcaOffer(
         dueDate: i.dueDate,
       })) || raw.installments,
     error: isError
-      ? raw.offerDetails?.message || raw.message || "Eroare oferta"
+      ? getRcaOfferErrorMessage(raw) || "Eroare oferta"
       : undefined,
   };
 }
@@ -453,6 +484,9 @@ export function buildFullPersonFromFlowState(state: RcaFlowState): PersonRequest
       idType: state.idType,
       idSerial: state.idSeries,
       idNumber: state.idNumber,
+      driverLicenceDate: state.driverLicenceDate
+        ? `${state.driverLicenceDate}T00:00:00`
+        : null,
       phoneNumber: state.phoneNumber,
       address: state.address,
     });
@@ -532,6 +566,9 @@ export function emptyVehicle(): VehicleData {
     totalWeight: null,
     seats: null,
     registrationTypeId: null,
+    firstRegistration: null,
+    itpExpiration: null,
+    vignetteExpiration: null,
   };
 }
 
@@ -557,6 +594,7 @@ export function emptyRcaFlowState(): RcaFlowState {
     cnpOrCui: "",
     email: "",
     skipDnt: false,
+    mileage: "",
 
     plateCountyId: null,
     plateCityId: null,
@@ -583,6 +621,7 @@ export function emptyRcaFlowState(): RcaFlowState {
     idNumber: "",
     address: emptyAddress(),
 
+    driverLicenceDate: "",
     hasAdditionalDriver: false,
     additionalDriver: null,
 
@@ -616,6 +655,8 @@ export function rcaFlowReducer(state: RcaFlowState, action: import("@/types/rcaF
       return { ...state, cnpOrCui: action.value };
     case "SET_EMAIL":
       return { ...state, email: action.email };
+    case "SET_MILEAGE":
+      return { ...state, mileage: action.mileage };
     case "SET_SKIP_DNT":
       return { ...state, skipDnt: action.skip };
     case "SET_ORDER":

@@ -69,6 +69,82 @@ const ACCEPT_TEXT_PLAIN: RegExp[] = [
   /^online\/offers\/payment\/loan($|\?)/,
 ];
 
+const RCA_BACKEND_DEFAULT_PATHS: RegExp[] = [
+  /^online\/offers\/rca\/order\/v3($|\?)/,
+  /^online\/offers\/rca\/v3($|\?)/,
+  /^online\/policies\/rca\/v3($|\?)/,
+];
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function getRcaFallbackItpExpiration(now = new Date()): string {
+  const bucharestNow = new Date(
+    now.toLocaleString("en-US", { timeZone: "Europe/Bucharest" })
+  );
+  bucharestNow.setDate(bucharestNow.getDate() - 7);
+  const year = String(bucharestNow.getFullYear());
+  const month = String(bucharestNow.getMonth() + 1).padStart(2, "0");
+  const day = String(bucharestNow.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}T00:00:00`;
+}
+
+function applyMissingItpExpiration(
+  target: Record<string, unknown>,
+  fallbackItpExpiration: string
+) {
+  const current = target.itpExpiration;
+  if (typeof current !== "string" || !current.trim()) {
+    target.itpExpiration = fallbackItpExpiration;
+  }
+}
+
+function normalizeRcaBackendDefaults(path: string, rawBody: string): string {
+  if (!rawBody || !RCA_BACKEND_DEFAULT_PATHS.some((re) => re.test(path))) {
+    return rawBody;
+  }
+
+  let parsedBody: unknown;
+  try {
+    parsedBody = JSON.parse(rawBody);
+  } catch {
+    return rawBody;
+  }
+
+  if (!isPlainObject(parsedBody)) {
+    return rawBody;
+  }
+
+  const fallbackItpExpiration = getRcaFallbackItpExpiration();
+
+  const vehicleDetails = parsedBody.vehicleDetails;
+  if (isPlainObject(vehicleDetails)) {
+    applyMissingItpExpiration(vehicleDetails, fallbackItpExpiration);
+  }
+
+  const rcaProductRequests = parsedBody.rcaProductRequests;
+  if (Array.isArray(rcaProductRequests)) {
+    for (const productRequest of rcaProductRequests) {
+      if (!isPlainObject(productRequest)) {
+        continue;
+      }
+
+      const requestVehicleDetails = productRequest.vehicleDetails;
+      if (isPlainObject(requestVehicleDetails)) {
+        applyMissingItpExpiration(requestVehicleDetails, fallbackItpExpiration);
+      }
+
+      const specificFields = productRequest.specificFields;
+      if (isPlainObject(specificFields)) {
+        applyMissingItpExpiration(specificFields, fallbackItpExpiration);
+      }
+    }
+  }
+
+  return JSON.stringify(parsedBody);
+}
+
 function getAuditAction(path: string): string | null {
   for (const { pattern, action } of AUDIT_PATHS) {
     if (pattern.test(path)) return action;
@@ -133,6 +209,11 @@ async function proxyRequest(req: NextRequest, method: string) {
       clearTimeout(timeoutId);
       return NextResponse.json({ message: "Request body too large" }, { status: 413 });
     }
+    const normalizedRequestBody = normalizeRcaBackendDefaults(pathSegments, requestBody);
+    if (normalizedRequestBody !== requestBody) {
+      console.info(`[InsureTech API] Applied RCA ITP fallback for ${pathSegments}`);
+    }
+    requestBody = normalizedRequestBody;
     if (requestBody) {
       fetchOptions.body = requestBody;
     }

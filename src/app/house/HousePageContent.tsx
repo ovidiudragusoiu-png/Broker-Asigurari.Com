@@ -133,6 +133,7 @@ export default function HousePage() {
   const [downloadErrors, setDownloadErrors] = useState<Record<string, string>>({});
 
   const { currentStep, next, prev, goTo } = useWizard(4);
+  const [showErrors, setShowErrors] = useState(false);
 
   // Auto-generate offers when user reaches step 3
   useEffect(() => {
@@ -666,7 +667,7 @@ export default function HousePage() {
 
           <div className="rounded-md border border-gray-200 p-4">
             <h4 className="mb-3 text-sm font-semibold text-gray-700">Adresa locuinta</h4>
-            <AddressForm value={houseAddress} onChange={setHouseAddress} />
+            <AddressForm value={houseAddress} onChange={setHouseAddress} showErrors={showErrors} />
             {isBloc && !houseAddress.floorId && (
               <p className="mt-2 text-xs font-medium text-amber-600">Etajul este obligatoriu pentru locuinta tip apartament (Bloc).</p>
             )}
@@ -932,7 +933,7 @@ export default function HousePage() {
             )}
           </div>
 
-          <button type="button" onClick={() => isHouseDetailsValid && next()} disabled={!isHouseDetailsValid} className="rounded-md bg-blue-700 px-6 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50">
+          <button type="button" onClick={() => { if (isHouseDetailsValid) { setShowErrors(false); next(); } else { setShowErrors(true); } }} className="rounded-md bg-blue-700 px-6 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50">
             Continua
           </button>
         </div>
@@ -947,6 +948,7 @@ export default function HousePage() {
             onChange={setContractor}
             title="Contractant / Asigurat"
             hideIdDocument
+            showErrors={showErrors}
             onCopyAddress={() =>
               setContractor((prev) => ({
                 ...prev,
@@ -966,7 +968,7 @@ export default function HousePage() {
           </div>
           <div className="flex gap-3">
             <button type="button" onClick={prev} className="rounded-md border border-gray-300 px-6 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Inapoi</button>
-            <button type="button" onClick={() => isContractorValid && setShowDntSubstep(true)} disabled={!isContractorValid} className="rounded-md bg-blue-700 px-6 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50">Continuă</button>
+            <button type="button" onClick={() => { if (isContractorValid) { setShowErrors(false); setShowDntSubstep(true); } else { setShowErrors(true); } }} className="rounded-md bg-blue-700 px-6 py-2 text-sm font-medium text-white hover:bg-blue-800">Continuă</button>
           </div>
         </div>
       ) : (
@@ -1084,7 +1086,7 @@ export default function HousePage() {
                           (d) => d.value !== 0 && d.value !== false && d.value !== null && SPECIFIC_LABELS[d.code]
                         );
                         const coverages = offer.coverages || [];
-                        const totalWithPad = withPad && padOffer
+                        const totalWithPad = withPad && padOffer && padOffer.id > 0
                           ? offer.policyPremium + padOffer.premium
                           : null;
 
@@ -1197,7 +1199,7 @@ export default function HousePage() {
                             )}
 
                             {/* PAD breakdown */}
-                            {!unavailable && withPad && padOffer && (
+                            {!unavailable && withPad && padOffer && padOffer.id > 0 && (
                               <div className="mb-3 rounded-lg border border-blue-100 bg-blue-50/40 px-3 py-2">
                                 <div className="flex items-center justify-between text-[11px]">
                                   <span className="text-gray-600">Prima locuinta (facultativa)</span>
@@ -1344,8 +1346,8 @@ export default function HousePage() {
           currency={selectedOffer.currency}
           productType="HOUSE"
           additionalOfferIds={padOffer && padOffer.id > 0 ? [padOffer.id] : undefined}
-          padPremium={withPad && padOffer ? padOffer.premium : undefined}
-          padCurrency={withPad && padOffer ? padOffer.currency : undefined}
+          padPremium={withPad && padOffer && padOffer.id > 0 ? padOffer.premium : undefined}
+          padCurrency={withPad && padOffer && padOffer.id > 0 ? padOffer.currency : undefined}
         />
       ) : (
         <p className="text-gray-500">Selectati mai intai o oferta.</p>

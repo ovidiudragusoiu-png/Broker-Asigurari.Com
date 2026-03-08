@@ -15,6 +15,8 @@ interface AddressFormProps {
   value: AddressRequest;
   onChange: (address: AddressRequest) => void;
   addressType?: "HOME" | "MAILING";
+  /** When true, highlight empty mandatory fields with red borders */
+  showErrors?: boolean;
 }
 
 interface SelectOption {
@@ -55,10 +57,13 @@ const BUCHAREST_SECTORS = [
 const BUCHAREST_COUNTY_IDS = new Set(BUCHAREST_SECTORS.map((s) => s.countyId));
 const BUCHAREST_SENTINEL = -999; // virtual countyId for the single "Bucuresti" option
 
+const errBorder = "!border-red-300 focus:!border-red-500 focus:!ring-red-500/20";
+
 export default function AddressForm({
   value,
   onChange,
   addressType = "HOME",
+  showErrors = false,
 }: AddressFormProps) {
   const [countries, setCountries] = useState<SelectOption[]>([]);
   const [counties, setCounties] = useState<SelectOption[]>([]);
@@ -246,7 +251,7 @@ export default function AddressForm({
           <div>
             <label className={labelCls}>Judet</label>
             <select
-              className={selectCls}
+              className={`${selectCls} ${showErrors && !value.countyId ? errBorder : ""}`}
               value={isBucharest ? BUCHAREST_SENTINEL : (value.countyId ?? "")}
               onChange={(e) => {
                 const val = e.target.value ? Number(e.target.value) : null;
@@ -274,7 +279,7 @@ export default function AddressForm({
             </label>
             {isBucharest || value.countyId === BUCHAREST_SENTINEL ? (
               <select
-                className={selectCls}
+                className={`${selectCls} ${showErrors && !isBucharest ? errBorder : ""}`}
                 value={isBucharest ? value.countyId ?? "" : ""}
                 onChange={(e) => {
                   const sector = BUCHAREST_SECTORS.find((s) => s.countyId === Number(e.target.value));
@@ -293,7 +298,7 @@ export default function AddressForm({
               </select>
             ) : (
               <select
-                className={selectCls}
+                className={`${selectCls} ${showErrors && !value.cityId ? errBorder : ""}`}
                 value={value.cityId ?? ""}
                 onChange={(e) =>
                   update({
@@ -318,7 +323,7 @@ export default function AddressForm({
             <label className={labelCls}>Regiune / Stat</label>
             <input
               type="text"
-              className={inputCls}
+              className={`${inputCls} ${showErrors && !value.foreignCountyName?.trim() ? errBorder : ""}`}
               placeholder="Ex: Bavaria"
               value={value.foreignCountyName ?? ""}
               onChange={(e) =>
@@ -330,7 +335,7 @@ export default function AddressForm({
             <label className={labelCls}>Oras</label>
             <input
               type="text"
-              className={inputCls}
+              className={`${inputCls} ${showErrors && !value.foreignCityName?.trim() ? errBorder : ""}`}
               placeholder="Ex: München"
               value={value.foreignCityName ?? ""}
               onChange={(e) =>
@@ -379,7 +384,7 @@ export default function AddressForm({
           <label className={labelCls}>Nume strada</label>
           <input
             type="text"
-            className={inputCls}
+            className={`${inputCls} ${showErrors && !value.streetName?.trim() ? errBorder : ""}`}
             placeholder={value.cityId ? "Min. 3 litere..." : "Selecteaza localitate"}
             value={streetQuery}
             disabled={isRomania && !value.cityId}
@@ -417,7 +422,7 @@ export default function AddressForm({
           <label className={labelCls}>Numar</label>
           <input
             type="text"
-            className={inputCls}
+            className={`${inputCls} ${showErrors && !value.streetNumber?.trim() ? errBorder : ""}`}
             placeholder="Nr."
             value={value.streetNumber}
             onChange={(e) => update({ streetNumber: e.target.value })}
@@ -480,7 +485,7 @@ export default function AddressForm({
           <label className={labelCls}>Cod postal</label>
           <input
             type="text"
-            className={inputCls}
+            className={`${inputCls} ${showErrors && !value.postalCode?.trim() ? errBorder : ""}`}
             placeholder="Ex: 010101"
             value={value.postalCode}
             onChange={(e) => update({ postalCode: e.target.value })}

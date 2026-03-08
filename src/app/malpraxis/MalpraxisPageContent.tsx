@@ -159,6 +159,7 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
   const activeRunIdRef = useRef(0);
 
   const { currentStep, next, prev, goTo } = useWizard(4);
+  const [showErrors, setShowErrors] = useState(false);
 
   const logClientTrace = (
     traceId: string | null,
@@ -205,7 +206,7 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
     !!currencyId &&
     !!retroactivePeriod &&
     !!policyStartDate;
-  const isInsuredStepValid = isPersonValid(insured);
+  const isInsuredStepValid = isPersonValid(insured, { skipIdDocument: true });
 
   useEffect(() => {
     api
@@ -922,7 +923,7 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
         <div className="mx-auto max-w-2xl space-y-4">
           {!showDntSubstep ? (
             <>
-              <PersonForm value={insured} onChange={setInsured} title="Asigurat (medic)" />
+              <PersonForm value={insured} onChange={setInsured} title="Asigurat (medic)" hideIdDocument showErrors={showErrors} />
 
               {/* GDPR notice */}
               <div className="flex items-start gap-3 rounded-xl bg-blue-50/60 p-4">
@@ -999,8 +1000,8 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
                 </button>
                 <button
                   type="button"
-                  onClick={() => isInsuredStepValid && setShowDntSubstep(true)}
-                  disabled={!isInsuredStepValid}
+                  onClick={() => { if (isInsuredStepValid) { setShowErrors(false); setShowDntSubstep(true); } else { setShowErrors(true); } }}
+                  disabled={false}
                   className={`${btn.primary} px-8`}
                 >
                   <span className="flex items-center gap-2">
