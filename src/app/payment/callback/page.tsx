@@ -5,6 +5,7 @@ import { useState, useEffect, useRef, Suspense } from "react";
 import { api } from "@/lib/api/client";
 import Link from "next/link";
 import { btn } from "@/lib/ui/tokens";
+import { getPaymentCheckFailureMessage } from "@/lib/flows/paymentVerification";
 import { CheckCircle2, ShieldCheck, Building2, Calendar, Download, AlertTriangle, ArrowRight, Mail } from "lucide-react";
 
 function isValidPositiveInt(value: string | null): value is string {
@@ -112,19 +113,25 @@ function PaymentCallbackContent() {
       // Verify payment via InsureTech API before proceeding to policy creation
       try {
         const padOid = urlPadOfferId && isValidPositiveInt(urlPadOfferId) ? [Number(urlPadOfferId)] : [];
-        const payCheck = await api.post<{ offerId: number; success: boolean; message: string }>(
+        const offerIdsToCheck = [Number(offerId), ...padOid];
+        const payCheck = await api.post<unknown>(
           `/online/offers/payment/check/v3?orderHash=${orderHash}`,
-          { offerIds: [Number(offerId), ...padOid] },
+          { offerIds: offerIdsToCheck },
           { Accept: "text/plain" }
         );
-        if (!payCheck.success) {
-          setError(payCheck.message || "Plata nu a fost confirmata de procesatorul de plati.");
-          setCreating(false);
+        const failureMessage = getPaymentCheckFailureMessage(payCheck, offerIdsToCheck);
+        if (failureMessage) {
+          setError(failureMessage);
           return;
         }
       } catch (checkErr) {
-        console.warn("[PaymentCallback] payment check failed, proceeding anyway:", checkErr);
-        // Don't block policy creation if payment check itself errors — the redirect status is APPROVED
+        console.warn("[PaymentCallback] payment check failed:", checkErr);
+        setError(
+          checkErr instanceof Error
+            ? checkErr.message
+            : "Nu am putut verifica plata. Va rugam incercati din nou."
+        );
+        return;
       }
 
       // Per V3 docs: RCA uses /policies/rca/v3, all others use /policies/v3
