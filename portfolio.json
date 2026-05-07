@@ -1,0 +1,80 @@
+[
+  {
+    "ticker": "AMD",
+    "company": "Advanced Micro Devices",
+    "shares": 580.20,
+    "current_price": 414.05,
+    "market_value": 240231.94
+  },
+  {
+    "ticker": "AVGO",
+    "company": "Broadcom",
+    "shares": 75.97,
+    "current_price": 423.88,
+    "market_value": 32206.29
+  },
+  {
+    "ticker": "ELF",
+    "company": "e.l.f. Beauty",
+    "shares": 368.17,
+    "current_price": 61.60,
+    "market_value": 22679.48
+  },
+  {
+    "ticker": "CELH",
+    "company": "Celsius Holdings",
+    "shares": 445.87,
+    "current_price": 34.40,
+    "market_value": 15337.94
+  },
+  {
+    "ticker": "SOFI",
+    "company": "SoFi Technologies",
+    "shares": 619.57,
+    "current_price": 16.30,
+    "market_value": 10099.00
+  },
+  {
+    "ticker": "TTD",
+    "company": "The Trade Desk",
+    "shares": 321.84,
+    "current_price": 24.18,
+    "market_value": 7782.12
+  },
+  {
+    "ticker": "META",
+    "company": "Meta Platforms",
+    "shares": 7.34,
+    "current_price": 612.75,
+    "market_value": 4502.71
+  },
+  {
+    "ticker": "HNST",
+    "company": "The Honest Company",
+    "shares": 898.23,
+    "current_price": 3.17,
+    "market_value": 2847.40
+  },
+  {
+    "ticker": "CHGG",
+    "company": "Chegg",
+    "shares": 2000.41,
+    "current_price": 1.17,
+    "market_value": 2340.49
+  },
+  {
+    "ticker": "FUBO",
+    "company": "fuboTV",
+    "shares": 116.69,
+    "current_price": 10.52,
+    "market_value": 1227.68
+  },
+  {
+    "ticker": "FLXK",
+    "company": "Franklin FTSE Korea UCITS ETF Acc",
+    "shares": 2.52,
+    "current_price": 84.28,
+    "market_value": 250.13,
+    "currency_note": "price shown in EUR in screenshot"
+  }
+]

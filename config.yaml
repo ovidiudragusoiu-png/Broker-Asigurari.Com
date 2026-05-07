@@ -1,0 +1,84 @@
+{
+  "base_currency": "USD",
+  "portfolio_path": "portfolio.json",
+  "reports_dir": "reports",
+  "logs_dir": "logs",
+  "timezone": "America/New_York",
+  "report_times_et": ["10:00", "14:30"],
+  "market_data": {
+    "provider": "yahoo",
+    "timeout_seconds": 12,
+    "use_snapshot_prices_when_live_unavailable": false,
+    "symbols": {
+      "FLXK": "FLXK.DE"
+    },
+    "market_context_symbols": {
+      "S&P 500": "^GSPC",
+      "Nasdaq 100": "^NDX",
+      "Russell 2000": "^RUT",
+      "VIX": "^VIX",
+      "10Y Treasury yield": "^TNX",
+      "USD Index": "DX-Y.NYB"
+    }
+  },
+  "news": {
+    "max_company_headlines": 5,
+    "max_macro_headlines": 8,
+    "company_lookback_days": 7,
+    "macro_queries": [
+      "Federal Reserve interest rates stock market",
+      "US equity market macro risk",
+      "AI infrastructure semiconductor news",
+      "geopolitical market risk"
+    ],
+    "sector_queries": {
+      "AMD": ["semiconductor AI accelerator AMD"],
+      "AVGO": ["Broadcom AI infrastructure semiconductor"],
+      "META": ["Meta AI advertising digital media"],
+      "ELF": ["beauty retail consumer discretionary e.l.f. Beauty"],
+      "CELH": ["Celsius Holdings beverage retail consumer discretionary"],
+      "HNST": ["Honest Company consumer retail"],
+      "SOFI": ["SoFi fintech banking interest rates"],
+      "TTD": ["Trade Desk advertising digital media"],
+      "CHGG": ["Chegg education technology distressed risk"],
+      "FUBO": ["fuboTV streaming sports profitability risk"]
+    }
+  },
+  "risk_rules": {
+    "high_concentration_weight": 0.35,
+    "extreme_concentration_weight": 0.50,
+    "normal_max_position": 0.25,
+    "exceptional_max_position": 0.35,
+    "speculative_max_position": 0.03,
+    "distressed_max_position": 0.02,
+    "gradual_trim_fraction": 0.05
+  },
+  "position_targets": {
+    "AMD": {"type": "exceptional", "max_weight": 0.35},
+    "AVGO": {"type": "core_growth", "max_weight": 0.20},
+    "ELF": {"type": "growth", "max_weight": 0.12},
+    "CELH": {"type": "growth", "max_weight": 0.10},
+    "SOFI": {"type": "speculative_growth", "max_weight": 0.05},
+    "TTD": {"type": "growth", "max_weight": 0.08},
+    "META": {"type": "core_growth", "max_weight": 0.20},
+    "HNST": {"type": "speculative", "max_weight": 0.02},
+    "CHGG": {"type": "distressed", "max_weight": 0.02},
+    "FUBO": {"type": "distressed", "max_weight": 0.02},
+    "FLXK": {"type": "international_etf", "max_weight": 0.05}
+  },
+  "buy_candidates": [
+    {"ticker": "SMH", "name": "VanEck Semiconductor ETF", "type": "semiconductor_etf", "suggested_allocation": 0.03, "max_weight": 0.10},
+    {"ticker": "SOXX", "name": "iShares Semiconductor ETF", "type": "semiconductor_etf", "suggested_allocation": 0.03, "max_weight": 0.10},
+    {"ticker": "QQQM", "name": "Invesco NASDAQ 100 ETF", "type": "large_cap_growth_etf", "suggested_allocation": 0.05, "max_weight": 0.20},
+    {"ticker": "VOO", "name": "Vanguard S&P 500 ETF", "type": "broad_market_etf", "suggested_allocation": 0.05, "max_weight": 0.25},
+    {"ticker": "MSFT", "name": "Microsoft", "type": "profitable_large_cap_ai", "suggested_allocation": 0.03, "max_weight": 0.15},
+    {"ticker": "TBIL", "name": "US Treasury 3 Month Bill ETF", "type": "cash_tbill", "suggested_allocation": 0.05, "max_weight": 0.20},
+    {"ticker": "VUAA.L", "name": "Vanguard S&P 500 UCITS ETF", "type": "european_ucits", "suggested_allocation": 0.05, "max_weight": 0.25},
+    {"ticker": "EQQQ.L", "name": "Invesco EQQQ Nasdaq-100 UCITS ETF", "type": "european_ucits_growth", "suggested_allocation": 0.03, "max_weight": 0.15}
+  ],
+  "notifications": {
+    "email_enabled": true,
+    "telegram_enabled": false,
+    "slack_enabled": false
+  }
+}
