@@ -191,7 +191,6 @@ function mapSearchTerm(row: GoogleAdsRow): SearchTermPerformance {
 function mapAd(row: GoogleAdsRow): AdPerformance {
   const ad = nested(row, ["ad_group_ad", "ad"]);
   const responsiveSearchAd = isRecord(ad) ? ad.responsive_search_ad : undefined;
-  const expandedTextAd = isRecord(ad) ? ad.expanded_text_ad : undefined;
 
   return {
     ...metricsFrom(row),
