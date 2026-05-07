@@ -306,15 +306,40 @@ class PortfolioAnalyzer:
         if 2 <= score <= 5 and weight_pct <= max_target and risk_category != "Speculative":
             return self._buy_recommendation(item, price, score, sentiment_label, trend, news_evidence, small=True)
         if -5 <= score <= -2:
-            shares = round(item["shares"] * 0.05, 2)
-            return self._trim_recommendation(
-                item,
-                shares,
-                price,
-                score,
-                f"Score {score}/10 reflects weaker news, trend, or earnings momentum.",
-                "Staged limit order",
-                "Trim/watch closely; reassess after the next confirmed catalyst.",
+            if self._has_material_negative_trigger(
+                item=item,
+                score=score,
+                weight_pct=weight_pct,
+                sentiment_label=sentiment_label,
+                trend=trend,
+            ):
+                shares = round(item["shares"] * 0.05, 2)
+                return self._trim_recommendation(
+                    item,
+                    shares,
+                    price,
+                    score,
+                    f"Score {score}/10 has a confirmed negative trigger beyond normal volatility.",
+                    "Staged limit order",
+                    "Trim/watch closely; reassess after the next confirmed catalyst.",
+                )
+            return Recommendation(
+                ticker=ticker,
+                action="Watch only" if risk_category == "Speculative" else "Hold",
+                shares=0,
+                approx_dollars=0,
+                timing=(
+                    "Watch closely; do not trim on technical weakness alone unless bearish news, "
+                    "guidance damage, or a decisive support break confirms the risk."
+                ),
+                confidence="Medium",
+                reason=(
+                    f"Score {score}/10 maps to trim/watch, but current evidence is not enough "
+                    "for a size-changing trade under the long-term volatility-tolerant rules."
+                ),
+                risk_warning=self._risk_warning(item, weight_pct),
+                invalidation=self._invalidation(item, snapshot),
+                score=score,
             )
         if score <= -6:
             shares = round(item["shares"] * 0.15, 2)
@@ -416,6 +441,23 @@ class PortfolioAnalyzer:
         timing: str,
     ) -> Recommendation:
         dollars = round(shares * price, 2) if price else 0
+        minimum = float(self.risk.get("minimum_action_value_usd", 250))
+        if 0 < dollars < minimum:
+            return Recommendation(
+                ticker=item["ticker"],
+                action="Watch only",
+                shares=0,
+                approx_dollars=0,
+                timing=(
+                    "Watch closely; proposed trim is below the minimum action size and "
+                    "could create unnecessary turnover."
+                ),
+                confidence="Medium",
+                reason=f"{reason} Estimated trade value {_fmt_money(dollars)} is below the configured minimum.",
+                risk_warning=self._risk_warning(item, 0),
+                invalidation=self._invalidation(item, None),
+                score=score,
+            )
         return Recommendation(
             ticker=item["ticker"],
             action="Trim" if score > -6 else "Sell",
@@ -433,6 +475,27 @@ class PortfolioAnalyzer:
             execution_style=execution_style,
             score=score,
         )
+
+    def _has_material_negative_trigger(
+        self,
+        item: dict[str, Any],
+        score: int,
+        weight_pct: float,
+        sentiment_label: str,
+        trend: str,
+    ) -> bool:
+        risk_category = item.get("risk_category", "Medium")
+        high_risk_cap = float(self.risk.get("high_risk_max_weight_pct", 10))
+        speculative_cap = float(self.risk.get("speculative_max_weight_pct", 3))
+        if sentiment_label == "Bearish":
+            return True
+        if score <= -4:
+            return True
+        if risk_category == "High" and weight_pct > high_risk_cap and trend in {"Downtrend", "Broken trend"}:
+            return True
+        if risk_category == "Speculative" and weight_pct > speculative_cap and trend in {"Downtrend", "Broken trend"}:
+            return True
+        return False
 
     def _trim_to_weight(
         self, item: dict[str, Any], current_weight_pct: float, target_weight_pct: float, price: float
@@ -545,3 +608,12 @@ def _to_float(value: Any) -> float | None:
         return float(value)
     except (TypeError, ValueError):
         return None
+
+
+def _fmt_money(value: Any) -> str:
+    if value is None:
+        return "missing"
+    try:
+        return f"${float(value):,.2f}"
+    except (TypeError, ValueError):
+        return "missing"

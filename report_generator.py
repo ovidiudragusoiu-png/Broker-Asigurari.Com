@@ -132,7 +132,7 @@ class ReportGenerator:
                     f"- Sentiment: {item.get('news_sentiment')}",
                     f"- Technical trend: {item.get('technical_trend')} (score {item.get('score')}/10)",
                     f"- Impact on long-term thesis: {self._thesis_impact(item)}",
-                    f"- Action: {rec['action']} {self._action_detail(rec)}",
+                    f"- Action: {rec['action']}. {self._action_detail(rec)}",
                     f"- Risk warning: {rec['risk_warning']}",
                     f"- Invalidation/review trigger: {rec['invalidation']}",
                 ]
