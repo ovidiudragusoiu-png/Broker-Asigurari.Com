@@ -1,0 +1,239 @@
+# Portfolio News Advisor configuration.
+# Copy this file or edit it directly, then fill API credentials in .env.
+
+portfolio:
+  base_currency: USD
+  # If unknown, leave null and optionally set CASH_AVAILABLE_USD in .env.
+  cash_available_usd: null
+  estimated_total_value_usd: 339505
+  positions:
+    - ticker: AMD
+      data_symbol: AMD
+      name: Advanced Micro Devices
+      shares: 580.2
+      current_price: 414.05
+      current_value: 240231.94
+      sector: Semiconductors
+      risk_category: High
+      thesis_keywords:
+        - AI chips
+        - data center
+        - GPU
+        - hyperscaler capex
+        - export restrictions
+        - TSMC
+        - Nvidia
+    - ticker: AVGO
+      data_symbol: AVGO
+      name: Broadcom
+      shares: 75.97
+      current_price: 423.88
+      current_value: 32206.29
+      sector: Semiconductors
+      risk_category: Medium
+      thesis_keywords:
+        - AI networking
+        - custom silicon
+        - VMware
+        - data center
+        - hyperscaler capex
+    - ticker: ELF
+      data_symbol: ELF
+      name: e.l.f. Beauty
+      shares: 368.17
+      current_price: 61.60
+      current_value: 22679.48
+      sector: Consumer
+      risk_category: Medium
+      thesis_keywords:
+        - consumer spending
+        - retail sales
+        - margins
+        - inventory
+        - TikTok
+        - tariffs
+    - ticker: CELH
+      data_symbol: CELH
+      name: Celsius Holdings
+      shares: 445.87
+      current_price: 34.40
+      current_value: 15337.94
+      sector: Consumer
+      risk_category: High
+      thesis_keywords:
+        - beverages
+        - retail channel
+        - inventory
+        - margins
+        - consumer spending
+    - ticker: SOFI
+      data_symbol: SOFI
+      name: SoFi Technologies
+      shares: 619.57
+      current_price: 16.30
+      current_value: 10099.00
+      sector: Fintech
+      risk_category: High
+      thesis_keywords:
+        - rates
+        - fintech regulation
+        - loan growth
+        - student loans
+        - banking
+        - credit quality
+    - ticker: TTD
+      data_symbol: TTD
+      name: The Trade Desk
+      shares: 321.84
+      current_price: 24.18
+      current_value: 7782.12
+      sector: Advertising Technology
+      risk_category: High
+      thesis_keywords:
+        - advertising spend
+        - AI ads
+        - privacy regulation
+        - Google
+        - Meta
+        - TikTok
+        - guidance
+    - ticker: META
+      data_symbol: META
+      name: Meta Platforms
+      shares: 7.34
+      current_price: 612.75
+      current_value: 4502.71
+      sector: Advertising Technology
+      risk_category: Medium
+      thesis_keywords:
+        - advertising spend
+        - AI ads
+        - privacy regulation
+        - capex
+        - metaverse
+    - ticker: HNST
+      data_symbol: HNST
+      name: The Honest Company
+      shares: 898.23
+      current_price: 3.17
+      current_value: 2847.40
+      sector: Consumer
+      risk_category: Speculative
+      thesis_keywords:
+        - turnaround
+        - retail channel
+        - margins
+        - consumer spending
+    - ticker: CHGG
+      data_symbol: CHGG
+      name: Chegg
+      shares: 2000.41
+      current_price: 1.17
+      current_value: 2340.49
+      sector: Education Technology
+      risk_category: Speculative
+      thesis_keywords:
+        - AI disruption
+        - subscriptions
+        - turnaround
+        - guidance
+    - ticker: FUBO
+      data_symbol: FUBO
+      name: fuboTV
+      shares: 116.69
+      current_price: 10.52
+      current_value: 1227.68
+      sector: Streaming
+      risk_category: Speculative
+      thesis_keywords:
+        - streaming
+        - sports rights
+        - cash burn
+        - profitability
+        - turnaround
+    - ticker: FLXK
+      # Update this symbol if your data vendor uses a different exchange suffix.
+      data_symbol: FLXK.L
+      name: Franklin FTSE Korea UCITS ETF Acc
+      shares: 2.52
+      current_price: 84.28
+      current_value: 250.13
+      sector: International ETF
+      risk_category: Medium
+      currency: EUR
+      thesis_keywords:
+        - Korea
+        - semiconductors
+        - emerging markets
+        - currency
+
+risk:
+  max_single_stock_target_pct: 35
+  preferred_single_stock_target_pct: 25
+  concentration_warning_pct: 25
+  concentration_critical_pct: 50
+  amd_default_trim_steps_pct:
+    - 5
+    - 10
+    - 15
+  speculative_max_weight_pct: 3
+  high_risk_max_weight_pct: 10
+  default_buy_allocation_pct_of_cash: 20
+  default_add_small_allocation_pct_of_cash: 10
+  minimum_action_value_usd: 250
+
+schedule:
+  timezone: America/New_York
+  exchange_calendar: NYSE
+  morning_report_time: "10:15"
+  midday_report_time: "13:30"
+  avoid_duplicate_reports: true
+
+data_sources:
+  price_provider: yfinance
+  news:
+    lookback_days: 5
+    max_articles_per_ticker: 8
+    max_macro_articles: 12
+    use_yfinance_news: true
+    use_finnhub: true
+    use_newsapi: true
+    use_alpha_vantage: true
+    use_gdelt: true
+    use_sec_filings: true
+    use_finnhub_insider: true
+    macro_queries:
+      - Federal Reserve rates inflation Nasdaq S&P 500
+      - VIX US 10 year yield dollar oil market risk
+      - China Taiwan export restrictions semiconductors AI chips
+      - consumer spending retail sales tariffs margins
+    sector_queries:
+      semiconductors: AI chips semiconductors data center hyperscaler capex Nvidia TSMC Samsung Broadcom AMD
+      consumer: consumer spending retail sales beauty beverages margins inventory TikTok tariffs
+      fintech: rates fintech regulation student loans banking credit quality
+      advertising: advertising spend AI ads privacy regulation Google Meta TikTok
+
+notifications:
+  email:
+    enabled: true
+    smtp_host: ${SMTP_HOST}
+    smtp_port: ${SMTP_PORT}
+    smtp_username: ${SMTP_USERNAME}
+    smtp_password: ${SMTP_PASSWORD}
+    sender: ${EMAIL_SENDER}
+    recipients:
+      - ${EMAIL_RECIPIENT}
+    use_tls: true
+  telegram:
+    enabled: false
+    bot_token: ${TELEGRAM_BOT_TOKEN}
+    chat_id: ${TELEGRAM_CHAT_ID}
+
+reporting:
+  output_dir: reports
+  state_file: .portfolio_news_advisor_state.json
+  log_file: logs/portfolio_news_advisor.log
+  save_format: md
+  include_raw_data_appendix: false
+  openai_model: gpt-4o-mini
+  llm_temperature: 0.2

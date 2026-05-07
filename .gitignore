@@ -30,6 +30,7 @@ yarn-error.log*
 
 # env files
 .env*.local
+.env
 
 # vercel
 .vercel
@@ -42,5 +43,10 @@ next-env.d.ts
 /generated/
 /prisma/dev.db
 /prisma/dev.db-journal
+
+# Portfolio News Advisor runtime output
+/reports/
+/logs/
+/.portfolio_news_advisor_state.json
 
 .vercel
