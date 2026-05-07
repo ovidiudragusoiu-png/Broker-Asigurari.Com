@@ -1,0 +1,8 @@
+yfinance
+pandas
+pandas-market-calendars
+PyYAML
+python-dotenv
+requests
+APScheduler
+openai
