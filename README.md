@@ -95,9 +95,9 @@ unavailable, trade dollar amounts are not generated.
 ### Run manually
 
 ```bash
-python -m portfolio_monitor --config config.yaml run --slot now
-python -m portfolio_monitor --config config.yaml run --slot morning --send
-python -m portfolio_monitor --config config.yaml run --slot afternoon --send
+python3 -m portfolio_monitor --config config.yaml run --slot now
+python3 -m portfolio_monitor --config config.yaml run --slot morning --send
+python3 -m portfolio_monitor --config config.yaml run --slot afternoon --send
 ```
 
 Use `--force` only for testing outside a US trading day. Without `--force`, the monitor skips
@@ -108,15 +108,15 @@ weekends and US market holidays.
 The cron-compatible command checks both the US trading calendar and configured report windows:
 
 ```bash
-python -m portfolio_monitor --config /path/to/config.yaml run-if-due --send
+python3 -m portfolio_monitor --config /path/to/config.yaml run-if-due --send
 ```
 
 Example cron entries for the required 10:00 AM ET and 2:30 PM ET reports:
 
 ```cron
 CRON_TZ=America/New_York
-0 10 * * 1-5 cd /workspace && python -m portfolio_monitor --config config.yaml run-if-due --send
-30 14 * * 1-5 cd /workspace && python -m portfolio_monitor --config config.yaml run-if-due --send
+0 10 * * 1-5 cd /workspace && python3 -m portfolio_monitor --config config.yaml run-if-due --send
+30 14 * * 1-5 cd /workspace && python3 -m portfolio_monitor --config config.yaml run-if-due --send
 ```
 
 Alternatively, use:
@@ -128,7 +128,7 @@ scripts/run_portfolio_monitor.sh
 ### Tests
 
 ```bash
-python -m unittest discover -s tests -p "test_*.py"
+python3 -m unittest discover -s tests -p "test_*.py"
 ```
 
 ### Safety and compliance behavior

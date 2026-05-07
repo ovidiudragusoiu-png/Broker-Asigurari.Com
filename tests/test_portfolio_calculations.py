@@ -57,7 +57,7 @@ class TradeSizingTests(unittest.TestCase):
         shares, dollars = sell_trade_size(shares=580.2, price=414.05, sell_fraction_of_position=0.05)
 
         self.assertAlmostEqual(shares, 29.01)
-        self.assertAlmostEqual(dollars, 12_012.10725)
+        self.assertAlmostEqual(dollars, 12_011.5905)
 
     def test_sell_trade_size_omits_dollars_without_price(self):
         shares, dollars = sell_trade_size(shares=100, price=None, sell_fraction_of_position=0.10)

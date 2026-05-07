@@ -27,6 +27,9 @@ NEGATIVE_TERMS = {
     "bankruptcy",
     "delisting",
     "fraud",
+    "falls",
+    "drops",
+    "nosediving",
     "slump",
     "tumbles",
     "warning",
@@ -61,6 +64,10 @@ def analyze_positions(
     rules = config["risk_rules"]
     analyses: list[PositionAnalysis] = []
     portfolio_value = total_portfolio_value(metrics.values())
+    extreme_concentration_present = any(
+        metric.weight is not None and metric.weight > config["risk_rules"]["extreme_concentration_weight"]
+        for metric in metrics.values()
+    )
 
     for position in positions:
         quote = quotes[position.ticker]
@@ -75,6 +82,7 @@ def analyze_positions(
             news_items=ticker_news,
             earnings_event=earnings.get(position.ticker),
             portfolio_value=portfolio_value,
+            extreme_concentration_present=extreme_concentration_present,
             target_max=target_max,
             rules=rules,
         )
@@ -173,6 +181,7 @@ def _recommend_action(
     news_items: list[NewsItem],
     earnings_event: EarningsEvent | None,
     portfolio_value: float | None,
+    extreme_concentration_present: bool,
     target_max: float,
     rules: dict[str, Any],
 ) -> ActionRecommendation:
@@ -204,7 +213,7 @@ def _recommend_action(
         urgency = "High" if _negative_technical_breakdown(quote) or sentiment < 0 else "Medium"
         return ActionRecommendation(
             signal="Trim",
-            suggested_action=f"Trim {position.ticker} by {fraction:.1%} of position",
+            suggested_action=f"Trim {position.ticker} by {fraction:.1%} of position (~{(weight * fraction):.1%} of portfolio)",
             urgency=urgency,
             reason=(
                 f"{position.ticker} is an extreme concentration at {_fmt_pct(weight)} versus a "
@@ -226,7 +235,7 @@ def _recommend_action(
         )
         return ActionRecommendation(
             signal="Trim",
-            suggested_action=f"Trim {position.ticker} by {fraction:.1%} of position",
+            suggested_action=f"Trim {position.ticker} by {fraction:.1%} of position (~{(weight * fraction):.1%} of portfolio)",
             urgency="Medium",
             reason=f"{position.ticker} is above the high-concentration threshold of {_fmt_pct(rules['high_concentration_weight'])}.",
             sell_fraction_of_position=fraction,
@@ -244,7 +253,7 @@ def _recommend_action(
         )
         return ActionRecommendation(
             signal="Trim",
-            suggested_action=f"Trim {position.ticker} by {fraction:.1%} of position",
+            suggested_action=f"Trim {position.ticker} by {fraction:.1%} of position (~{(weight * fraction):.1%} of portfolio)",
             urgency="Low",
             reason=f"Position weight {_fmt_pct(weight)} is above configured target {_fmt_pct(target_max)}.",
             sell_fraction_of_position=fraction,
@@ -262,6 +271,15 @@ def _recommend_action(
             max_position_size=target_max,
         )
 
+    if position.ticker in SPECULATIVE_TICKERS and position.ticker != "SOFI":
+        return ActionRecommendation(
+            signal="Watchlist Only",
+            suggested_action=f"Avoid adding {position.ticker}; keep speculative sizing capped",
+            urgency="Low",
+            reason="Speculative/small-cap exposure should stay small unless fresh earnings and news evidence validate the thesis.",
+            max_position_size=target_max,
+        )
+
     if _negative_technical_breakdown(quote) and sentiment < 0:
         return ActionRecommendation(
             signal="Sell / Exit",
@@ -275,6 +293,14 @@ def _recommend_action(
         )
 
     if _constructive_technical_setup(quote) and sentiment >= 0 and weight is not None and weight < target_max * 0.5:
+        if extreme_concentration_present:
+            return ActionRecommendation(
+                signal="Hold",
+                suggested_action=f"Hold {position.ticker}; defer add-ons until AMD concentration is reduced",
+                urgency="Low",
+                reason="Portfolio-level concentration risk is the dominant issue, so new add-ons should wait until rebalancing lowers single-stock exposure.",
+                max_position_size=target_max,
+            )
         buy_fraction = min(0.02, target_max - weight)
         buy_shares, buy_dollars = buy_trade_size(
             portfolio_value=portfolio_value,
