@@ -1,0 +1,33 @@
+{
+  "googleAdsCustomerId": "1234567890",
+  "googleAdsLoginCustomerId": "",
+  "campaignIds": [],
+  "email": {
+    "recipient": "marketing@example.com",
+    "sender": "Google Ads Reports <reports@example.com>"
+  },
+  "schedule": {
+    "dayOfWeek": "monday",
+    "time": "08:00",
+    "timezone": "Europe/Bucharest"
+  },
+  "targetLandingPage": "https://www.sigur.ai/casco",
+  "businessContext": {
+    "country": "Romania",
+    "product": "CASCO insurance lead generation",
+    "goal": "Increase qualified lead volume, reduce cost per lead, improve conversion rate, and reduce wasted spend."
+  },
+  "thresholds": {
+    "targetCpa": 120,
+    "minimumConversionThreshold": 1,
+    "maximumSpendWithoutConversion": 250,
+    "lowCtrThreshold": 0.03,
+    "poorConversionRateThreshold": 0.025,
+    "strongConversionRateThreshold": 0.07,
+    "minimumClicksForCtrReview": 100,
+    "minimumCostForSegmentationReview": 150
+  },
+  "automaticChangesAllowed": false,
+  "attachCsv": true,
+  "aiRecommendationsEnabled": true
+}
