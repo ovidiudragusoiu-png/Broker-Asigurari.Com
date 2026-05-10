@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { api } from "@/lib/api/client";
 import { formatPrice } from "@/lib/utils/formatters";
+import { verifyPaymentForOffers } from "@/lib/flows/paymentVerification";
 import TermsModal from "@/components/rca/TermsModal";
 
 interface PaymentFlowProps {
@@ -120,10 +121,9 @@ export default function PaymentFlow({
   const checkPaymentStatus = async () => {
     setStatus("checking");
     try {
-      const result = await api.post<{ offerId: number; success: boolean; message: string }>(
-        `/online/offers/payment/check/v3?orderHash=${orderHash}`,
-        { offerIds: [offerId, ...(additionalOfferIds || [])] },
-        { Accept: "text/plain" }
+      const result = await verifyPaymentForOffers(
+        orderHash,
+        [offerId, ...(additionalOfferIds || [])]
       );
       if (result.success) {
         setStatus("paid");
