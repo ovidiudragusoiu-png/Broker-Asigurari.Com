@@ -44,6 +44,23 @@ Aplicatia va porni pe `http://localhost:3000`.
 
 Vezi `.env.example` pentru lista completa. Fara aceste variabile, proxy-ul API nu porneste.
 
+## Acces cu parolă (înainte de lansare)
+
+Restricționează site-ul pentru public și permite accesul doar cu parolă (echipă / testeri):
+
+1. În `.env.local` sau Vercel (staging):
+
+```bash
+SITE_PREVIEW_MODE=true
+SITE_PREVIEW_PASSWORD=parola-ta-de-staging
+```
+
+2. Vizitatorii văd pagina `/under-development` și introduc parola.
+
+3. După parola corectă, cookie-ul permite navigarea normală (30 zile).
+
+4. La lansare: `SITE_PREVIEW_MODE=false` — site-ul devine public.
+
 ## Structura principala
 
 - `src/app/` - pagini Next.js (fluxuri pe produs)
