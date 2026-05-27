@@ -4,6 +4,7 @@ import { useState } from "react";
 import { api } from "@/lib/api/client";
 import { formatPrice } from "@/lib/utils/formatters";
 import TermsModal from "@/components/rca/TermsModal";
+import { verifyPaymentCheckResponse } from "@/lib/flows/paymentVerification";
 
 interface PaymentFlowProps {
   orderId: number;
@@ -120,17 +121,19 @@ export default function PaymentFlow({
   const checkPaymentStatus = async () => {
     setStatus("checking");
     try {
-      const result = await api.post<{ offerId: number; success: boolean; message: string }>(
+      const expectedOfferIds = [offerId, ...(additionalOfferIds || [])];
+      const result = await api.post<unknown>(
         `/online/offers/payment/check/v3?orderHash=${orderHash}`,
-        { offerIds: [offerId, ...(additionalOfferIds || [])] },
+        { offerIds: expectedOfferIds },
         { Accept: "text/plain" }
       );
-      if (result.success) {
+      const verification = verifyPaymentCheckResponse(result, expectedOfferIds);
+      if (verification.success) {
         setStatus("paid");
         setPaymentMessage("Plata a fost efectuata cu succes!");
       } else {
         setStatus("failed");
-        setPaymentMessage(result.message || "Plata nu a fost finalizata");
+        setPaymentMessage(verification.message || "Plata nu a fost finalizata");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Eroare verificare plata");

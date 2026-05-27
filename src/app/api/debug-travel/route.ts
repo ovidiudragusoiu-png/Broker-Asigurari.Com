@@ -6,6 +6,10 @@ import { insuretechFetch } from "@/lib/api/insuretech";
  * Remove after debugging is complete.
  */
 export async function POST(req: NextRequest) {
+  if (process.env.NODE_ENV !== "development") {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   try {
     const { orderId, orderHash, traveler, travelZoneId, purposeId, startDate, endDate, numberOfTravelers, productIds } = await req.json();
 
