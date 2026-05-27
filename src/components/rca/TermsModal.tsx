@@ -85,7 +85,7 @@ export default function TermsModal({ isOpen, onAgree, onClose, productLabel = "R
             </p>
             <p>
               Date de contact: Pagina web: www.maxygo.ro | E-mail: office@maxygo.ro |
-              Telefon fix: 0244.567.055 | Fax: 0244.567.964 | Telefon mobil: 0720.990.509
+              Telefon mobil: 0720.990.509
             </p>
 
             <h3 className="font-bold text-gray-900">2. Definiții</h3>

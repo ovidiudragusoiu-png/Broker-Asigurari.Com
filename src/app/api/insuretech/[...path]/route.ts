@@ -30,6 +30,7 @@ const ALLOWED_PATHS: RegExp[] = [
   /^online\/offers\/rca\/order(\/v3($|\?)|\/v3\/\d+)/,
   /^online\/offers\/rca\/v3($|\?)/,
   /^online\/offers\/rca\/\d+\/details\/v3($|\?)/,
+  /^online\/offers\/rca\/order\/\d+\/referenceTariff\/v3($|\?)/,
   /^online\/offers\/order\/v3($|\?|\/)/,
   /^online\/offers\/order($|\?)/,
   /^online\/offers\/payment\/v3($|\?)/,

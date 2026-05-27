@@ -2,18 +2,35 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import type { RcaOffer, SelectedOfferState, OfferTab } from "@/types/rcaFlow";
+import type {
+  RcaOffer,
+  RcaOfferLegalDisclosure,
+  SelectedOfferState,
+  OfferTab,
+} from "@/types/rcaFlow";
 import {
   getOfferPrice,
   getLocalVendorLogo,
   pickOfferByVariant,
   getGreenCardExclusions,
 } from "@/lib/utils/rcaHelpers";
+import OfferLegalInfo from "@/components/rca/OfferLegalInfo";
+import OfferPidLink from "@/components/rca/OfferPidLink";
 
 interface OfferTabsProps {
   offers: RcaOffer[];
   loading: boolean;
+  orderId: number | null;
+  orderHash: string | null;
   onSelectOffer: (selected: SelectedOfferState) => void;
+  disclosureCache: Map<number, RcaOfferLegalDisclosure>;
+  onDisclosureCacheUpdate: (
+    updater: (
+      prev: Map<number, RcaOfferLegalDisclosure>
+    ) => Map<number, RcaOfferLegalDisclosure>
+  ) => void;
+  orderReferenceTariff: number | null | undefined;
+  onOrderReferenceTariff: (value: number | null | undefined) => void;
 }
 
 interface TabConfig {
@@ -87,7 +104,13 @@ function SkeletonCard({ columns }: { columns: number }) {
 export default function OfferTabs({
   offers,
   loading,
+  orderId,
+  orderHash,
   onSelectOffer,
+  disclosureCache,
+  onDisclosureCacheUpdate,
+  orderReferenceTariff,
+  onOrderReferenceTariff,
 }: OfferTabsProps) {
   const [activeTab, setActiveTab] = useState<OfferTab>("standard");
   const currentTabConfig = TABS.find((t) => t.key === activeTab)!;
@@ -375,14 +398,20 @@ export default function OfferTabs({
                       </span>
                     )}
                     <div className="flex flex-col">
-                      <span className="text-[11px] text-gray-400">
-                        clasa BM: B8{" "}
-                        <span
-                          className="cursor-help"
-                          title="Informații Bonus-Malus"
-                        >
-                          &#9432;
-                        </span>
+                      <span className="inline-flex items-center gap-0.5 text-[11px] text-gray-400">
+                        clasa BM: B8
+                        <OfferLegalInfo
+                          vendorName={vendor}
+                          vendorOffers={vendorOffers}
+                          orderId={orderId}
+                          orderHash={orderHash}
+                          disclosureCache={disclosureCache}
+                          onCacheUpdate={onDisclosureCacheUpdate}
+                          orderReferenceTariff={orderReferenceTariff}
+                          onOrderReferenceTariff={onOrderReferenceTariff}
+                          inline
+                        />
+                        <OfferPidLink vendorName={vendor} />
                       </span>
                       {(() => {
                         const exclusions = getGreenCardExclusions(vendor);

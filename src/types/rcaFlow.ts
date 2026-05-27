@@ -2,6 +2,25 @@ import type { AddressRequest } from "./insuretech";
 
 // ----- Offer types (extracted from page.tsx) -----
 
+/** Broker commission from InsureTech offer details (legal disclosure). */
+export interface RcaBrokerCommission {
+  amount?: number;
+  percent?: number;
+  minPercent?: number;
+  maxPercent?: number;
+}
+
+/** Tariff / commission fields for ASF-mandated disclosure (shown in popover only). */
+export interface RcaOfferLegalDisclosure {
+  referenceTariff?: number;
+  brokerCommission?: RcaBrokerCommission;
+  directSettlementBrokerCommission?: RcaBrokerCommission;
+  /** Net premium when returned in API specificFields (optional). */
+  netPremium?: number;
+  periodMonths?: number;
+  withDirectSettlement?: boolean;
+}
+
 export interface RcaOffer {
   id: number;
   productId: string | number;
@@ -16,6 +35,8 @@ export interface RcaOffer {
   periodMonths?: number;
   installments?: { installmentNo: number; amount: number; dueDate: string }[];
   error?: string;
+  /** Populated from offer generation or lazy offer-details fetch. */
+  legalDisclosure?: RcaOfferLegalDisclosure;
 }
 
 export interface SelectedOfferState {

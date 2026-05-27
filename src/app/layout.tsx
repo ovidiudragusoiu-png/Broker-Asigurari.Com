@@ -42,20 +42,20 @@ export default function RootLayout({
               },
               openingHours: "Mo-Fr 09:00-18:00",
               sameAs: [
-                "https://www.facebook.com/brokerasiguraricom",
+                "https://www.facebook.com/brokerasigurariAi",
                 "https://instagram.com/brokerasigurari",
               ],
             }),
           }}
         />
         {/* Google Analytics (GA4) */}
-        <script async src="https://www.googletagmanager.com/gtag/js?id=G-325066225" />
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-3V7KLWL34F" />
         <script dangerouslySetInnerHTML={{ __html: `
           window.dataLayer = window.dataLayer || [];
           function gtag(){dataLayer.push(arguments);}
           gtag('js', new Date());
           gtag('consent', 'default', { analytics_storage: 'granted', ad_storage: 'denied' });
-          gtag('config', 'G-325066225');
+          gtag('config', 'G-3V7KLWL34F');
         `}} />
         {/* Google Fonts: Inter, Plus Jakarta Sans */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -112,7 +112,7 @@ export default function RootLayout({
                 </div>
                 {/* Social Media */}
                 <div className="flex items-center gap-3 mt-6">
-                  <a href="https://www.facebook.com/brokerasiguraricom" target="_blank" rel="noopener noreferrer" className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 text-slate-400 transition-colors hover:bg-white/10 hover:text-white">
+                  <a href="https://www.facebook.com/brokerasigurariAi" target="_blank" rel="noopener noreferrer" className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 text-slate-400 transition-colors hover:bg-white/10 hover:text-white">
                     <Facebook className="h-4 w-4" />
                   </a>
                   <a href="https://instagram.com/brokerasigurari" target="_blank" rel="noopener noreferrer" className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 text-slate-400 transition-colors hover:bg-white/10 hover:text-white">

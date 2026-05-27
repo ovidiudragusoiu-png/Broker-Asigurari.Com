@@ -14,7 +14,7 @@ const faqJsonLd = {
       name: "Ce este asigurarea RCA?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "Asigurarea obligatorie care acoperă daunele cauzate terților într-un accident auto. Lipsa RCA se sancționează cu amendă de 1.000 lei și reținerea plăcuțelor.",
+        text: "Conform Legii nr. 132/2017, RCA este asigurarea obligatorie de răspundere civilă auto care acoperă prejudiciile produse terților prin accidente de vehicule sau tramvaie. Circulația fără RCA valabil atrage sancțiunile prevăzute de legislația în vigoare.",
       },
     },
     {
@@ -22,7 +22,7 @@ const faqJsonLd = {
       name: "Cum se calculează prețul RCA?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "Depinde de clasa Bonus-Malus, vârsta șoferului, tipul vehiculului, capacitatea motorului, județul de înmatriculare și perioada de asigurare (1-12 luni).",
+        text: "Potrivit Legii nr. 132/2017 și Normei ASF nr. 20/2017, prima RCA este stabilită de fiecare asigurător pe baza propriilor criterii de risc, incluzând clasa bonus-malus, caracteristicile vehiculului, datele proprietarului sau utilizatorului și perioada asigurată.",
       },
     },
     {
@@ -30,7 +30,7 @@ const faqJsonLd = {
       name: "Ce este sistemul Bonus-Malus?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "Recompensează șoferii prudenți cu reduceri de până la 50% (clasa B8). Șoferii cu daune pot plăti cu până la 80% mai mult. Clasa se transferă la schimbarea mașinii.",
+        text: "Sistemul bonus-malus este reglementat de Norma ASF nr. 20/2017 și ajustează prima RCA în funcție de istoricul de daune. Clasele bonus pot reduce prima, iar clasele malus o pot majora atunci când există daune plătite pe polițele anterioare.",
       },
     },
     {
@@ -38,7 +38,7 @@ const faqJsonLd = {
       name: "Care e diferența dintre RCA și CASCO?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "RCA acoperă daunele cauzate altora (obligatorie). CASCO protejează propria mașină contra furtului, grindini, coliziunilor și vandalismului (opțională).",
+        text: "RCA este obligatorie prin Legea nr. 132/2017 și acoperă răspunderea pentru prejudiciile produse terților. CASCO este o asigurare facultativă pentru propriul vehicul, cu riscuri și condiții stabilite prin contractul ales.",
       },
     },
     {
@@ -46,7 +46,7 @@ const faqJsonLd = {
       name: "Pot încheia asigurarea online?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "Da, 100%. Compari oferte de la 11+ asiguratori, completezi datele, plătești cu cardul și primești polița pe email — totul în mai puțin de 3 minute.",
+        text: "Da. În cadrul normelor RCA în vigoare, oferta și emiterea poliței pot fi gestionate digital, cu transmiterea documentelor în format electronic. Este important ca datele introduse pentru ofertare și emitere să fie corecte și complete.",
       },
     },
     {
@@ -54,7 +54,7 @@ const faqJsonLd = {
       name: "De ce diferă prețurile între asigurători?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "Fiecare asigurător stabilește tarife proprii, dar limitele de despăgubire sunt identice. Diferențele pot ajunge la sute de lei — de aceea merită să compari.",
+        text: "Legea nr. 132/2017 stabilește cadrul RCA și limitele minime de răspundere, dar fiecare asigurător își stabilește propriile tarife și criterii de subscriere, în condițiile normelor ASF. De aceea, ofertele pot diferi și merită comparate înainte de alegere.",
       },
     },
   ],

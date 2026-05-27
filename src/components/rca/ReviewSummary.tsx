@@ -1,9 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Image from "next/image";
-import type { RcaFlowState } from "@/types/rcaFlow";
+import { Download } from "lucide-react";
+import type {
+  RcaFlowState,
+  RcaOffer,
+  RcaOfferLegalDisclosure,
+} from "@/types/rcaFlow";
 import { getLocalVendorLogo, periodText, getGreenCardExclusions } from "@/lib/utils/rcaHelpers";
+import { api } from "@/lib/api/client";
+import OfferLegalInfo from "@/components/rca/OfferLegalInfo";
 import TermsModal from "./TermsModal";
 import { btn } from "@/lib/ui/tokens";
 
@@ -13,22 +20,82 @@ function maskId(value: string): string {
   return value.slice(0, 2) + "*".repeat(value.length - 5) + value.slice(-3);
 }
 
-
 interface ReviewSummaryProps {
   state: RcaFlowState;
   onConsentAndPay: () => Promise<void>;
+  orderId: number | null;
+  orderHash: string | null;
+  disclosureCache: Map<number, RcaOfferLegalDisclosure>;
+  onDisclosureCacheUpdate: (
+    updater: (
+      prev: Map<number, RcaOfferLegalDisclosure>
+    ) => Map<number, RcaOfferLegalDisclosure>
+  ) => void;
+  orderReferenceTariff: number | null | undefined;
+  onOrderReferenceTariff: (value: number | null | undefined) => void;
 }
 
 export default function ReviewSummary({
   state,
   onConsentAndPay,
+  orderId,
+  orderHash,
+  disclosureCache,
+  onDisclosureCacheUpdate,
+  orderReferenceTariff,
+  onOrderReferenceTariff,
 }: ReviewSummaryProps) {
   const [showTerms, setShowTerms] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [downloadingOffer, setDownloadingOffer] = useState(false);
+  const [downloadUnavailable, setDownloadUnavailable] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   const offer = state.selectedOffer;
   const vendorLogo = offer?.offer.vendorLogoUrl || getLocalVendorLogo(offer?.offer.vendorName ?? "");
+
+  const selectedVendorOffer: RcaOffer | null = useMemo(() => {
+    if (!offer) return null;
+    return {
+      ...offer.offer,
+      periodMonths: Number(offer.period),
+      withDirectSettlement: offer.withDirectSettlement,
+    };
+  }, [offer]);
+
+  const canDownloadOffer =
+    !!offer?.offer.id &&
+    offer.offer.id > 0 &&
+    !!orderHash &&
+    !downloadUnavailable;
+
+  const handleDownloadOffer = async () => {
+    if (!offer?.offer.id || !orderHash) return;
+    setDownloadingOffer(true);
+    setDownloadError(null);
+    try {
+      const data = await api.get<{ url?: string }>(
+        `/online/offers/${offer.offer.id}/document/v3?orderHash=${encodeURIComponent(orderHash)}`,
+        { timeoutMs: 60000 }
+      );
+      if (data.url) {
+        const safeUrl = new URL(data.url, window.location.origin);
+        if (!["http:", "https:"].includes(safeUrl.protocol)) {
+          throw new Error("Linkul documentului este invalid");
+        }
+        window.open(safeUrl.toString(), "_blank", "noopener,noreferrer");
+      } else {
+        setDownloadUnavailable(true);
+        setDownloadError("Documentul ofertei nu este disponibil pentru acest asigurator.");
+      }
+    } catch {
+      setDownloadUnavailable(true);
+      setDownloadError("Documentul ofertei nu poate fi descărcat momentan.");
+    } finally {
+      setDownloadingOffer(false);
+    }
+  };
 
   const handlePayClick = () => {
     setShowTerms(true);
@@ -46,7 +113,7 @@ export default function ReviewSummary({
     }
   };
 
-  if (!offer) {
+  if (!offer || !selectedVendorOffer) {
     return <p className="text-center text-gray-500">Selectați mai întâi o ofertă.</p>;
   }
 
@@ -56,14 +123,15 @@ export default function ReviewSummary({
     <div className="space-y-6">
       {/* Header */}
       <div className="text-center">
-        {/* Car icon */}
         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/25">
           <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 00-.879-2.121L16.5 8.259a2.999 2.999 0 00-2.121-.879H5.25a2.25 2.25 0 00-2.25 2.25v8.745c0 .621.504 1.125 1.125 1.125H5.25" />
           </svg>
         </div>
-        <h2 className="text-2xl font-bold text-gray-900">Verificati datele politei</h2>
-        <p className="mt-1 text-sm text-gray-500">Asigurati-va ca toate informatiile sunt corecte inainte de plata.</p>
+        <h2 className="text-2xl font-bold text-gray-900">Verificați datele poliței</h2>
+        <p className="mt-1 text-sm text-gray-500">
+          Asigurați-vă că toate informațiile sunt corecte înainte de plată.
+        </p>
       </div>
 
       {/* Summary card */}
@@ -85,14 +153,17 @@ export default function ReviewSummary({
             </div>
           )}
           <div className="flex-1">
-            <p className="text-sm font-semibold text-gray-900">Polita RCA {offer.offer.vendorName}</p>
-            <p className="text-xs text-gray-500">{periodText(Number(offer.period))} / din {state.startDate}</p>
+            <p className="text-sm font-semibold text-gray-900">
+              Poliță RCA {offer.offer.vendorName}
+            </p>
+            <p className="text-xs text-gray-500">
+              {periodText(Number(offer.period))} / din {state.startDate}
+            </p>
           </div>
         </div>
 
         {/* Details */}
         <div className="space-y-3 px-5 py-4">
-          {/* Owner */}
           <div className="flex items-start gap-3">
             <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50">
               <svg className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -112,7 +183,6 @@ export default function ReviewSummary({
             </div>
           </div>
 
-          {/* Vehicle */}
           <div className="flex items-start gap-3">
             <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50">
               <svg className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -124,11 +194,10 @@ export default function ReviewSummary({
               <p className="text-sm font-semibold text-gray-900">
                 {state.vehicle.model || "Vehicul"} — {state.vehicle.licensePlate}
               </p>
-              <p className="text-xs text-gray-500">Sasiu: {state.vehicle.vin}</p>
+              <p className="text-xs text-gray-500">Șasiu: {state.vehicle.vin}</p>
             </div>
           </div>
 
-          {/* Address */}
           {state.address.streetName && (
             <div className="flex items-start gap-3">
               <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50">
@@ -138,7 +207,7 @@ export default function ReviewSummary({
                 </svg>
               </div>
               <div>
-                <p className="text-xs text-gray-400">Adresa</p>
+                <p className="text-xs text-gray-400">Adresă</p>
                 <p className="text-sm text-gray-700">
                   {state.address.streetName}
                   {state.address.streetNumber ? `, Nr. ${state.address.streetNumber}` : ""}
@@ -147,7 +216,6 @@ export default function ReviewSummary({
             </div>
           )}
 
-          {/* Green card exclusions */}
           {exclusions.length > 0 && (
             <div className="flex items-start gap-3">
               <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-50">
@@ -156,7 +224,20 @@ export default function ReviewSummary({
                 </svg>
               </div>
               <div>
-                <p className="text-xs text-gray-400">Excluderi Carte Verde</p>
+                <p className="inline-flex items-center gap-0.5 text-xs text-gray-400">
+                  Excluderi Carte Verde
+                  <OfferLegalInfo
+                    vendorName={offer.offer.vendorName}
+                    vendorOffers={[selectedVendorOffer]}
+                    orderId={orderId}
+                    orderHash={orderHash}
+                    disclosureCache={disclosureCache}
+                    onCacheUpdate={onDisclosureCacheUpdate}
+                    orderReferenceTariff={orderReferenceTariff}
+                    onOrderReferenceTariff={onOrderReferenceTariff}
+                    inline
+                  />
+                </p>
                 <p className="text-xs text-gray-500">{exclusions.join(", ")}</p>
               </div>
             </div>
@@ -165,7 +246,9 @@ export default function ReviewSummary({
 
         {/* Price */}
         <div className="border-t border-gray-100 bg-gradient-to-r from-blue-50/50 to-white px-5 py-4 text-center">
-          <p className="text-xs font-medium text-gray-400">Total de plata</p>
+          <p className="inline-flex items-center justify-center gap-1 text-xs font-medium text-gray-400">
+            Total de plată
+          </p>
           <p className="mt-1 text-3xl font-bold text-gray-900">
             {new Intl.NumberFormat("ro-RO", {
               minimumFractionDigits: 2,
@@ -173,6 +256,20 @@ export default function ReviewSummary({
             }).format(offer.premium)}{" "}
             <span className="text-lg font-semibold text-gray-500">LEI</span>
           </p>
+          {canDownloadOffer && (
+            <button
+              type="button"
+              onClick={handleDownloadOffer}
+              disabled={downloadingOffer}
+              className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 transition-colors hover:text-blue-800 disabled:opacity-50"
+            >
+              <Download className="h-3.5 w-3.5" aria-hidden />
+              {downloadingOffer ? "Se descarcă..." : "Descarcă oferta"}
+            </button>
+          )}
+          {downloadError && (
+            <p className="mt-2 text-[11px] text-amber-700">{downloadError}</p>
+          )}
         </div>
       </div>
 
@@ -182,12 +279,11 @@ export default function ReviewSummary({
           <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
         </svg>
         <p className="text-sm text-gray-600">
-          Prin apasarea butonului de plata, declar ca am peste 18 ani si ca datele
-          furnizate pentru incheierea politei RCA sunt corecte si reale.
+          Prin apăsarea butonului de plată, declar că am peste 18 ani și că datele
+          furnizate pentru încheierea poliței RCA sunt corecte și reale.
         </p>
       </div>
 
-      {/* Error */}
       {error && (
         <div className="mx-auto max-w-lg rounded-xl bg-red-50 p-4 text-sm text-red-700">
           <div className="flex items-start gap-2">
@@ -199,12 +295,11 @@ export default function ReviewSummary({
         </div>
       )}
 
-      {/* Pay button */}
       <div className="text-center">
         {processing ? (
           <div className="flex items-center justify-center gap-2 text-gray-500">
             <span className="h-5 w-5 animate-spin rounded-full border-2 border-[#2563EB] border-t-transparent" />
-            <span className="text-sm">Se redirectioneaza catre plata...</span>
+            <span className="text-sm">Se redirecționează către plată...</span>
           </div>
         ) : (
           <button
@@ -216,13 +311,12 @@ export default function ReviewSummary({
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
               </svg>
-              Datele sunt corecte, platesc
+              Datele sunt corecte, plătesc
             </span>
           </button>
         )}
       </div>
 
-      {/* Terms modal */}
       <TermsModal
         isOpen={showTerms}
         onAgree={handleTermsAgree}

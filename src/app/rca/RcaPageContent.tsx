@@ -11,6 +11,7 @@ import VinLookup from "@/components/rca/VinLookup";
 import OwnerIdentification from "@/components/rca/OwnerIdentification";
 import CompanyDataStep from "@/components/rca/CompanyDataStep";
 import DntChoice from "@/components/rca/DntChoice";
+import RcaPreOffersDntStep from "@/components/rca/RcaPreOffersDntStep";
 import OfferTabs from "@/components/rca/OfferTabs";
 import PolicyDetailsForm from "@/components/rca/PolicyDetailsForm";
 import AdditionalDriverForm from "@/components/rca/AdditionalDriverForm";
@@ -33,11 +34,15 @@ import {
   normalizePersonForRca,
   PLATE_COUNTY_MAP,
 } from "@/lib/utils/rcaHelpers";
-import type { RcaFlowState, SelectedOfferState } from "@/types/rcaFlow";
+import type {
+  RcaFlowState,
+  RcaOfferLegalDisclosure,
+  SelectedOfferState,
+} from "@/types/rcaFlow";
 import type { RcaOfferApi } from "@/lib/utils/rcaHelpers";
 import { btn } from "@/lib/ui/tokens";
-import { dateOfBirthFromCNP } from "@/lib/utils/validation";
 import { autoSignConsent } from "@/lib/flows/consent";
+import { dateOfBirthFromCNP } from "@/lib/utils/validation";
 import DateInput from "@/components/shared/DateInput";
 
 // ============================================================
@@ -63,7 +68,24 @@ function RcaPageInner() {
     if (!value) return null;
     return value.includes("T") ? value : `${value}T00:00:00`;
   };
+  /** Clamp licence date for offer requests: if within last 4 months, use today - 4 months */
+  const clampLicenceDateForOffers = (isoDate: string | null) => {
+    if (!isoDate) return isoDate;
+    const raw = isoDate.replace("T00:00:00", "");
+    const fourMonthsAgo = new Date();
+    fourMonthsAgo.setMonth(fourMonthsAgo.getMonth() - 4);
+    const threshold = fourMonthsAgo.toISOString().slice(0, 10);
+    if (raw > threshold) return `${threshold}T00:00:00`;
+    return isoDate;
+  };
   const [plateCountyName, setPlateCountyName] = useState("");
+  const [disclosureCache, setDisclosureCache] = useState(
+    () => new Map<number, RcaOfferLegalDisclosure>()
+  );
+  const [orderReferenceTariff, setOrderReferenceTariff] = useState<
+    number | null | undefined
+  >(undefined);
+  const [preOffersDntDone, setPreOffersDntDone] = useState(false);
 
   // Wrap goTo: navigating back to steps before offers (step 5 = index 4)
   // clears stale offers so they regenerate with updated data
@@ -73,6 +95,9 @@ function RcaPageInner() {
       dispatch({ type: "SET_OFFERS", offers: [], hasDirectSettlementData: null });
       dispatch({ type: "SET_ORDER", orderId: 0, orderHash: "" });
       dispatch({ type: "SELECT_OFFER", selected: null });
+      setDisclosureCache(new Map());
+      setOrderReferenceTariff(undefined);
+      setPreOffersDntDone(false);
       dispatch({ type: "SET_ERROR", error: null });
     }
     rawGoTo(step);
@@ -109,6 +134,11 @@ function RcaPageInner() {
       const fullPerson = buildFullPersonFromFlowState(state);
       const normalizedPerson = normalizePersonForRca(fullPerson);
       const mainDriverLicenceDate = toMidnightIso(state.driverLicenceDate);
+      const offerLicenceDate = clampLicenceDateForOffers(mainDriverLicenceDate);
+      // Override licence date in person for offer requests (Generali rejects recent dates)
+      if (normalizedPerson.legalType === "PF" && normalizedPerson.driverLicenceDate) {
+        normalizedPerson.driverLicenceDate = offerLicenceDate;
+      }
       const mileageVal = Number(state.mileage);
 
       if (state.ownerType === "PF" && !mainDriverLicenceDate) {
@@ -129,13 +159,10 @@ function RcaPageInner() {
         return;
       }
 
-      // Sign consent + fetch products in parallel (both independent)
-      const [, allRcaProducts] = await Promise.all([
-        autoSignConsent(normalizedPerson, "RCA"),
-        api.get<
-          { id: string | number; productName: string; vendorDetails?: { commercialName?: string; [key: string]: unknown } }[]
-        >("/online/products/rca"),
-      ]);
+      // Consent is submitted on the pre-offers DNT step; fetch products here
+      const allRcaProducts = await api.get<
+        { id: string | number; productName: string; vendorDetails?: { commercialName?: string; [key: string]: unknown } }[]
+      >("/online/products/rca");
 
       // Filter: keep only "Hellas Next Ins", exclude plain "Hellas"
       const rcaProducts = allRcaProducts.filter(p => {
@@ -154,7 +181,7 @@ function RcaPageInner() {
             idSeries: state.idSeries || "XX",
             idNumber: state.idNumber || "000000",
             phoneNumber: state.phoneNumber || "0700000000",
-            driverLicenceDate: mainDriverLicenceDate,
+            driverLicenceDate: offerLicenceDate,
             dateOfBirth: dateOfBirthFromCNP(state.cnpOrCui),
           }]
         : [];
@@ -217,7 +244,7 @@ function RcaPageInner() {
                   kilometersNumber: mileageVal,
                   mileage: mileageVal,
                   km: mileageVal,
-                  driverLicenceDate: mainDriverLicenceDate,
+                  driverLicenceDate: offerLicenceDate,
                 },
               },
             ],
@@ -533,7 +560,7 @@ function RcaPageInner() {
 
   // Step 3: CIV + start date complete → move to step 4 (owner details)
   const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
-  const civStepValid = state.registrationCertSeries.trim().length > 0 && state.startDate.length > 0 && state.startDate >= tomorrow;
+  const civStepValid = /^[A-Z]\d{6}$/.test(state.registrationCertSeries) && state.startDate.length > 0 && state.startDate >= tomorrow;
 
   const handleCivContinue = () => {
     // Pre-fill address county/city from plate-derived location (for non-Bucharest)
@@ -574,9 +601,18 @@ function RcaPageInner() {
   };
 
   const handlePolicyDetailsContinue = () => {
-    next(); // Move to step 5 (offers)
-    // Trigger order creation + offer generation with REAL data
-    handleCreateOrderAndOffers();
+    next(); // Move to step 5 (pre-offers DNT, then offers)
+  };
+
+  const handlePreOffersDntComplete = async () => {
+    setPreOffersDntDone(true);
+    try {
+      const fullPerson = normalizePersonForRca(buildFullPersonFromFlowState(state));
+      await autoSignConsent(fullPerson, "RCA");
+    } catch {
+      // InsureTech consent is signed in background; offers may still proceed
+    }
+    void handleCreateOrderAndOffers();
   };
 
   // Step 5: offer selected
@@ -671,7 +707,13 @@ function RcaPageInner() {
             type="text"
             className="w-full rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm uppercase text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none"
             value={state.registrationCertSeries}
-            onChange={(e) => handlePolicyDetailsFieldChange("registrationCertSeries", e.target.value.toUpperCase())}
+            onChange={(e) => {
+              const raw = e.target.value.replace(/\s/g, "").toUpperCase();
+              // Allow: 1 letter + up to 6 digits
+              const match = raw.match(/^([A-Z]?)(\d{0,6})$/);
+              if (match) handlePolicyDetailsFieldChange("registrationCertSeries", match[1] + match[2]);
+            }}
+            maxLength={7}
             placeholder="ex: F123123"
           />
           <p className="mt-1 text-xs text-gray-400">
@@ -771,11 +813,19 @@ function RcaPageInner() {
     },
     {
       title: "Oferte RCA",
-      content: (
+      content: !preOffersDntDone ? (
+        <RcaPreOffersDntStep onComplete={handlePreOffersDntComplete} />
+      ) : (
         <OfferTabs
           offers={state.offers}
           loading={state.loadingOffers}
+          orderId={state.orderId}
+          orderHash={state.orderHash}
           onSelectOffer={handleOfferSelected}
+          disclosureCache={disclosureCache}
+          onDisclosureCacheUpdate={setDisclosureCache}
+          orderReferenceTariff={orderReferenceTariff}
+          onOrderReferenceTariff={setOrderReferenceTariff}
         />
       ),
     },
@@ -789,6 +839,12 @@ function RcaPageInner() {
         <ReviewSummary
           state={state}
           onConsentAndPay={handleConsentAndPay}
+          orderId={state.orderId}
+          orderHash={state.orderHash}
+          disclosureCache={disclosureCache}
+          onDisclosureCacheUpdate={setDisclosureCache}
+          orderReferenceTariff={orderReferenceTariff}
+          onOrderReferenceTariff={setOrderReferenceTariff}
         />
       ),
     },

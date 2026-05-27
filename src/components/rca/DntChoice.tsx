@@ -45,7 +45,7 @@ export default function DntChoice({ onContinueDirect, productLabel = "RCA", onBa
           <div>
             <h3 className="text-lg font-bold text-gray-900">{directTitle ?? "Continuă direct"}</h3>
             <p className="mt-1 text-sm text-gray-500">
-              {directDescription ?? "Primești ofertele instant și alegi cea mai bună variantă"}
+              {directDescription ?? "Primești ofertele instant și alegi oferta care îți convine cel mai mult"}
             </p>
           </div>
           <span className={`${btn.primary} mt-auto`}>

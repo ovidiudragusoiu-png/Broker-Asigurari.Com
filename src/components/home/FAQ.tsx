@@ -10,43 +10,43 @@ gsap.registerPlugin(ScrollTrigger);
 const FAQS = [
   {
     question: "Ce este asigurarea RCA?",
-    answer: "Asigurarea obligatorie care acoperă daunele cauzate terților într-un accident auto. Lipsa RCA se sancționează cu amendă de 1.000 lei și reținerea plăcuțelor.",
+    answer: "Conform Legii nr. 132/2017, RCA este asigurarea obligatorie de răspundere civilă auto care acoperă prejudiciile produse terților prin accidente de vehicule sau tramvaie. Circulația fără RCA valabil atrage sancțiunile prevăzute de legislația în vigoare.",
   },
   {
     question: "Cum se calculează prețul RCA?",
-    answer: "Depinde de clasa Bonus-Malus, vârsta șoferului, tipul vehiculului, capacitatea motorului, județul de înmatriculare și perioada de asigurare (1-12 luni).",
+    answer: "Potrivit Legii nr. 132/2017 și Normei ASF nr. 20/2017, prima RCA este stabilită de fiecare asigurător pe baza propriilor criterii de risc, incluzând clasa bonus-malus, caracteristicile vehiculului, datele proprietarului sau utilizatorului și perioada asigurată.",
   },
   {
     question: "Ce este sistemul Bonus-Malus?",
-    answer: "Recompensează șoferii prudenți cu reduceri de până la 50% (clasa B8). Șoferii cu daune pot plăti cu până la 80% mai mult. Clasa se transferă la schimbarea mașinii.",
+    answer: "Sistemul bonus-malus este reglementat de Norma ASF nr. 20/2017 și ajustează prima RCA în funcție de istoricul de daune. Clasele bonus pot reduce prima, iar clasele malus o pot majora atunci când există daune plătite pe polițele anterioare.",
   },
   {
     question: "Care e diferența dintre RCA și CASCO?",
-    answer: "RCA acoperă daunele cauzate altora (obligatorie). CASCO protejează propria mașină contra furtului, grindini, coliziunilor și vandalismului (opțională).",
+    answer: "RCA este obligatorie prin Legea nr. 132/2017 și acoperă răspunderea pentru prejudiciile produse terților. CASCO este o asigurare facultativă pentru propriul vehicul, cu riscuri și condiții stabilite prin contractul ales.",
   },
   {
     question: "Ce fac în caz de accident?",
-    answer: "Daune minore: completezi Constatarea Amiabilă. Accidente grave: suni la 112, nu muți vehiculele, aștepți Poliția. Apoi depui cererea de despăgubire.",
+    answer: "În condițiile Legii nr. 132/2017 și ale Normei ASF nr. 20/2017, pentru accidente cu doar daune materiale se poate folosi constatarea amiabilă dacă sunt îndeplinite condițiile legale. Pentru accidente cu victime sau situații care cer intervenția autorităților, se contactează Poliția sau 112, apoi se deschide dosarul de daună la asigurătorul RCA competent.",
   },
   {
     question: "Ce este decontarea directă?",
-    answer: "Ceri despăgubirea direct de la propriul asigurător, fără a contacta asiguratorul vinovatului. Disponibilă pentru daune materiale cu RCA valid.",
+    answer: "Decontarea directă este un serviciu opțional prevăzut de legislația RCA. Dacă este inclusă în polița ta și sunt îndeplinite condițiile legale, propriul asigurător RCA gestionează despăgubirea, urmând să recupereze ulterior suma de la asigurătorul persoanei vinovate.",
   },
   {
     question: "Pot încheia asigurarea online?",
-    answer: "Da, 100%. Compari oferte de la 11+ asiguratori, completezi datele, plătești cu cardul și primești polița pe email — totul în mai puțin de 3 minute.",
+    answer: "Da. În cadrul normelor RCA în vigoare, oferta și emiterea poliței pot fi gestionate digital, cu transmiterea documentelor în format electronic. Este important ca datele introduse pentru ofertare și emitere să fie corecte și complete.",
   },
   {
     question: "Cum verific validitatea poliței RCA?",
-    answer: "Gratuit pe site-ul BAAR (www.baar.ro) sau baza de date CEDAM a ASF, folosind seria de șasiu sau numărul de înmatriculare.",
+    answer: "Validitatea RCA se poate verifica în baza de date AIDA, administrată de BAAR, folosind numărul de înmatriculare sau seria de șasiu. Verificarea reflectă informațiile raportate de asigurători conform normelor RCA aplicabile.",
   },
   {
     question: "Pot recupera banii dacă vând mașina?",
-    answer: "Da, poți solicita restituirea primei neconsumate cu actul de vânzare și dovada radierii. Noul proprietar poate prelua polița existentă.",
+    answer: "Da, în condițiile art. 13 din Legea nr. 132/2017, poți solicita încetarea contractului RCA și restituirea părții de primă aferente perioadei rămase, pe baza documentelor cerute de asigurător și dacă sunt îndeplinite condițiile legale.",
   },
   {
     question: "De ce diferă prețurile între asigurători?",
-    answer: "Fiecare asigurător stabilește tarife proprii, dar limitele de despăgubire sunt identice. Diferențele pot ajunge la sute de lei — de aceea merită să compari.",
+    answer: "Legea nr. 132/2017 stabilește cadrul RCA și limitele minime de răspundere, dar fiecare asigurător își stabilește propriile tarife și criterii de subscriere, în condițiile normelor ASF. De aceea, ofertele pot diferi și merită comparate înainte de alegere.",
   },
 ];
 

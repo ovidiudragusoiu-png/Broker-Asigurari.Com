@@ -27,9 +27,9 @@ const BENEFITS = [
     description:
       "Compari sute de oferte de la 11+ asiguratori într-un singur loc. Fără deplasări, fără cozi, fără presiune comercială.",
     features: [
-      "Comparare instantă a prețurilor",
-      "Cel mai bun raport preț-acoperire",
-      "Finalizare în mai puțin de 3 minute",
+      "Compari rapid prețurile disponibile",
+      "Vezi acoperirile și alegi oferta potrivită pentru tine",
+      "Poți finaliza online după ce analizezi opțiunile",
     ],
   },
   {
@@ -74,7 +74,7 @@ const FAQS = [
   {
     question: "Sunteți autorizați de ASF?",
     answer:
-      "Da, activăm ca broker de asigurări autorizat și supravegheat de Autoritatea de Supraveghere Financiară din România, respectând toate reglementările în vigoare.",
+      "Da, activăm ca intermediar secundar persoană juridică în parteneriat cu MaxyGo Broker de Asigurare SRL, autorizat ASF.",
   },
   {
     question: "Cum funcționează platforma?",
@@ -228,7 +228,7 @@ export default function DespreNoiContent() {
               Am construit o platformă unde poți <strong className="text-[#2563EB]">compara sute de oferte de la 11+ asiguratori</strong>, alege varianta potrivită și finaliza totul online, în mai puțin de 3 minute. Fără presiune comercială, fără costuri ascunse.
             </p>
             <p>
-              Suntem <strong className="text-[#1E293B]">broker de asigurări autorizat de ASF</strong> (Autoritatea de Supraveghere Financiară), ceea ce înseamnă că reprezentăm interesele tale, nu ale asiguratorilor. Îți recomandăm obiectiv cea mai bună opțiune și te susținem în orice situație — inclusiv la dosarele de daună.
+              <strong className="text-[#1E293B]">FLETHO LLC SRL</strong> este intermediar secundar persoană juridică și partener al MaxyGo Broker de Asigurare SRL.
             </p>
           </div>
         </div>
@@ -247,7 +247,7 @@ export default function DespreNoiContent() {
         <div className="relative mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
           <div className="space-y-8 sm:space-y-12">
             <p className="despre-phil text-lg text-[#FAF8F5]/40 sm:text-xl lg:text-2xl">
-              Majoritatea brokerilor se concentrează pe:{" "}
+              Majoritatea intermediarilor se concentrează pe:{" "}
               <span className="text-[#FAF8F5]/60">vânzare, oferte limitate, comisioane.</span>
             </p>
             <div>

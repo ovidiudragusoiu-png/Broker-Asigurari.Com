@@ -1,5 +1,13 @@
 import type { PersonRequest } from "@/types/insuretech";
-import type { RcaOffer, VehicleData, RcaFlowState, AdditionalDriver, SelectOption } from "@/types/rcaFlow";
+import type {
+  RcaOffer,
+  RcaOfferLegalDisclosure,
+  RcaBrokerCommission,
+  VehicleData,
+  RcaFlowState,
+  AdditionalDriver,
+  SelectOption,
+} from "@/types/rcaFlow";
 import { emptyPersonPF, emptyPersonPJ } from "@/components/shared/PersonForm";
 import { emptyAddress } from "@/components/shared/AddressForm";
 import { formatDate } from "./formatters";
@@ -77,9 +85,13 @@ export type RcaOfferApi = {
     errorMessage?: string | null;
     description?: string | null;
     withDirectSettlement?: boolean;
+    referenceTariff?: number;
+    brokerCommission?: RcaBrokerCommission;
     directSettlement?: {
       premium?: number;
+      brokerCommission?: RcaBrokerCommission;
     };
+    specificFields?: Record<string, string>;
     installments?: {
       number: number;
       amount: number;
@@ -114,6 +126,221 @@ export function toNumber(value: unknown): number | undefined {
     return Number(value);
   }
   return undefined;
+}
+
+function normalizeBrokerCommission(raw: unknown): RcaBrokerCommission | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const obj = raw as Record<string, unknown>;
+  const amount = toNumber(obj.amount);
+  const percent = toNumber(obj.percent);
+  const minPercent = toNumber(obj.minPercent);
+  const maxPercent = toNumber(obj.maxPercent);
+  if (
+    amount == null &&
+    percent == null &&
+    minPercent == null &&
+    maxPercent == null
+  ) {
+    return undefined;
+  }
+  return { amount, percent, minPercent, maxPercent };
+}
+
+function readNetPremiumFromSpecificFields(
+  specificFields?: Record<string, string>
+): number | undefined {
+  if (!specificFields) return undefined;
+  for (const key of [
+    "netPremium",
+    "policyNetPremium",
+    "primaNeta",
+    "PrimaNeta",
+    "NET_PREMIUM",
+  ]) {
+    const value = toNumber(specificFields[key]);
+    if (value != null && value > 0) return value;
+  }
+  return undefined;
+}
+
+/**
+ * Extract legal disclosure fields from offer generation or GET offer details.
+ */
+export function normalizeRcaOfferLegalDisclosure(
+  source: unknown,
+  meta?: { periodMonths?: number; withDirectSettlement?: boolean }
+): RcaOfferLegalDisclosure | undefined {
+  if (!source || typeof source !== "object") return undefined;
+  const root = source as Record<string, unknown>;
+  const offerDetails = (
+    root.offerDetails && typeof root.offerDetails === "object"
+      ? root.offerDetails
+      : root
+  ) as Record<string, unknown>;
+
+  const referenceTariff = toNumber(offerDetails.referenceTariff);
+  const brokerCommission = normalizeBrokerCommission(offerDetails.brokerCommission);
+  const directSettlement =
+    offerDetails.directSettlement && typeof offerDetails.directSettlement === "object"
+      ? (offerDetails.directSettlement as Record<string, unknown>)
+      : undefined;
+  const directSettlementBrokerCommission = normalizeBrokerCommission(
+    directSettlement?.brokerCommission
+  );
+  const netPremium = readNetPremiumFromSpecificFields(
+    offerDetails.specificFields as Record<string, string> | undefined
+  );
+  const periodMonths =
+    meta?.periodMonths ??
+    toNumber(offerDetails.periodMonths) ??
+    toNumber(root.periodMonths);
+  const withDirectSettlement =
+    meta?.withDirectSettlement ??
+    (typeof offerDetails.withDirectSettlement === "boolean"
+      ? offerDetails.withDirectSettlement
+      : undefined);
+
+  if (
+    referenceTariff == null &&
+    !brokerCommission &&
+    !directSettlementBrokerCommission &&
+    netPremium == null
+  ) {
+    return undefined;
+  }
+
+  return {
+    referenceTariff,
+    brokerCommission,
+    directSettlementBrokerCommission,
+    netPremium,
+    periodMonths,
+    withDirectSettlement,
+  };
+}
+
+export function mergeLegalDisclosure(
+  base: RcaOfferLegalDisclosure | undefined,
+  patch: RcaOfferLegalDisclosure | undefined
+): RcaOfferLegalDisclosure | undefined {
+  if (!base && !patch) return undefined;
+  if (!base) return patch;
+  if (!patch) return base;
+  return {
+    referenceTariff: patch.referenceTariff ?? base.referenceTariff,
+    brokerCommission: patch.brokerCommission ?? base.brokerCommission,
+    directSettlementBrokerCommission:
+      patch.directSettlementBrokerCommission ??
+      base.directSettlementBrokerCommission,
+    netPremium: patch.netPremium ?? base.netPremium,
+    periodMonths: patch.periodMonths ?? base.periodMonths,
+    withDirectSettlement: patch.withDirectSettlement ?? base.withDirectSettlement,
+  };
+}
+
+export function formatRoAmount(amount: number): string {
+  return new Intl.NumberFormat("ro-RO", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
+
+function formatCommissionLine(
+  vendorName: string,
+  commission: RcaBrokerCommission | undefined,
+  withDirectSettlement: boolean
+): string | null {
+  if (commission?.amount == null) return null;
+  const label = withDirectSettlement
+    ? `Comision decontare directă (inclus) ${vendorName}`
+    : `Comision (inclus) ${vendorName}`;
+  const amountPart = `${formatRoAmount(commission.amount)} lei`;
+  const percentPart =
+    commission.percent != null
+      ? ` (${formatRoAmount(commission.percent)}%)`
+      : "";
+  return `${label}: ${amountPart}${percentPart}`;
+}
+
+export interface RcaDisclosurePopoverLine {
+  text: string;
+  muted?: boolean;
+}
+
+/**
+ * Build popover lines for one vendor (6/12 variants, standard + optional DD).
+ */
+export function buildRcaDisclosurePopoverLines(input: {
+  vendorName: string;
+  disclosures: RcaOfferLegalDisclosure[];
+  orderReferenceTariff?: number | null;
+}): RcaDisclosurePopoverLine[] {
+  const { vendorName, disclosures, orderReferenceTariff } = input;
+  const lines: RcaDisclosurePopoverLine[] = [];
+
+  const referenceTariff =
+    disclosures.find((d) => d.referenceTariff != null)?.referenceTariff ??
+    (orderReferenceTariff != null ? orderReferenceTariff : undefined);
+
+  if (referenceTariff != null) {
+    lines.push({
+      text: `Tarif referință: ${formatRoAmount(referenceTariff)} lei`,
+    });
+  }
+
+  const byPeriod = new Map<string, RcaOfferLegalDisclosure>();
+  for (const d of disclosures) {
+    const key = `${d.periodMonths ?? "?"}-${d.withDirectSettlement ? "dd" : "std"}`;
+    byPeriod.set(key, mergeLegalDisclosure(byPeriod.get(key), d) ?? d);
+  }
+
+  const sortedKeys = [...byPeriod.keys()].sort();
+  for (const key of sortedKeys) {
+    const d = byPeriod.get(key)!;
+    const months = d.periodMonths;
+    const periodLabel =
+      months != null
+        ? months === 1
+          ? "1 lună"
+          : `${months} luni`
+        : null;
+
+    if (periodLabel && (d.netPremium != null || d.brokerCommission)) {
+      lines.push({ text: periodLabel, muted: true });
+    }
+
+    if (d.netPremium != null) {
+      lines.push({
+        text: `Primă netă${periodLabel ? ` ${periodLabel}` : ""}: ${formatRoAmount(d.netPremium)} lei`,
+      });
+    }
+
+    const commission = d.withDirectSettlement
+      ? d.directSettlementBrokerCommission ?? d.brokerCommission
+      : d.brokerCommission;
+    const commissionLine = formatCommissionLine(
+      vendorName,
+      commission,
+      Boolean(d.withDirectSettlement)
+    );
+    if (commissionLine) lines.push({ text: commissionLine });
+  }
+
+  if (lines.length === 0) {
+    lines.push({
+      text: "Detaliile tarifarului nu sunt disponibile momentan.",
+      muted: true,
+    });
+  }
+
+  return lines;
+}
+
+export function parseOrderReferenceTariff(response: unknown): number | null | undefined {
+  if (typeof response === "number" && Number.isFinite(response)) return response;
+  if (!response || typeof response !== "object") return undefined;
+  const ref = toNumber((response as Record<string, unknown>).referenceTariff);
+  return ref ?? null;
 }
 
 export function extractRcaOffers(input: unknown): RcaOfferApi[] {
@@ -220,6 +447,13 @@ export function normalizeRcaOffer(
     toNumber(raw.policyPremiumWithDirectSettlement) ??
     toNumber(raw.offerDetails?.directSettlement?.premium) ??
     toNumber(raw.directSettlement?.premium);
+  const withDirectSettlement =
+    raw.offerDetails?.withDirectSettlement ?? raw.withDirectSettlement;
+  const legalDisclosure = normalizeRcaOfferLegalDisclosure(raw, {
+    periodMonths: raw.offerDetails?.periodMonths ?? raw.periodMonths,
+    withDirectSettlement:
+      typeof withDirectSettlement === "boolean" ? withDirectSettlement : undefined,
+  });
   return {
     id: raw.offerId ?? raw.id ?? 0,
     productId: raw.productId ?? fallbackProductId,
@@ -242,8 +476,7 @@ export function normalizeRcaOffer(
     policyPremium: premium,
     policyPremiumWithDirectSettlement: directPremium,
     directSettlementPremium: directPremium,
-    withDirectSettlement:
-      raw.offerDetails?.withDirectSettlement ?? raw.withDirectSettlement,
+    withDirectSettlement,
     currency: raw.offerDetails?.currency || raw.currency || "RON",
     periodMonths: raw.offerDetails?.periodMonths ?? raw.periodMonths,
     installments:
@@ -255,6 +488,7 @@ export function normalizeRcaOffer(
     error: isError
       ? getRcaOfferErrorMessage(raw) || "Eroare oferta"
       : undefined,
+    legalDisclosure,
   };
 }
 

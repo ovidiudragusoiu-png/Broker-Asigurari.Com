@@ -5,6 +5,7 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 interface Step {
   title: string;
+  subtitle?: string;
   content: React.ReactNode;
 }
 
@@ -12,17 +13,24 @@ interface WizardStepperProps {
   steps: Step[];
   currentStep: number;
   onStepChange: (step: number) => void;
+  remainingText?: string;
 }
 
 export default function WizardStepper({
   steps,
   currentStep,
   onStepChange,
+  remainingText,
 }: WizardStepperProps) {
   return (
     <div>
       {/* Step indicators */}
       <nav className="mb-8">
+        {remainingText && (
+          <p className="mb-3 text-center text-xs font-medium text-gray-500">
+            {remainingText}
+          </p>
+        )}
         <ol className="flex items-center">
           {steps.map((step, index) => {
             const isCompleted = index < currentStep;
@@ -36,7 +44,7 @@ export default function WizardStepper({
                   type="button"
                   onClick={() => isCompleted && onStepChange(index)}
                   disabled={!isCompleted}
-                  className={`flex items-center gap-2 text-sm font-medium ${
+                  className={`flex flex-col items-center gap-1 text-center text-sm font-medium ${
                     isCompleted
                       ? "cursor-pointer text-[#2563EB]"
                       : isCurrent
@@ -55,11 +63,11 @@ export default function WizardStepper({
                   >
                     {isCompleted ? "✓" : index + 1}
                   </span>
-                  <span className="hidden sm:inline">{step.title}</span>
+                  <span className="hidden max-w-24 text-xs leading-tight sm:block">{step.subtitle ?? step.title}</span>
                 </button>
                 {index < steps.length - 1 && (
                   <div
-                    className={`mx-2 h-0.5 flex-1 ${
+                    className={`mx-2 mt-4 h-0.5 flex-1 self-start ${
                       isCompleted ? "bg-[#2563EB]" : "bg-gray-300"
                     }`}
                   />

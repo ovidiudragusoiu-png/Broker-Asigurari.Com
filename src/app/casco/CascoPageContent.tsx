@@ -141,6 +141,53 @@ const INSURERS = [
   "NEASIGURAT", "Allianz Tiriac", "Asirom", "Axeria", "Eazy Insure", "Euroins",
   "Generali", "Grawe", "Groupama", "Hellas", "Omniasig", "Uniqa",
 ];
+const INSURER_BADGES = [
+  "Allianz Tiriac",
+  "Asirom",
+  "Eazy Insure",
+  "Garanta",
+  "Generali",
+  "Grawe",
+  "Groupama",
+  "Hellas",
+  "Omniasig",
+  "Signal Iduna",
+  "Uniqa",
+];
+const TRUST_BADGES = [
+  "Autorizare ASF: RAJ506943",
+  "Date securizate (SSL)",
+  "Partener MaxyGo Broker de Asigurare SRL",
+];
+const COVERAGE_ITEMS = ["Daune proprii", "Furt", "Calamități naturale"];
+const REMAINING_BY_STEP = ["~2 min rămase", "~90 sec rămase", "~30 sec rămase", "Ultima verificare"];
+const CASCO_FAQS = [
+  {
+    question: "Ce poate acoperi o poliță CASCO?",
+    answer:
+      "În funcție de oferta asigurătorului, CASCO poate acoperi daune proprii, furt, vandalism, incendiu, fenomene naturale și alte riscuri menționate în condițiile poliței.",
+  },
+  {
+    question: "Cum se calculează oferta CASCO?",
+    answer:
+      "Oferta depinde de mașină, județ, istoricul proprietarului, valoarea vehiculului, franșiză, acoperirile alese și regulile fiecărui asigurător.",
+  },
+  {
+    question: "Este CASCO obligatorie?",
+    answer:
+      "Nu. CASCO este o asigurare facultativă pentru vehiculul tău. Poate fi cerută de finanțator în cazul mașinilor cumpărate prin leasing sau credit.",
+  },
+  {
+    question: "Ce documente sunt utile pentru ofertă?",
+    answer:
+      "De regulă ajută talonul, cartea mașinii, seria VIN și, pentru mașinile noi, factura sau contractul de vânzare-cumpărare.",
+  },
+  {
+    question: "Ce înseamnă franșiză?",
+    answer:
+      "Franșiza este partea din daună suportată de client. O poliță cu franșiză poate avea o primă mai mică, dar costul final depinde de oferta concretă.",
+  },
+];
 const YEARS = Array.from({ length: 20 }, (_, i) => String(2026 - i));
 
 /* ── CSS helpers ── */
@@ -172,6 +219,8 @@ export default function CascoPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [showGdprModal, setShowGdprModal] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
+  const formRef = useRef<HTMLDivElement>(null);
+  const firstFieldRef = useRef<HTMLInputElement>(null);
 
   // Inline validation — track touched fields + attempted submit
   const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -226,6 +275,16 @@ export default function CascoPage() {
 
   const set = useCallback(<K extends keyof CascoForm>(field: K, value: CascoForm[K]) => {
     setForm((prev) => ({ ...prev, [field]: value }));
+  }, []);
+
+  const focusForm = useCallback(() => {
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.setTimeout(() => firstFieldRef.current?.focus(), 300);
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => firstFieldRef.current?.focus(), 250);
+    return () => window.clearTimeout(timer);
   }, []);
 
   // ── CUI lookup ──
@@ -361,24 +420,19 @@ export default function CascoPage() {
     form.email.includes("@") &&
     form.phone.length >= 10 &&
     form.countyId !== "" &&
-    form.cityId !== "" &&
-    form.hasLicense !== "" &&
     (form.ownerType === "PF"
-      ? form.lastName.length > 0 && form.firstName.length > 0 && validateCNP(form.cnp)
+      ? form.lastName.length > 0 && form.firstName.length > 0
       : form.companyName.length > 0 && form.cui.length >= 2);
 
   // Field-level error checks
   const fieldErrors = {
     lastName: form.ownerType === "PF" && form.lastName.length === 0,
     firstName: form.ownerType === "PF" && form.firstName.length === 0,
-    cnp: form.ownerType === "PF" && !validateCNP(form.cnp),
     companyName: form.ownerType === "PJ" && form.companyName.length === 0,
     cui: form.ownerType === "PJ" && form.cui.length < 2,
     email: !form.email.includes("@"),
     phone: form.phone.length < 10,
     countyId: form.countyId === "",
-    cityId: form.cityId === "",
-    hasLicense: form.hasLicense === "",
   };
 
   const errBorder = "!border-red-400";
@@ -396,6 +450,9 @@ export default function CascoPage() {
     form.startDate !== "" &&
     form.paymentFrequency !== "" &&
     form.deductible !== "" &&
+    form.cityId !== "" &&
+    form.hasLicense !== "" &&
+    (form.ownerType !== "PF" || (validateCNP(form.cnp) && form.maritalStatus !== "")) &&
     (form.inputMode === "upload"
       ? form.files.length > 0
       : form.makeId !== "" && form.model.length > 0 && form.year !== "" && form.vin.length >= 5);
@@ -528,7 +585,8 @@ export default function CascoPage() {
   const steps = [
     /* ────── Step 1: Date de Contact ────── */
     {
-      title: "Date de contact",
+      title: "Contact",
+      subtitle: "1. Contact",
       content: (
         <div className="mx-auto max-w-2xl space-y-4">
           {/* Main card */}
@@ -556,7 +614,7 @@ export default function CascoPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
                   <div>
                     <label className={labelCls}>Nume</label>
-                    <input className={`${inputCls} ${inputErr("lastName")}`} value={form.lastName} onChange={(e) => set("lastName", e.target.value)} onBlur={() => touch("lastName")} placeholder="ex: Popescu" />
+                    <input ref={firstFieldRef} className={`${inputCls} ${inputErr("lastName")}`} value={form.lastName} onChange={(e) => set("lastName", e.target.value)} onBlur={() => touch("lastName")} placeholder="ex: Popescu" />
                     {shouldShowError("lastName") && fieldErrors.lastName && (
                       <p className="mt-1 text-xs text-red-500">Numele este obligatoriu</p>
                     )}
@@ -568,24 +626,6 @@ export default function CascoPage() {
                       <p className="mt-1 text-xs text-red-500">Prenumele este obligatoriu</p>
                     )}
                   </div>
-                </div>
-                <div>
-                  <label className={labelCls}>CNP</label>
-                  <input className={`${inputCls} ${inputErr("cnp")}`} value={form.cnp} onChange={(e) => set("cnp", e.target.value.replace(/\D/g, ""))} onBlur={() => touch("cnp")} placeholder="13 cifre" maxLength={13} inputMode="numeric" />
-                  {shouldShowError("cnp") && fieldErrors.cnp && form.cnp.length > 0 && (
-                    <p className="mt-1 text-xs text-red-500">{form.cnp.length < 13 ? "CNP-ul trebuie să aibă 13 cifre" : "CNP invalid"}</p>
-                  )}
-                  {shouldShowError("cnp") && fieldErrors.cnp && form.cnp.length === 0 && (
-                    <p className="mt-1 text-xs text-red-500">CNP-ul este obligatoriu</p>
-                  )}
-                </div>
-                <div>
-                  <label className={labelCls}>Stare civila</label>
-                  <select className={selectCls} value={form.maritalStatus} onChange={(e) => set("maritalStatus", e.target.value)}>
-                    <option value="">Selecteaza</option>
-                    <option value="casatorit">Casatorit(a)</option>
-                    <option value="necasatorit">Necasatorit(a)</option>
-                  </select>
                 </div>
               </>
             ) : (
@@ -657,7 +697,7 @@ export default function CascoPage() {
                 </div>
                 <div>
                   <label className={labelCls}>Telefon</label>
-                  <input type="tel" className={`${inputCls} ${inputErr("phone")}`} value={form.phone} onChange={(e) => set("phone", e.target.value)} onBlur={() => touch("phone")} placeholder="07XXXXXXXX" />
+                  <input type="tel" inputMode="tel" className={`${inputCls} ${inputErr("phone")}`} value={form.phone} onChange={(e) => set("phone", e.target.value)} onBlur={() => touch("phone")} placeholder="07XXXXXXXX" />
                   {shouldShowError("phone") && fieldErrors.phone && form.phone.length > 0 && (
                     <p className="mt-1 text-xs text-red-500">Minim 10 cifre (ex: 0720385551)</p>
                   )}
@@ -665,35 +705,6 @@ export default function CascoPage() {
                     <p className="mt-1 text-xs text-red-500">Telefonul este obligatoriu</p>
                   )}
                 </div>
-              </div>
-            </div>
-
-            {/* License section */}
-            <div className="border-t border-gray-100 pt-4">
-              <div className="mb-3 flex items-center gap-2">
-                <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm-3.375 6.75h4.5" />
-                </svg>
-                <span className="text-xs font-medium text-gray-500">Permis auto</span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
-                <div>
-                  <label className={labelCls}>Detii permis auto?</label>
-                  <select className={`${selectCls} ${selectErr("hasLicense")}`} value={form.hasLicense} onChange={(e) => { set("hasLicense", e.target.value as "da" | "nu" | ""); touch("hasLicense"); }} onBlur={() => touch("hasLicense")}>
-                    <option value="">Selecteaza</option>
-                    <option value="da">Da</option>
-                    <option value="nu">Nu</option>
-                  </select>
-                  {shouldShowError("hasLicense") && fieldErrors.hasLicense && (
-                    <p className="mt-1 text-xs text-red-500">Selectați dacă dețineți permis</p>
-                  )}
-                </div>
-                {form.hasLicense === "da" && (
-                  <div>
-                    <label className={labelCls}>Data obtinere permis</label>
-                    <DateInput value={form.licenseDate} onChange={(v) => set("licenseDate", v)} />
-                  </div>
-                )}
               </div>
             </div>
 
@@ -739,56 +750,6 @@ export default function CascoPage() {
                     <p className="mt-1 text-xs text-red-500">Selectați județul</p>
                   )}
                 </div>
-                <div>
-                  <label className={labelCls}>
-                    {isBucharest || isBucharestSentinel ? "Sector" : "Localitate"}
-                  </label>
-                  {isBucharest || isBucharestSentinel ? (
-                    <select
-                      className={`${selectCls} ${selectErr("cityId")}`}
-                      value={isBucharest ? form.countyId : ""}
-                      onChange={(e) => {
-                        const sector = BUCHAREST_SECTORS.find((s) => String(s.countyId) === e.target.value);
-                        if (sector) {
-                          set("countyId", String(sector.countyId));
-                          set("countyName", "Bucuresti");
-                          set("cityId", String(sector.cityId));
-                          set("cityName", sector.label);
-                          touch("cityId");
-                        }
-                      }}
-                      onBlur={() => touch("cityId")}
-                    >
-                      <option value="">Selecteaza sectorul</option>
-                      {BUCHAREST_SECTORS.map((s) => (
-                        <option key={s.countyId} value={s.countyId}>{s.label}</option>
-                      ))}
-                    </select>
-                  ) : (
-                  <select
-                    className={`${selectCls} ${selectErr("cityId")}`}
-                    value={form.cityId}
-                    disabled={!form.countyId}
-                    onChange={(e) => {
-                      const city = cities.find((c) => String(c.id) === e.target.value);
-                      set("cityId", e.target.value);
-                      set("cityName", city?.name || "");
-                      touch("cityId");
-                    }}
-                    onBlur={() => touch("cityId")}
-                  >
-                    <option value="">Selecteaza localitatea</option>
-                    {cities.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
-                  )}
-                  {shouldShowError("cityId") && fieldErrors.cityId && (
-                    <p className="mt-1 text-xs text-red-500">
-                      {isBucharest || isBucharestSentinel ? "Selectați sectorul" : "Selectați localitatea"}
-                    </p>
-                  )}
-                </div>
               </div>
             </div>
           </div>
@@ -823,7 +784,8 @@ export default function CascoPage() {
 
     /* ────── Step 2: DNT Choice ────── */
     {
-      title: "Aproape gata",
+      title: "Vehicul",
+      subtitle: "2. Vehicul",
       content: (
         <DntChoice
           productLabel="CASCO"
@@ -840,9 +802,106 @@ export default function CascoPage() {
 
     /* ────── Step 3: Vehicul & Asigurare ────── */
     {
-      title: "Vehicul & Asigurare",
+      title: "Detalii",
+      subtitle: "3. Detalii",
       content: (
         <div className="mx-auto max-w-2xl space-y-4">
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm space-y-3">
+            <div className="flex items-center gap-2 mb-1">
+              <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+              </svg>
+              <span className="text-xs font-medium text-gray-500">Detalii pentru ofertare</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
+              <div>
+                <label className={labelCls}>
+                  {isBucharest || isBucharestSentinel ? "Sector" : "Localitate"}
+                </label>
+                {isBucharest || isBucharestSentinel ? (
+                  <select
+                    className={selectCls}
+                    value={isBucharest ? form.countyId : ""}
+                    onChange={(e) => {
+                      const sector = BUCHAREST_SECTORS.find((s) => String(s.countyId) === e.target.value);
+                      if (sector) {
+                        set("countyId", String(sector.countyId));
+                        set("countyName", "Bucuresti");
+                        set("cityId", String(sector.cityId));
+                        set("cityName", sector.label);
+                      }
+                    }}
+                  >
+                    <option value="">Selecteaza sectorul</option>
+                    {BUCHAREST_SECTORS.map((s) => (
+                      <option key={s.countyId} value={s.countyId}>{s.label}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <select
+                    className={selectCls}
+                    value={form.cityId}
+                    disabled={!form.countyId}
+                    onChange={(e) => {
+                      const city = cities.find((c) => String(c.id) === e.target.value);
+                      set("cityId", e.target.value);
+                      set("cityName", city?.name || "");
+                    }}
+                  >
+                    <option value="">Selecteaza localitatea</option>
+                    {cities.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              <div>
+                <label className={labelCls}>Detii permis auto?</label>
+                <select className={selectCls} value={form.hasLicense} onChange={(e) => set("hasLicense", e.target.value as "da" | "nu" | "")}>
+                  <option value="">Selecteaza</option>
+                  <option value="da">Da</option>
+                  <option value="nu">Nu</option>
+                </select>
+              </div>
+
+              {form.hasLicense === "da" && (
+                <div>
+                  <label className={labelCls}>Data obtinere permis</label>
+                  <DateInput value={form.licenseDate} onChange={(v) => set("licenseDate", v)} />
+                </div>
+              )}
+
+              {form.ownerType === "PF" && (
+                <>
+                  <div>
+                    <label className={labelCls}>CNP</label>
+                    <input
+                      className={inputCls}
+                      value={form.cnp}
+                      onChange={(e) => set("cnp", e.target.value.replace(/\D/g, ""))}
+                      placeholder="13 cifre"
+                      maxLength={13}
+                      inputMode="numeric"
+                    />
+                    {form.cnp.length > 0 && !validateCNP(form.cnp) && (
+                      <p className="mt-1 text-xs text-red-500">{form.cnp.length < 13 ? "CNP-ul trebuie să aibă 13 cifre" : "CNP invalid"}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className={labelCls}>Stare civila</label>
+                    <select className={selectCls} value={form.maritalStatus} onChange={(e) => set("maritalStatus", e.target.value)}>
+                      <option value="">Selecteaza</option>
+                      <option value="casatorit">Casatorit(a)</option>
+                      <option value="necasatorit">Necasatorit(a)</option>
+                    </select>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
           {/* Input mode toggle */}
           <div className="flex gap-2">
             {([
@@ -1244,6 +1303,7 @@ export default function CascoPage() {
     /* ────── Step 3: Confirmare ────── */
     {
       title: "Confirmare",
+      subtitle: "4. Confirmare",
       content: (
         <div className="mx-auto max-w-2xl space-y-4">
           {/* Contact summary */}
@@ -1457,18 +1517,112 @@ export default function CascoPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-4xl px-4 pt-24 pb-8 sm:px-6 lg:px-8">
-      {/* Page header */}
-      <div className="text-center mb-6">
-        <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/25">
-          <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0H21M3.375 14.25h.747c.464 0 .893-.258 1.108-.66l3.478-6.521A1.125 1.125 0 019.72 6.5h4.56a1.125 1.125 0 011.012.625l3.478 6.521c.215.402.644.66 1.108.66h.747" />
-          </svg>
+    <>
+      <div className="mx-auto max-w-6xl px-4 pt-24 pb-24 sm:px-6 lg:px-8">
+        <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
+          <aside className="space-y-5 lg:sticky lg:top-24">
+            <div className="rounded-3xl bg-gradient-to-br from-blue-600 to-blue-800 p-6 text-white shadow-xl shadow-blue-900/20">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15">
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0H21M3.375 14.25h.747c.464 0 .893-.258 1.108-.66l3.478-6.521A1.125 1.125 0 019.72 6.5h4.56a1.125 1.125 0 011.012.625l3.478 6.521c.215.402.644.66 1.108.66h.747" />
+                </svg>
+              </div>
+              <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
+                Ofertă CASCO personalizată în câteva minute
+              </h1>
+              <p className="mt-4 text-base leading-relaxed text-blue-50">
+                Compară oferte de la mai mulți asigurători. Completezi formularul online, Sigur.Ai îți trimite oferta pe email.
+              </p>
+              <p className="mt-4 rounded-2xl bg-white/10 p-3 text-sm leading-relaxed text-blue-50">
+                Ofertele variază în funcție de mașină, județ și istoric. Hai să vedem ce găsim pentru tine.
+              </p>
+              <div className="mt-5">
+                <button type="button" onClick={focusForm} className="w-full rounded-xl bg-white px-5 py-3 text-sm font-bold text-blue-700 shadow-lg shadow-blue-950/10 transition hover:bg-blue-50">
+                  Cere ofertă CASCO
+                </button>
+                <p className="mt-2 text-center text-xs text-blue-100">Durează aprox. 2 minute</p>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+              <p className="text-sm font-semibold text-gray-900">Polița CASCO poate acoperi:</p>
+              <div className="mt-3 grid gap-2">
+                {COVERAGE_ITEMS.map((item) => (
+                  <div key={item} className="flex items-center gap-2 text-sm text-gray-700">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-green-50 text-xs font-bold text-green-600">✓</span>
+                    {item}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+              <div className="grid gap-2">
+                {TRUST_BADGES.map((badge) => (
+                  <div key={badge} className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                    <span className="h-2 w-2 rounded-full bg-blue-500" />
+                    {badge}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </aside>
+
+          <main ref={formRef} className="space-y-5 scroll-mt-24">
+            <div className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+              <div className="mb-5 text-center">
+                <p className="text-sm font-semibold text-blue-600">Cerere ofertă CASCO</p>
+                <p className="mt-1 text-sm text-gray-500">
+                  Datele tale sunt confidențiale. Nu primești oferta decât după ce o ceri tu.{" "}
+                  <a href="/confidentialitate" className="font-semibold text-[#2563EB] underline">
+                    GDPR
+                  </a>
+                </p>
+              </div>
+              <WizardStepper
+                steps={steps}
+                currentStep={currentStep}
+                onStepChange={goTo}
+                remainingText={REMAINING_BY_STEP[currentStep]}
+              />
+            </div>
+
+            <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+              <p className="text-sm font-semibold text-gray-900">Comparăm oferte de la:</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {INSURER_BADGES.map((insurer) => (
+                  <span key={insurer} className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-600">
+                    {insurer}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <section className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+              <h2 className="text-xl font-bold text-gray-900">Întrebări frecvente CASCO</h2>
+              <div className="mt-4 divide-y divide-gray-100">
+                {CASCO_FAQS.map((faq) => (
+                  <div key={faq.question} className="py-4 first:pt-0 last:pb-0">
+                    <h3 className="text-sm font-semibold text-gray-900">{faq.question}</h3>
+                    <p className="mt-1 text-sm leading-relaxed text-gray-600">{faq.answer}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </main>
         </div>
-        <h2 className="text-lg font-bold text-gray-900">Asigurare CASCO</h2>
-        <p className="mt-0.5 text-sm text-gray-500">Cerere de oferta pentru asigurarea auto completa</p>
       </div>
-      <WizardStepper steps={steps} currentStep={currentStep} onStepChange={goTo} />
-    </div>
+
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/95 p-3 shadow-[0_-8px_20px_rgba(15,23,42,0.08)] backdrop-blur sm:hidden">
+        <div className="mx-auto flex max-w-md gap-2">
+          <a href="tel:0720385551" className={`${btn.secondary} flex-1 justify-center px-3 py-2 text-sm`}>
+            Sună
+          </a>
+          <button type="button" onClick={focusForm} className={`${btn.primary} flex-1 justify-center px-3 py-2 text-sm`}>
+            Cere ofertă CASCO
+          </button>
+        </div>
+      </div>
+    </>
   );
 }

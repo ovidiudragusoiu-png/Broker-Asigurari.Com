@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { api, ApiError } from "@/lib/api/client";
+import { btn } from "@/lib/ui/tokens";
 import type {
   LegalType,
   VendorProductType,
@@ -177,6 +178,10 @@ export default function ConsentFlow({
     setSubmitError(null);
     setSubmitErrorStatus(null);
     try {
+      if (alreadyConsented) {
+        onComplete();
+        return;
+      }
       // Build formInputData: { inputName_X: true/false, ... }
       const formInputData: Record<string, boolean | string> = {};
       for (const section of sections) {
@@ -261,7 +266,9 @@ export default function ConsentFlow({
           key={sectionIndex}
           className="rounded-md border border-gray-200 p-4"
         >
-          <h4 className="mb-3 font-medium text-gray-900">{section.title}</h4>
+          {section.title ? (
+            <h4 className="mb-3 font-medium text-gray-900">{section.title}</h4>
+          ) : null}
 
           {section.questions.length === 0 ? (
             <p className="text-sm text-gray-500 italic">
@@ -458,7 +465,7 @@ export default function ConsentFlow({
           type="button"
           onClick={handleSubmit}
           disabled={submitting}
-          className="rounded-md bg-blue-700 px-6 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50"
+          className={`${btn.primary} disabled:opacity-50`}
         >
           {submitting ? "Se trimite..." : "Confirm consimtamantul"}
         </button>
