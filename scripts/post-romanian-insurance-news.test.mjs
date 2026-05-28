@@ -55,7 +55,8 @@ describe("Romanian insurance news poster", () => {
     expect(message).toContain("Top 3 stiri din piata asigurarilor din Romania");
     expect(message).toContain("1. ASF schimba regulile RCA");
     expect(message).toContain("https://example.com/2");
-    expect(message).not.toContain("duplicate");
+    expect(message.match(/ASF schimba regulile RCA/g)).toHaveLength(1);
+    expect(message).not.toContain("Google News");
   });
 
   it("supports dry-run configuration without Facebook credentials", () => {

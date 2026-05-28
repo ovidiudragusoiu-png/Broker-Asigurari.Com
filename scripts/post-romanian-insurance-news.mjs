@@ -152,6 +152,7 @@ export function selectTopNews(items, { limit = 3, now = new Date(), lookbackHour
     const existing = seen.get(key);
     const candidate = {
       ...item,
+      title: stripGoogleNewsSuffix(item.title),
       score: scoreItem(item, now, lookbackHours),
     };
 
