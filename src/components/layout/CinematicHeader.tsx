@@ -9,22 +9,25 @@ import DesktopNav from "@/components/layout/DesktopNav";
 import MobileMenu from "@/components/home/MobileMenu";
 import HeaderAuthButton from "@/components/portal/HeaderAuthButton";
 
+function getHomeScrolled() {
+  return typeof window !== "undefined" && window.scrollY > 80;
+}
+
 export default function CinematicHeader() {
   const pathname = usePathname();
   const isHome = pathname === "/";
-  const [scrolled, setScrolled] = useState(!isHome);
+  const [homeScrolled, setHomeScrolled] = useState(getHomeScrolled);
+  const scrolled = !isHome || homeScrolled;
 
   useEffect(() => {
     if (!isHome) {
-      setScrolled(true);
       return;
     }
 
     const handleScroll = () => {
-      setScrolled(window.scrollY > 80);
+      setHomeScrolled(getHomeScrolled());
     };
 
-    handleScroll();
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, [isHome]);

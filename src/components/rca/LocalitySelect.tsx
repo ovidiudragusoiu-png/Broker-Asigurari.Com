@@ -16,22 +16,34 @@ interface LocalitySelectProps {
 }
 
 export default function LocalitySelect({ countyId, countyName, onSelect }: LocalitySelectProps) {
-  const [cities, setCities] = useState<CityOption[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [cityState, setCityState] = useState<{
+    cities: CityOption[];
+    countyId: number;
+    loading: boolean;
+  }>({ cities: [], countyId, loading: true });
   const [selectedCityId, setSelectedCityId] = useState<number | null>(null);
+  const cities = cityState.countyId === countyId ? cityState.cities : [];
+  const loading = cityState.countyId !== countyId || cityState.loading;
 
   useEffect(() => {
-    setLoading(true);
+    let active = true;
+
     api
       .get<CityOption[]>(`/online/address/utils/cities?countyId=${countyId}`)
       .then((data) => {
-        setCities(data);
-        setLoading(false);
+        if (active) {
+          setCityState({ cities: data, countyId, loading: false });
+        }
       })
       .catch(() => {
-        setCities([]);
-        setLoading(false);
+        if (active) {
+          setCityState({ cities: [], countyId, loading: false });
+        }
       });
+
+    return () => {
+      active = false;
+    };
   }, [countyId]);
 
   const handleSelect = (cityId: number) => {

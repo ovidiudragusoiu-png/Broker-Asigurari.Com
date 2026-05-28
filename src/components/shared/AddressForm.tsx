@@ -69,7 +69,6 @@ export default function AddressForm({
   const [loadError, setLoadError] = useState<string | null>(null);
 
   /* Street autocomplete */
-  const [streetQuery, setStreetQuery] = useState(value.streetName || "");
   const [streetResults, setStreetResults] = useState<StreetResult[]>([]);
   const [showStreetDropdown, setShowStreetDropdown] = useState(false);
   const streetDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -138,11 +137,6 @@ export default function AddressForm({
     }
   }, [value.cityId, value.postalCode, cities, update]);
 
-  /* Sync streetQuery when value.streetName changes externally (e.g. copy address) */
-  useEffect(() => {
-    setStreetQuery(value.streetName || "");
-  }, [value.streetName]);
-
   /* Street autocomplete search — 3+ chars, city selected, 300ms debounce */
   const searchStreet = useCallback(
     (query: string) => {
@@ -180,7 +174,6 @@ export default function AddressForm({
   }, []);
 
   const handleStreetInputChange = (query: string) => {
-    setStreetQuery(query);
     update({ streetName: query, postalCode: "" });
     searchStreet(query);
   };
@@ -189,7 +182,6 @@ export default function AddressForm({
     const fullName = result.streetTypeName
       ? `${result.streetTypeName} ${result.streetName}`
       : result.streetName;
-    setStreetQuery(fullName);
     update({
       streetName: fullName,
       streetTypeId: result.streetTypeId,
@@ -279,7 +271,6 @@ export default function AddressForm({
                   const sector = BUCHAREST_SECTORS.find((s) => s.countyId === Number(e.target.value));
                   if (sector) {
                     update({ countyId: sector.countyId, cityId: sector.cityId, postalCode: "", streetName: "", streetTypeId: null });
-                    setStreetQuery("");
                   }
                 }}
               >
@@ -380,7 +371,7 @@ export default function AddressForm({
             type="text"
             className={inputCls}
             placeholder={value.cityId ? "Min. 3 litere..." : "Selecteaza localitate"}
-            value={streetQuery}
+            value={value.streetName || ""}
             disabled={isRomania && !value.cityId}
             onChange={(e) => handleStreetInputChange(e.target.value)}
             onFocus={() => streetResults.length > 0 && setShowStreetDropdown(true)}
