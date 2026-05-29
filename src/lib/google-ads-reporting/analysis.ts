@@ -1,6 +1,5 @@
 import type {
   AnalysisResult,
-  CampaignPerformance,
   GoogleAdsReportConfig,
   MetricRow,
   PerformanceDataset,
