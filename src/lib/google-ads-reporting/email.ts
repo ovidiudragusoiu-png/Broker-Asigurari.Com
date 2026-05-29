@@ -26,7 +26,7 @@ export async function sendWeeklyReportEmail(
       {
         filename: "google-ads-campaign-performance.csv",
         content: Buffer.from(report.csv, "utf8"),
-        content_type: "text/csv",
+        contentType: "text/csv",
       },
     ],
     tags: [
