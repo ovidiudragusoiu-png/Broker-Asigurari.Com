@@ -1,11 +1,5 @@
 import type { DateRange, ReportDateWindows } from "./types";
 
-const dateFormatter = new Intl.DateTimeFormat("en-CA", {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-});
-
 function localDateParts(date: Date, timezone: string) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: timezone,
@@ -33,7 +27,10 @@ function addDays(date: Date, days: number) {
 }
 
 function formatDate(date: Date) {
-  return dateFormatter.format(date);
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 export function buildWeeklyDateWindows(timezone: string, referenceDate = new Date()): ReportDateWindows {
