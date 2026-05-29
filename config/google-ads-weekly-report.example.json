@@ -1,0 +1,15 @@
+{
+  "googleAdsCustomerId": "1234567890",
+  "campaignIds": [],
+  "emailRecipient": "marketing@example.com",
+  "senderEmail": "Google Ads Reports <reports@example.com>",
+  "reportDay": "monday",
+  "reportTime": "08:00",
+  "timezone": "Europe/Bucharest",
+  "targetCpa": 150,
+  "minimumConversionThreshold": 2,
+  "maximumAllowedSpendWithoutConversion": 300,
+  "automaticChangesAllowed": false,
+  "cascoLandingPageUrl": "https://www.sigur.ai/casco",
+  "currencyCode": "RON"
+}
