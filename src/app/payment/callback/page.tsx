@@ -6,6 +6,7 @@ import { api } from "@/lib/api/client";
 import Link from "next/link";
 import { btn } from "@/lib/ui/tokens";
 import { CheckCircle2, ShieldCheck, Building2, Calendar, Download, AlertTriangle, ArrowRight, Mail } from "lucide-react";
+import { verifyPaymentCheckResponse } from "@/lib/flows/paymentVerification";
 
 function isValidPositiveInt(value: string | null): value is string {
   return !!value && /^\d+$/.test(value) && Number(value) > 0;
@@ -112,19 +113,23 @@ function PaymentCallbackContent() {
       // Verify payment via InsureTech API before proceeding to policy creation
       try {
         const padOid = urlPadOfferId && isValidPositiveInt(urlPadOfferId) ? [Number(urlPadOfferId)] : [];
-        const payCheck = await api.post<{ offerId: number; success: boolean; message: string }>(
+        const expectedOfferIds = [Number(offerId), ...padOid];
+        const payCheck = await api.post<unknown>(
           `/online/offers/payment/check/v3?orderHash=${orderHash}`,
-          { offerIds: [Number(offerId), ...padOid] },
+          { offerIds: expectedOfferIds },
           { Accept: "text/plain" }
         );
-        if (!payCheck.success) {
-          setError(payCheck.message || "Plata nu a fost confirmata de procesatorul de plati.");
+        const verification = verifyPaymentCheckResponse(payCheck, expectedOfferIds);
+        if (!verification.success) {
+          setError(verification.message || "Plata nu a fost confirmata de procesatorul de plati.");
           setCreating(false);
           return;
         }
       } catch (checkErr) {
-        console.warn("[PaymentCallback] payment check failed, proceeding anyway:", checkErr);
-        // Don't block policy creation if payment check itself errors — the redirect status is APPROVED
+        console.warn("[PaymentCallback] payment check failed:", checkErr);
+        setError("Nu am putut confirma plata la procesator. Va rugam incercati din nou.");
+        setCreating(false);
+        return;
       }
 
       // Per V3 docs: RCA uses /policies/rca/v3, all others use /policies/v3
@@ -166,7 +171,6 @@ function PaymentCallbackContent() {
           paymentMethodType: "CardOnline",
           ...savedData,
         };
-        sessionStorage.removeItem("rcaPolicyData");
       } else {
         payload = { offerId: Number(offerId), paymentMethodType: "CardOnline" };
         // For HOUSE with PAD: include padOfferId from URL param or sessionStorage
@@ -184,9 +188,6 @@ function PaymentCallbackContent() {
           payload.padOfferId = Number(resolvedPadOfferId);
         }
       }
-
-      // Clean up
-      try { sessionStorage.removeItem("customerEmail"); } catch { /* */ }
 
       const result = await api.post<PolicyCreateResponse>(
         endpoint,
@@ -230,6 +231,14 @@ function PaymentCallbackContent() {
           });
         } catch {
           console.warn("Failed to save policy to portal");
+        }
+
+        try {
+          sessionStorage.removeItem("customerEmail");
+          if (productType === "RCA") sessionStorage.removeItem("rcaPolicyData");
+          if (productType === "HOUSE") sessionStorage.removeItem("housePolicyData");
+        } catch {
+          // sessionStorage unavailable
         }
       }
     } catch (err) {
