@@ -1,4 +1,4 @@
-import type { Customer } from "google-ads-api";
+import type { GoogleAdsCustomer } from "./googleAdsClient";
 import { reportLogger } from "./logger";
 import type {
   AdGroupPerformance,
@@ -102,7 +102,7 @@ function baseMetrics(row: GoogleAdsRow): Omit<MetricRow, "name"> {
 }
 
 async function safeQuery<T>(
-  customer: Customer,
+  customer: GoogleAdsCustomer,
   queryName: string,
   query: string,
   mapper: (row: GoogleAdsRow) => T,
@@ -138,7 +138,7 @@ function adGroupIdentity(row: GoogleAdsRow) {
 }
 
 export async function fetchPerformanceDataset(
-  customer: Customer,
+  customer: GoogleAdsCustomer,
   config: GoogleAdsReportConfig,
   range: DateRange,
 ): Promise<PerformanceDataset> {
@@ -463,7 +463,10 @@ export async function fetchPerformanceDataset(
   };
 }
 
-async function fetchExistingNegativeKeywords(customer: Customer, config: GoogleAdsReportConfig): Promise<NegativeKeyword[]> {
+async function fetchExistingNegativeKeywords(
+  customer: GoogleAdsCustomer,
+  config: GoogleAdsReportConfig,
+): Promise<NegativeKeyword[]> {
   const campaignNegatives = await safeQuery<NegativeKeyword>(
     customer,
     "campaign negative keywords",
