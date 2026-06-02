@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useEffect, useReducer, useCallback } from "react";
+import { Suspense, useState, useEffect, useLayoutEffect, useReducer, useCallback } from "react";
 import WizardStepper, {
   useWizardUrlSync,
 } from "@/components/shared/WizardStepper";
@@ -103,21 +103,95 @@ function RcaPageInner() {
     rawGoTo(step);
   }, [currentStep, rawGoTo]);
 
-  // ----- On fresh page load, always start at step 0 -----
+  // ----- Hydrate reducer from sessionStorage on mount so reloads don't lose progress -----
+  // Cleanup happens only on (a) successful payment redirect (see handleConsentAndPay),
+  // and (b) the payment/callback page after a finalized policy.
+  const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
-    sessionStorage.removeItem("rcaWizardState");
-    if (currentStep > 0) {
+    const isHardReload = (() => {
+      if (typeof window === "undefined") return false;
+      const navEntry = performance.getEntriesByType("navigation")[0] as
+        | PerformanceNavigationTiming
+        | undefined;
+      if (navEntry?.type) return navEntry.type === "reload";
+      const legacyNavigation = performance.navigation;
+      return legacyNavigation?.type === legacyNavigation?.TYPE_RELOAD;
+    })();
+
+    if (isHardReload) {
+      try {
+        sessionStorage.removeItem("rcaWizardState");
+      } catch {
+        // Ignore storage access failures and continue with fresh reducer defaults
+      }
+      if (currentStep > 0) rawGoTo(0);
+      setHydrated(true);
+      return;
+    }
+
+    let hadSavedState = false;
+    try {
+      const saved = sessionStorage.getItem("rcaWizardState");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          // Merge over empty defaults so any newly-added fields keep their defaults
+          dispatch({
+            type: "RESTORE",
+            state: { ...emptyRcaFlowState(), ...parsed } as RcaFlowState,
+          });
+          hadSavedState = true;
+        } else {
+          sessionStorage.removeItem("rcaWizardState");
+        }
+      }
+    } catch {
+      // Malformed JSON — drop and start fresh
+      try { sessionStorage.removeItem("rcaWizardState"); } catch { /* */ }
+    }
+    // Deep-link safety: if a visitor lands on a later step without any saved state
+    // (e.g. shared URL `/rca?step=4`), bounce them to step 0 to avoid a broken UI.
+    if (!hadSavedState && currentStep > 0) {
       rawGoTo(0);
     }
+    setHydrated(true);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ----- Session storage persist (exclude sensitive payment/order fields) -----
+  // Only persist AFTER hydration to avoid clobbering the restored state on first render.
   useEffect(() => {
+    if (!hydrated) return;
     const { orderHash, orderId, ...safeState } = state;
     void orderHash; void orderId; // intentionally excluded from persistence
     sessionStorage.setItem("rcaWizardState", JSON.stringify(safeState));
-  }, [state]);
+  }, [state, hydrated]);
+
+  // ----- Reset scroll on every wizard step change -----
+  // Step navigation uses router.push({ scroll: false }) to keep transitions snappy,
+  // which makes the browser preserve scroll position across step changes. When the
+  // user moves from a tall step (e.g. the offers list on step 5) to a shorter one
+  // (e.g. the additional-driver question on step 6), the preserved offset lands the
+  // viewport below the new content, hiding the title and stepper. Also covers the
+  // reload case where the browser would otherwise restore the previous scroll.
+  useLayoutEffect(() => {
+    if (typeof window === "undefined" || typeof history === "undefined") return;
+    const previousScrollRestoration = history.scrollRestoration;
+    history.scrollRestoration = "manual";
+
+    return () => {
+      history.scrollRestoration = previousScrollRestoration;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.scrollTo(0, 0);
+    requestAnimationFrame(() => {
+      window.scrollTo(0, 0);
+      requestAnimationFrame(() => window.scrollTo(0, 0));
+    });
+  }, [currentStep]);
 
   // ============================================================
   // Step 5: Create order + generate offers (NOW with real data)
@@ -127,6 +201,7 @@ function RcaPageInner() {
     if (state.offers.length > 0 || state.loadingOffers) return;
 
     dispatch({ type: "SET_LOADING_OFFERS", loading: true });
+    dispatch({ type: "SET_OFFERS_READY", ready: false });
     dispatch({ type: "SET_ERROR", error: null });
 
     try {
@@ -147,6 +222,7 @@ function RcaPageInner() {
           error: "Data obtinerii permisului este obligatorie pentru ofertele RCA.",
         });
         dispatch({ type: "SET_LOADING_OFFERS", loading: false });
+        dispatch({ type: "SET_OFFERS_READY", ready: true });
         return;
       }
 
@@ -156,6 +232,7 @@ function RcaPageInner() {
           error: "Kilometrajul trebuie sa fie un numar mai mare decat zero.",
         });
         dispatch({ type: "SET_LOADING_OFFERS", loading: false });
+        dispatch({ type: "SET_OFFERS_READY", ready: true });
         return;
       }
 
@@ -222,9 +299,18 @@ function RcaPageInner() {
 
       dispatch({ type: "SET_ORDER", orderId: order.id, orderHash: order.hash });
 
+      if (rcaProducts.length === 0) {
+        dispatch({
+          type: "SET_ERROR",
+          error: "Nu există produse RCA disponibile pentru generarea ofertelor.",
+        });
+        dispatch({ type: "SET_LOADING_OFFERS", loading: false });
+        dispatch({ type: "SET_OFFERS_READY", ready: true });
+        return;
+      }
+
       // 4. Fire ALL offer requests in parallel — each card appears as it arrives
       const OFFER_TIMEOUT = 60000;
-      let completedCount = 0;
 
       const offerPromises = rcaProducts.map(async (product) => {
         try {
@@ -288,17 +374,13 @@ function RcaPageInner() {
           }];
           dispatch({ type: "APPEND_OFFERS", offers: errorOffer });
           return errorOffer;
-        } finally {
-          completedCount++;
-          // When all done, stop loading spinner
-          if (completedCount === rcaProducts.length) {
-            dispatch({ type: "SET_LOADING_OFFERS", loading: false });
-          }
         }
       });
 
       // Wait for all to settle
       const allResults = await Promise.allSettled(offerPromises);
+      dispatch({ type: "SET_LOADING_OFFERS", loading: false });
+      dispatch({ type: "SET_OFFERS_READY", ready: true });
       const flatResults = allResults
         .filter((r): r is PromiseFulfilledResult<ReturnType<typeof normalizeRcaOffer>[]> => r.status === "fulfilled")
         .flatMap((r) => r.value);
@@ -329,6 +411,7 @@ function RcaPageInner() {
       }
       dispatch({ type: "SET_ERROR", error: errorMsg });
       dispatch({ type: "SET_LOADING_OFFERS", loading: false });
+      dispatch({ type: "SET_OFFERS_READY", ready: true });
     }
   };
 
@@ -379,10 +462,20 @@ function RcaPageInner() {
     }
 
     // Save RCA quote context for callback follow-up after the payment redirect.
+    const additionalProductsOfferIds =
+      state.selectedOffer?.addons?.map((a) => a.offerId) ?? [];
+    const additionalProductAddons =
+      state.selectedOffer?.addons?.map((a) => ({
+        offerId: a.offerId,
+        label: a.label,
+      })) ?? [];
+
     const policyData = {
       rcaOwnerDetails: normalizedPerson,
       rcaUserDetails: normalizedPerson,
       driversDetails,
+      additionalProductsOfferIds,
+      additionalProductAddons,
       vehicleDetails: {
         civ: state.registrationCertSeries,
         registrationCertificateNumber: state.registrationCertSeries,
@@ -426,7 +519,13 @@ function RcaPageInner() {
 
     const paymentUrl = await api.post<string>(
       `/online/offers/payment/v3?orderHash=${state.orderHash}`,
-      { offerId: state.selectedOffer.offer.id, redirectURL },
+      {
+        offerId: state.selectedOffer.offer.id,
+        redirectURL,
+        ...(additionalProductsOfferIds.length > 0
+          ? { additionalProductsOfferIds }
+          : {}),
+      },
       { Accept: "text/plain" }
     );
 
@@ -605,6 +704,8 @@ function RcaPageInner() {
   };
 
   const handlePreOffersDntComplete = async () => {
+    dispatch({ type: "SET_LOADING_OFFERS", loading: true });
+    dispatch({ type: "SET_OFFERS_READY", ready: false });
     setPreOffersDntDone(true);
     try {
       const fullPerson = normalizePersonForRca(buildFullPersonFromFlowState(state));
@@ -780,6 +881,10 @@ function RcaPageInner() {
       onPhoneChange={(phone) => dispatch({ type: "SET_PHONE", phone })}
       onContinue={handlePolicyDetailsContinue}
       isValid={isPolicyDetailsValid}
+      onEditEmail={() => {
+        dispatch({ type: "SET_IDENTIFICATION_SUB_STEP", subStep: "owner" });
+        goTo(1);
+      }}
     />
   );
 
@@ -819,8 +924,10 @@ function RcaPageInner() {
         <OfferTabs
           offers={state.offers}
           loading={state.loadingOffers}
+          offersReady={state.offersReady}
           orderId={state.orderId}
           orderHash={state.orderHash}
+          policyStartDate={state.startDate}
           onSelectOffer={handleOfferSelected}
           disclosureCache={disclosureCache}
           onDisclosureCacheUpdate={setDisclosureCache}
@@ -851,17 +958,23 @@ function RcaPageInner() {
   ];
 
   return (
-    <div className="mx-auto max-w-4xl px-4 pt-24 pb-8 sm:px-6 lg:px-8">
-      {/* Page header */}
-      <div className="mb-6 text-center">
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg">
-          <svg className="h-7 w-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 00-.879-2.121L16.5 8.259a2.999 2.999 0 00-2.121-.879H5.25a2.25 2.25 0 00-2.25 2.25v8.745c0 .621.504 1.125 1.125 1.125H5.25" />
-          </svg>
+    <div className="mx-auto max-w-4xl px-4 pt-20 pb-8 sm:px-6 sm:pt-24 lg:px-8">
+      {/* Page header — compact on step 0 (plate input) to keep it above the fold on iPhone SE */}
+      {currentStep === 0 ? (
+        <div className="mb-3 text-center sm:mb-4">
+          <h1 className="text-xl font-bold text-gray-900 sm:text-2xl">Asigurare RCA</h1>
         </div>
-        <h1 className="text-2xl font-bold text-gray-900">Asigurare RCA</h1>
-        <p className="mt-1 text-sm text-gray-500">Compară ofertele și alege cea mai bună asigurare auto</p>
-      </div>
+      ) : (
+        <div className="mb-6 text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg">
+            <svg className="h-7 w-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 00-.879-2.121L16.5 8.259a2.999 2.999 0 00-2.121-.879H5.25a2.25 2.25 0 00-2.25 2.25v8.745c0 .621.504 1.125 1.125 1.125H5.25" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900">Asigurare RCA</h1>
+          <p className="mt-1 text-sm text-gray-500">Compară ofertele și alege cea mai bună asigurare auto</p>
+        </div>
+      )}
 
       {state.error && (
         <div className="mb-4 flex items-center gap-2 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -883,6 +996,8 @@ function RcaPageInner() {
         steps={steps}
         currentStep={currentStep}
         onStepChange={goTo}
+        hideStepperOnMobile={currentStep === 0}
+        showMobileProgress={currentStep === 0}
       />
     </div>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { Info } from "lucide-react";
+import { Info, X } from "lucide-react";
 import { api } from "@/lib/api/client";
 import type { RcaOffer, RcaOfferLegalDisclosure } from "@/types/rcaFlow";
 import {
@@ -68,6 +68,56 @@ function disclosureNeedsFetch(
   );
 }
 
+type DisclosureLine = ReturnType<
+  typeof buildRcaDisclosurePopoverLines
+>[number];
+
+function DisclosureContent({
+  loading,
+  hasCachedData,
+  fetchError,
+  popoverLines,
+  compact,
+  showTitle = true,
+}: {
+  loading: boolean;
+  hasCachedData: boolean;
+  fetchError: string | null;
+  popoverLines: DisclosureLine[];
+  /** Desktop popover uses smaller type. */
+  compact?: boolean;
+  showTitle?: boolean;
+}) {
+  const labelClass = compact
+    ? "mb-1.5 text-[10px] font-medium uppercase tracking-wide text-gray-400"
+    : "mb-2 text-xs font-medium uppercase tracking-wide text-gray-400";
+  const lineClass = compact ? "text-xs leading-snug" : "text-sm leading-relaxed";
+
+  return (
+    <>
+      {showTitle && <div className={labelClass}>Informații legale</div>}
+      {loading && !hasCachedData && (
+        <div className="text-sm text-gray-500">Se încarcă...</div>
+      )}
+      {fetchError && (
+        <div className="mb-2 text-sm text-amber-700">{fetchError}</div>
+      )}
+      <ul className="space-y-2">
+        {popoverLines.map((line, index) => (
+          <li
+            key={`${line.text}-${index}`}
+            className={`${lineClass} ${
+              line.muted ? "font-medium text-gray-500" : "text-gray-700"
+            }`}
+          >
+            {line.text}
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
 export default function OfferLegalInfo({
   vendorName,
   vendorOffers,
@@ -80,14 +130,15 @@ export default function OfferLegalInfo({
   inline = false,
 }: OfferLegalInfoProps) {
   const popoverId = useId();
-  const rootRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLSpanElement>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   const variantOffers = collectVariantOffers(vendorOffers);
 
-  const disclosuresFromCache = variantOffers
+  const disclosuresFromCache: RcaOfferLegalDisclosure[] = variantOffers
     .map((o) => {
       const merged = mergeLegalDisclosure(
         o.legalDisclosure,
@@ -101,7 +152,7 @@ export default function OfferLegalInfo({
           merged.withDirectSettlement ?? o.withDirectSettlement,
       };
     })
-    .filter((d): d is RcaOfferLegalDisclosure => d != null);
+    .filter((d) => d != null);
 
   const popoverLines = buildRcaDisclosurePopoverLines({
     vendorName,
@@ -192,10 +243,12 @@ export default function OfferLegalInfo({
 
   useEffect(() => {
     if (!open) return;
+
     const onPointerDown = (event: MouseEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) {
-        setOpen(false);
-      }
+      const target = event.target as Node;
+      if (rootRef.current?.contains(target)) return;
+      if (sheetRef.current?.contains(target)) return;
+      setOpen(false);
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") setOpen(false);
@@ -208,57 +261,103 @@ export default function OfferLegalInfo({
     };
   }, [open]);
 
+  useEffect(() => {
+    if (!open) return;
+    const mq = window.matchMedia("(max-width: 767px)");
+    const syncScrollLock = () => {
+      document.body.style.overflow = mq.matches ? "hidden" : "";
+    };
+    syncScrollLock();
+    mq.addEventListener("change", syncScrollLock);
+    return () => {
+      document.body.style.overflow = "";
+      mq.removeEventListener("change", syncScrollLock);
+    };
+  }, [open]);
+
   if (variantOffers.length === 0) return null;
 
+  const disclosureProps = {
+    loading,
+    hasCachedData,
+    fetchError,
+    popoverLines,
+  };
+
   return (
-    <div ref={rootRef} className="relative inline-flex">
+    <span ref={rootRef} className="relative inline-flex">
       <button
         type="button"
-        className={`inline-flex items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 ${
-          inline ? "h-3.5 w-3.5" : "h-5 w-5"
+        className={`inline-flex items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/40 max-md:min-h-[44px] max-md:min-w-[44px] ${
+          inline ? "h-3.5 w-3.5 md:h-3.5 md:w-3.5" : "h-5 w-5"
         }`}
         aria-expanded={open}
-        aria-controls={popoverId}
+        aria-controls={open ? `${popoverId}-sheet ${popoverId}` : undefined}
         aria-label={`Informații tarif și comision ${vendorName}`}
         title="Tarif referință și comision broker"
         onClick={() => setOpen((prev) => !prev)}
       >
         <Info
-          className={inline ? "h-3 w-3" : "h-3.5 w-3.5"}
+          className={inline ? "h-3.5 w-3.5 md:h-3 md:w-3" : "h-4 w-4 md:h-3.5 md:w-3.5"}
           strokeWidth={2}
           aria-hidden
         />
       </button>
 
+      {/* Mobile: bottom sheet */}
+      {open && (
+        <>
+          <button
+            type="button"
+            className="z-layer-sheet-backdrop fixed inset-0 bg-black/40 md:hidden"
+            aria-label="Închide informațiile legale"
+            onClick={() => setOpen(false)}
+          />
+          <div
+            ref={sheetRef}
+            id={`${popoverId}-sheet`}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={`${popoverId}-sheet-title`}
+            className="z-layer-sheet fixed inset-x-0 bottom-0 flex max-h-[min(85dvh,520px)] flex-col rounded-t-2xl border border-gray-200 bg-white shadow-2xl md:hidden"
+            style={{
+              paddingBottom: "max(1rem, env(safe-area-inset-bottom))",
+            }}
+          >
+            <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-gray-200" />
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-gray-100 px-4 py-3">
+              <span
+                id={`${popoverId}-sheet-title`}
+                className="text-base font-semibold text-gray-900"
+              >
+                Informații legale
+              </span>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/40"
+                aria-label="Închide"
+              >
+                <X className="h-5 w-5" aria-hidden />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3 text-left">
+              <DisclosureContent {...disclosureProps} showTitle={false} />
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Desktop: popover */}
       {open && (
         <div
           id={popoverId}
           role="dialog"
-          className="absolute left-0 top-full z-30 mt-1 w-72 max-w-[calc(100vw-2rem)] rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-left shadow-lg"
+          className="absolute left-0 top-full z-30 mt-1 hidden w-72 max-w-[calc(100vw-2rem)] rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-left shadow-lg md:block"
         >
-          <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-gray-400">
-            Informații legale
-          </p>
-          {loading && !hasCachedData && (
-            <p className="text-xs text-gray-500">Se încarcă...</p>
-          )}
-          {fetchError && (
-            <p className="mb-1 text-xs text-amber-700">{fetchError}</p>
-          )}
-          <ul className="space-y-1">
-            {popoverLines.map((line, index) => (
-              <li
-                key={`${line.text}-${index}`}
-                className={`text-xs leading-snug ${
-                  line.muted ? "font-medium text-gray-500" : "text-gray-700"
-                }`}
-              >
-                {line.text}
-              </li>
-            ))}
-          </ul>
+          <DisclosureContent {...disclosureProps} compact />
         </div>
       )}
-    </div>
+    </span>
   );
 }

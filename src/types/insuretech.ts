@@ -8,7 +8,14 @@
 export type LegalType = "PF" | "PJ";
 export type IdType = "CI" | "PASSPORT" | "RESIDENCY_PERMIT";
 export type AddressType = "HOME" | "MAILING";
-export type VendorProductType = "RCA" | "TRAVEL" | "HOUSE" | "PAD" | "MALPRAXIS";
+export type VendorProductType =
+  | "RCA"
+  | "TRAVEL"
+  | "HOUSE"
+  | "PAD"
+  | "MALPRAXIS"
+  | "ROAD_ASSIST"
+  | "ACC_PERS";
 
 // ----- Address -----
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { usePathname } from "next/navigation";
 import { X, Send, Bot, ShieldCheck } from "lucide-react";
 
 interface Message {
@@ -14,7 +15,26 @@ const GREETING: Message = {
     "Bună! Sunt asistentul virtual Insurel. Cum te pot ajuta cu asigurările?",
 };
 
+const WIZARD_ROUTE_PREFIXES = [
+  "/rca",
+  "/travel",
+  "/house",
+  "/pad",
+  "/casco",
+  "/malpraxis",
+  "/garantii",
+  "/raspundere-profesionala",
+  "/payment",
+] as const;
+
 export default function ChatWidget() {
+  const pathname = usePathname();
+  // Hide the chat bubble on product wizard routes. Wizards already provide
+  // contextual help and the floating button competes with wizard CTAs on mobile.
+  // Hooks must still run unconditionally — we early-return below.
+  const hideOnRoute =
+    WIZARD_ROUTE_PREFIXES.some((prefix) => pathname?.startsWith(prefix)) ?? false;
+
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([GREETING]);
   const [input, setInput] = useState("");
@@ -119,13 +139,17 @@ export default function ChatWidget() {
     }
   };
 
+  // Hide entirely on wizard routes — route-prefix matching avoids coupling
+  // the widget to per-step wizard state.
+  if (hideOnRoute) return null;
+
   // Collapsed bubble
   if (!open) {
     return (
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 rounded-full bg-[#2563EB] pl-4 pr-5 py-3 text-white shadow-lg shadow-blue-500/30 transition-all duration-300 hover:bg-blue-700 hover:scale-[1.03] hover:shadow-xl group"
+        className="z-layer-chat fixed bottom-6 right-6 flex items-center gap-2.5 rounded-full bg-[#2563EB] pl-4 pr-5 py-3 text-white shadow-lg shadow-blue-500/30 transition-all duration-300 hover:bg-blue-700 hover:scale-[1.03] hover:shadow-xl group max-md:bottom-[max(1.5rem,env(safe-area-inset-bottom))] max-md:right-4"
         aria-label="Deschide chat"
       >
         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 transition-colors group-hover:bg-white/30">
@@ -138,7 +162,7 @@ export default function ChatWidget() {
 
   // Expanded chat window
   return (
-    <div className="fixed bottom-0 right-0 z-50 flex flex-col sm:bottom-6 sm:right-6 w-full h-[100dvh] sm:w-[380px] sm:h-[520px] sm:rounded-2xl overflow-hidden bg-white shadow-2xl shadow-black/20 border border-gray-200">
+    <div className="z-layer-modal fixed bottom-0 right-0 flex h-[100dvh] w-full flex-col overflow-hidden border border-gray-200 bg-white shadow-2xl shadow-black/20 sm:bottom-6 sm:right-6 sm:h-[520px] sm:w-[380px] sm:rounded-2xl">
       {/* Header */}
       <div className="flex items-center justify-between bg-[#2563EB] px-4 py-3">
         <div className="flex items-center gap-2">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useLayoutEffect } from "react";
 import WizardStepper, { useWizard } from "@/components/shared/WizardStepper";
 import PersonForm, { emptyPersonPF } from "@/components/shared/PersonForm";
 import AddressForm, { emptyAddress } from "@/components/shared/AddressForm";
@@ -40,6 +40,12 @@ interface PadOfferApi {
 }
 
 const PAD_PRODUCT_ID = 1270;
+const TRUST_BADGES = [
+  "Autorizare ASF: RAJ506943",
+  "Date securizate (SSL)",
+  "Partener MaxyGo Broker de Asigurare SRL",
+];
+const REMAINING_BY_STEP = ["~2 min ramase", "~90 sec ramase", "~45 sec ramase", "Ultimul pas"];
 
 export default function PadPage() {
   /* ---- Utils from API ---- */
@@ -89,6 +95,27 @@ export default function PadPage() {
 
   const { currentStep, next, prev, goTo } = useWizard(4);
   const [showErrors, setShowErrors] = useState(false);
+  const offersStepIndex = 2; // 0-indexed: Property, People, Offer, Payment
+  const isOffersStep = currentStep === offersStepIndex;
+
+  useLayoutEffect(() => {
+    if (typeof window === "undefined" || typeof history === "undefined") return;
+    const previousScrollRestoration = history.scrollRestoration;
+    history.scrollRestoration = "manual";
+
+    return () => {
+      history.scrollRestoration = previousScrollRestoration;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.scrollTo(0, 0);
+    requestAnimationFrame(() => {
+      window.scrollTo(0, 0);
+      requestAnimationFrame(() => window.scrollTo(0, 0));
+    });
+  }, [currentStep]);
 
   /* ---- Clear stale offer/order when navigating back to earlier steps ---- */
   useEffect(() => {
@@ -1008,34 +1035,58 @@ export default function PadPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-4xl px-4 pt-24 pb-8 sm:px-6 lg:px-8">
-      {/* Page header — above wizard indicators */}
-      <div className="text-center mb-6">
-        <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/25">
-          <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
-          </svg>
-        </div>
-        <h2 className="text-lg font-bold text-gray-900">Asigurare PAD</h2>
-        <p className="mt-0.5 text-sm text-gray-500">Asigurarea obligatorie pentru locuinta dumneavoastra</p>
+    <div className={`mx-auto px-4 pt-20 pb-24 sm:pt-24 sm:px-6 lg:px-8 ${isOffersStep ? "max-w-7xl" : "max-w-6xl"}`}>
+      <div className={isOffersStep ? "space-y-8" : "grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start"}>
+        {!isOffersStep && (
+        <aside className="space-y-5 lg:sticky lg:top-24">
+          <div className="rounded-3xl bg-gradient-to-br from-blue-600 to-blue-800 p-6 text-white shadow-xl shadow-blue-900/20">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15">
+              <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+              </svg>
+            </div>
+            <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">Asigurare PAD online, fara complicatii</h1>
+            <p className="mt-4 text-base leading-relaxed text-blue-50">Parcurgi pasii esentiali si emiti polita obligatorie pentru locuinta in acelasi flux clar.</p>
+          </div>
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="grid gap-2">
+              {TRUST_BADGES.map((badge) => (
+                <div key={badge} className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                  <span className="h-2 w-2 rounded-full bg-blue-500" />
+                  {badge}
+                </div>
+              ))}
+            </div>
+          </div>
+        </aside>
+        )}
+        <main className={`space-y-5 ${isOffersStep ? "w-full" : ""}`}>
+          <div className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+            <WizardStepper
+              steps={steps}
+              currentStep={currentStep}
+              onStepChange={goTo}
+              remainingText={REMAINING_BY_STEP[currentStep]}
+            />
+            {error && (
+              <div className="mt-6 flex items-start gap-2 rounded-xl bg-red-50 p-4 text-sm text-red-700">
+                <svg className="mt-0.5 h-4 w-4 shrink-0 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                </svg>
+                <span className="flex-1">{error}</span>
+                <button
+                  onClick={() => setError(null)}
+                  className="shrink-0 font-semibold text-red-500 hover:text-red-700 transition-colors"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            )}
+          </div>
+        </main>
       </div>
-      <WizardStepper steps={steps} currentStep={currentStep} onStepChange={goTo} />
-      {error && (
-        <div className="mt-6 mx-auto max-w-2xl flex items-start gap-2 rounded-xl bg-red-50 p-4 text-sm text-red-700">
-          <svg className="mt-0.5 h-4 w-4 shrink-0 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-          </svg>
-          <span className="flex-1">{error}</span>
-          <button
-            onClick={() => setError(null)}
-            className="shrink-0 font-semibold text-red-500 hover:text-red-700 transition-colors"
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-      )}
     </div>
   );
 }

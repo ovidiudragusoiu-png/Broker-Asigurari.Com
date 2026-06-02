@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Menu, X, ChevronDown, Car, ShieldCheck, Plane, Home, Building2, Stethoscope, Handshake, Scale, User, LogIn } from "lucide-react";
+import { Menu, X, ChevronDown, Car, ShieldCheck, Plane, Home, Building2, Stethoscope, Handshake, Scale, User, LogIn, Phone } from "lucide-react";
 import { useAuth } from "@/components/portal/AuthProvider";
 import type { LucideIcon } from "lucide-react";
 
@@ -47,9 +47,10 @@ const PLAIN_LINKS = [
 
 interface MobileMenuProps {
   scrolled?: boolean;
+  isRcaRoute?: boolean;
 }
 
-export default function MobileMenu({ scrolled = true }: MobileMenuProps) {
+export default function MobileMenu({ scrolled = true, isRcaRoute = false }: MobileMenuProps) {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [insuranceOpen, setInsuranceOpen] = useState(false);
@@ -69,8 +70,30 @@ export default function MobileMenu({ scrolled = true }: MobileMenuProps) {
       </button>
 
       {open && (
-        <div className="absolute left-2 right-2 top-full mt-2 rounded-[2rem] border border-gray-100 bg-white/95 backdrop-blur-xl shadow-xl">
-          <div className="px-4 py-4 space-y-1">
+        <div className="z-layer-menu absolute left-2 right-2 top-full mt-2 max-h-[calc(100dvh-5rem-env(safe-area-inset-top,0px))] overflow-y-auto rounded-[2rem] border border-gray-100 bg-white/95 backdrop-blur-xl shadow-xl">
+          <div className="space-y-1 px-4 py-4">
+            {/* Phone + RCA CTA */}
+            <div className="mb-3 space-y-3 border-b border-gray-100 pb-3">
+              <a
+                href="tel:+40720385551"
+                onClick={close}
+                className="flex items-center justify-center gap-2 rounded-xl bg-[#2563EB]/5 px-4 py-3.5 text-base font-bold text-[#2563EB] transition hover:bg-[#2563EB]/10"
+                aria-label="Sună la 0720 38 55 51"
+              >
+                <Phone className="h-5 w-5" />
+                0720 38 55 51
+              </a>
+              {!isRcaRoute && (
+                <Link
+                  href="/rca"
+                  onClick={close}
+                  className="flex items-center justify-center rounded-full bg-[#F97316] px-6 py-3 text-sm font-bold text-white shadow-md shadow-[#F97316]/25 transition hover:bg-orange-600"
+                >
+                  Calculator RCA
+                </Link>
+              )}
+            </div>
+
             {/* Asigurări accordion */}
             <button
               type="button"

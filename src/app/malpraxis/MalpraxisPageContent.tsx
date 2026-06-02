@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import WizardStepper, { useWizard } from "@/components/shared/WizardStepper";
 import PersonForm, { emptyPersonPF } from "@/components/shared/PersonForm";
 import OfferCard from "@/components/shared/OfferCard";
@@ -14,6 +14,17 @@ import { dateOfBirthFromCNP } from "@/lib/utils/validation";
 import { autoSignConsent } from "@/lib/flows/consent";
 import { createOrderAndOffers } from "@/lib/flows/offerFlow";
 import { buildMalpraxisOrderPayload } from "@/lib/flows/payloadBuilders";
+import {
+  buildMalpraxisBodiesPayload,
+  buildMalpraxisComparatorPayload,
+  buildMalpraxisEligibilityPayload,
+  buildMalpraxisOfferDetails,
+  buildMalpraxisMoralSublimitValues,
+  groupMalpraxisEligibilityBatches,
+  inferMalpraxisProductCode,
+  parseMalpraxisMoralDamagesSelection,
+  type MalpraxisSpecificDetail,
+} from "@/lib/flows/malpraxisOfferPayload";
 import DateInput from "@/components/shared/DateInput";
 import { getArray } from "@/lib/utils/dto";
 import { btn } from "@/lib/ui/tokens";
@@ -33,19 +44,6 @@ const labelCls = "mb-1 block text-xs font-medium text-gray-500";
 
 const normalizeVendorKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
 const isPharmacistSelection = (...values: Array<string | undefined>) => values.some((value) => /farmac/i.test(value || ""));
-const MALPRAXIS_VENDOR_MATRIX = {
-  none: {
-    noRetro: ["omniasig", "asirom", "signalidunaasigurari", "garanta", "uniqa", "abc", "euroins"],
-    retro12Or24: ["omniasig", "asirom", "garanta"],
-    retro36: ["omniasig", "asirom"],
-  },
-  percent: {
-    noRetro: ["omniasig", "signalidunaasigurari", "garanta"],
-    retro12Or24: ["omniasig", "garanta"],
-    retro36: ["omniasig"],
-  },
-} as const;
-
 interface MalpraxisOffer {
   id: number;
   productId: number;
@@ -84,6 +82,21 @@ interface CodeName {
   name: string;
 }
 
+/** Maps Insuretech utils entries ({ id } or { value }) to dropdown { code, name }. */
+function toCodeNameOptions(items: unknown): CodeName[] {
+  return getArray<{ code?: string; value?: string | number; id?: string | number; name?: string }>(
+    items
+  )
+    .map((item, index) => {
+      const raw = item.code ?? item.value ?? item.id;
+      const code = raw != null && raw !== "" ? String(raw) : `__missing-${index}`;
+      const name =
+        typeof item.name === "string" && item.name.trim() !== "" ? item.name : code;
+      return { code, name };
+    })
+    .filter((item) => !item.code.startsWith("__missing-"));
+}
+
 interface VendorSpecificDetail {
   code: string;
   type: string;
@@ -102,6 +115,13 @@ interface VendorSpecificGroup {
 interface MalpraxisPageContentProps {
   debugEnabled?: boolean;
 }
+
+const TRUST_BADGES = [
+  "Autorizare ASF: RAJ506943",
+  "Date securizate (SSL)",
+  "Partener MaxyGo Broker de Asigurare SRL",
+];
+const REMAINING_BY_STEP = ["~2 min ramase", "~90 sec ramase", "~45 sec ramase", "Ultimul pas"];
 
 export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageContentProps) {
   // Utils
@@ -160,6 +180,27 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
 
   const { currentStep, next, prev, goTo } = useWizard(4);
   const [showErrors, setShowErrors] = useState(false);
+  const offersStepIndex = 2; // 0-indexed: Details, Insured, Offers, Payment
+  const isOffersStep = currentStep === offersStepIndex;
+
+  useLayoutEffect(() => {
+    if (typeof window === "undefined" || typeof history === "undefined") return;
+    const previousScrollRestoration = history.scrollRestoration;
+    history.scrollRestoration = "manual";
+
+    return () => {
+      history.scrollRestoration = previousScrollRestoration;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.scrollTo(0, 0);
+    requestAnimationFrame(() => {
+      window.scrollTo(0, 0);
+      requestAnimationFrame(() => window.scrollTo(0, 0));
+    });
+  }, [currentStep]);
 
   const logClientTrace = (
     traceId: string | null,
@@ -213,10 +254,13 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
       .get<Record<string, unknown>>("/online/offers/malpraxis/comparator/utils")
       .then((data) => {
         setProfessions(getArray<Profession>(data.profession));
-        setAuthorizationTypes(getArray<CodeName>(data.operatingAuthorizationType));
+        setAuthorizationTypes(toCodeNameOptions(data.operatingAuthorizationType));
         setMoralDamagesLimits(
-          getArray<CodeName>(data.moralDamagesLimit)
-            .map((m) => m.name === "Fara" ? { ...m, name: "Fără" } : m)
+          toCodeNameOptions(data.moralDamagesLimit)
+            .map((m) => ({
+              ...m,
+              name: m.name === "Fara" ? "Fără" : m.name,
+            }))
             .sort((a, b) => {
               const na = parseFloat(a.name);
               const nb = parseFloat(b.name);
@@ -226,8 +270,12 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
               return na - nb;
             })
         );
-        setRetroactivePeriods(getArray<CodeName>(data.retroactivePeriod));
-        setCurrencies(getArray<string>(data.currency));
+        setRetroactivePeriods(toCodeNameOptions(data.retroactivePeriod));
+        setCurrencies(
+          getArray<{ id?: string; name?: string } | string>(data.currency).map((c) =>
+            typeof c === "string" ? c : String(c.id ?? c.name ?? "")
+          ).filter(Boolean)
+        );
         setInstallmentsOptions(getArray<number>(data.installmentsNo));
         setVendorSpecificDetails(getArray<VendorSpecificGroup>(data.vendorSpecificDetails));
       })
@@ -296,16 +344,6 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
           : {}),
       };
 
-      const isNumericMoralDamagesMode = customMoralDamagesLimitValue.trim().length > 0;
-      const retroactivityGroup = retroactivePeriod === "36"
-        ? "retro36"
-        : retroactivePeriod === "12" || retroactivePeriod === "24"
-          ? "retro12Or24"
-          : "noRetro";
-      const moralDamagesMode = moralDamagesLimit === "0" ? "none" : "percent";
-      const allowedVendorKeys: Set<string> | null = isNumericMoralDamagesMode
-        ? null
-        : new Set(MALPRAXIS_VENDOR_MATRIX[moralDamagesMode][retroactivityGroup]);
       const pharmacistContext = isPharmacistSelection(
         selectedProfession?.name,
         selectedCategory?.name,
@@ -326,7 +364,7 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
           }
         }
 
-        return allowedVendorKeys ? allowedVendorKeys.has(vendorKey) : true;
+        return true;
       });
       const selectedProductIds = candidateProducts.map((product) => product.id);
       logClientTrace(currentTraceId, "client_snapshot", {
@@ -347,108 +385,107 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
         retroactivePeriod,
         installmentsNo,
         selectedProductIds,
-        allowedVendors: allowedVendorKeys ? Array.from(allowedVendorKeys) : "eligibility-driven",
         pharmacistContext,
-        isNumericMoralDamagesMode,
       });
 
       await autoSignConsent(insuredWithDob, "MALPRAXIS");
 
-      const normalizedProfessionId = String(effectiveComparatorId ?? professionId);
-      const normalizedCategory = selectedCategory?.type || categoryId;
-      const normalizedGeneralLimit = generalLimit.trim();
-      const normalizedOperatingAuthorizationType = Number.parseInt(authorizationTypeCode, 10);
-      const normalizedRetroactivePeriod = retroactivePeriod;
-      const offerDetails: Record<string, unknown> = {
-        malpraxisProfessionId: normalizedProfessionId,
-        category: normalizedCategory,
+      const offerDetails = buildMalpraxisOfferDetails({
+        malpraxisProfessionId: effectiveComparatorId ?? professionId,
+        category: selectedCategory?.type || categoryId,
         categoryType: effectiveCategoryType,
-        generalLimit: normalizedGeneralLimit,
-        moralDamagesLimit: Number(moralDamagesLimit) || 0,
-        customMoralDamagesLimit: customMoralDamagesLimitValue ? Number(customMoralDamagesLimitValue) : null,
+        generalLimit: generalLimit.trim(),
+        moralDamagesLimit,
+        customMoralDamagesLimit: customMoralDamagesLimitValue,
         currency: currencyId,
-        operatingAuthorizationType: Number.isFinite(normalizedOperatingAuthorizationType)
-          ? normalizedOperatingAuthorizationType
-          : 0,
+        operatingAuthorizationType: authorizationTypeCode,
         installmentsNo,
-        retroactivePeriod: normalizedRetroactivePeriod,
-      };
-      logClientTrace(currentTraceId, "offer_details_normalized", { offerDetails });
+        retroactivePeriod,
+      });
+      const moralDamagesSelection = parseMalpraxisMoralDamagesSelection({
+        moralDamagesLimit,
+        customMoralDamagesLimit: customMoralDamagesLimitValue,
+        generalLimit: offerDetails.generalLimit,
+      });
+      logClientTrace(currentTraceId, "offer_details_normalized", {
+        offerDetails,
+        moralDamagesSelection,
+      });
 
-      const moralPct = Number(moralDamagesLimit) || 0;
-      const moralAmount = String(Math.round((Number(generalLimit) || 0) * moralPct / 100));
-      const specificDetails: { code: string; value: string | null }[] = [
-        { code: "EVENT_LIMIT_INSURED_AMOUNT", value: normalizedGeneralLimit || null },
+      // Homogeneous SUBLIMIT_MORAL_DAMAGE_* for the bodies/v3 + comparator/v3
+      // client-side request. The proxy normalizer (normalizeMalpraxisPostBody)
+      // also re-derives this value per-product, so any productCode here only
+      // affects the bodies/v3 hint and is harmless: buildMalpraxisMoralSublimitValues
+      // now returns the derived EUR amount for every productCode (matches
+      // March 6 working Garanta wire when moral=0 → "0", and emits the EUR
+      // amount when moral > 0).
+      const moralSublimitsForBodies = buildMalpraxisMoralSublimitValues(
+        "GARANTA_MALPRAXIS",
+        moralDamagesSelection,
+        offerDetails
+      );
+
+      const specificDetails: MalpraxisSpecificDetail[] = [
+        { code: "EVENT_LIMIT_INSURED_AMOUNT", value: offerDetails.generalLimit },
         { code: "OPERATING_LICENSE_TYPE", value: authorizationTypeCode || "0" },
-        { code: "SUBLIMIT_MORAL_DAMAGE_PER_EVENT", value: moralAmount },
-        { code: "SUBLIMIT_MORAL_DAMAGE_PER_INSURANCE_PERIOD", value: moralAmount },
+        {
+          code: "SUBLIMIT_MORAL_DAMAGE_PER_EVENT",
+          value: moralSublimitsForBodies.perEvent,
+        },
+        {
+          code: "SUBLIMIT_MORAL_DAMAGE_PER_INSURANCE_PERIOD",
+          value: moralSublimitsForBodies.perPeriod,
+        },
         { code: "PREVIOUS_CIVIL_LIABILITY", value: previousLiability ? "DA" : "NU" },
         { code: "PRIOR_CIVIL_LIABILITY_DAMAGES", value: previousLiabilityDamages ? "DA" : "NU" },
       ];
-      const mergeComparatorSpecificDetails = (bodySpecificDetails: unknown) => {
-        const merged = new Map<string, Record<string, unknown>>();
-
-        for (const detail of specificDetails) {
-          merged.set(detail.code, { ...detail });
-        }
-
-        if (!Array.isArray(bodySpecificDetails)) {
-          return Array.from(merged.values());
-        }
-
-        for (const entry of bodySpecificDetails) {
-          if (!entry || typeof entry !== "object") {
-            continue;
-          }
-
-          const detailRecord = entry as Record<string, unknown>;
-          const code = typeof detailRecord.code === "string" ? detailRecord.code : "";
-          if (!code) {
-            continue;
-          }
-
-          const requestDetail = merged.get(code);
-          const requestValue = requestDetail?.value;
-          const entryValue = detailRecord.value;
-          const shouldRestoreRequestValue =
-            code === "EVENT_LIMIT_INSURED_AMOUNT" &&
-            (entryValue === 0 || entryValue === "0" || entryValue == null || entryValue === "") &&
-            requestValue != null &&
-            requestValue !== "" &&
-            requestValue !== 0 &&
-            requestValue !== "0";
-
-          merged.set(
-            code,
-            shouldRestoreRequestValue
-              ? { ...detailRecord, value: requestValue }
-              : { ...(requestDetail || {}), ...detailRecord }
-          );
-        }
-
-        return Array.from(merged.values());
-      };
 
       const startDateFormatted = `${policyStartDate}T00:00:00`;
       const requestedProductIds = selectedProductIds.map((productId) => String(productId));
       let eligibleProductIds = requestedProductIds;
       const eligibilityPath = "/online/offers/malpraxis/comparator/products/eligible";
-      const eligibilityPayload = {
-        clientId: Number(insured.cif) || 0,
-        productIds: requestedProductIds,
-        policyStartDate: startDateFormatted,
-        policyEndDate,
-        offerDetails,
-      };
+      const eligibilityBatches = groupMalpraxisEligibilityBatches(
+        candidateProducts.map((product) => ({
+          productId: product.id,
+          productCode: inferMalpraxisProductCode(
+            product.vendorDetails?.name || "",
+            product.productName || ""
+          ),
+        })),
+        {
+          malpraxisProfessionId: effectiveComparatorId ?? professionId,
+          category: selectedCategory?.type || categoryId,
+          categoryType: effectiveCategoryType,
+          generalLimit: generalLimit.trim(),
+          moralDamagesLimit,
+          customMoralDamagesLimit: customMoralDamagesLimitValue,
+          currency: currencyId,
+          operatingAuthorizationType: authorizationTypeCode,
+          installmentsNo,
+          retroactivePeriod,
+        },
+        moralDamagesSelection
+      );
       let ineligibleOffers: MalpraxisOffer[] = [];
 
       try {
-        logClientTrace(currentTraceId, "eligibility_request", eligibilityPayload, { path: eligibilityPath });
-        const eligible = await api.post<{ productId: number; isEligible: boolean; reason: string | null }[]>(
-          eligibilityPath,
-          eligibilityPayload,
-          traceHeaders
+        logClientTrace(currentTraceId, "eligibility_request", eligibilityBatches, { path: eligibilityPath });
+        const eligibleNested = await Promise.all(
+          eligibilityBatches.map((batch) =>
+            api.post<{ productId: number; isEligible: boolean; reason: string | null }[]>(
+              eligibilityPath,
+              buildMalpraxisEligibilityPayload({
+                clientId: Number(insured.cif) || 0,
+                productIds: batch.productIds,
+                policyStartDate: startDateFormatted,
+                policyEndDate,
+                offerDetails: batch.offerDetails,
+              }),
+              traceHeaders
+            )
+          )
         );
+        const eligible = eligibleNested.flat();
         logClientTrace(currentTraceId, "eligibility_response", eligible, { path: eligibilityPath });
         const eligibleProductIdSet = new Set(
           eligible.filter((product) => product.isEligible).map((product) => String(product.productId))
@@ -490,14 +527,14 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
         orderPayload: buildMalpraxisOrderPayload(insuredWithDob),
         fetchBodies: async (createdOrder) => {
           const bodiesPath = "/online/offers/malpraxis/comparator/bodies/v3";
-          const bodiesPayload = {
+          const bodiesPayload = buildMalpraxisBodiesPayload({
             orderId: createdOrder.id,
-            productIds: eligibleProductIds,
+            productIds: eligibleProductIds.map((productId) => Number(productId)),
             policyStartDate: startDateFormatted,
             policyEndDate,
             offerDetails,
             specificDetails,
-          };
+          });
 
           logClientTrace(currentTraceId, "bodies_request", bodiesPayload, { path: bodiesPath });
           const bodies = await api.post<Record<string, unknown>[]>(
@@ -522,14 +559,12 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
         fetchOffer: async (body, createdOrder) => {
           const comparatorPath = "/online/offers/malpraxis/comparator/v3";
           const bodyObject = body as Record<string, unknown>;
-          const comparatorPayload = {
-            ...bodyObject,
-            offerDetails: {
-              ...((bodyObject.offerDetails as Record<string, unknown> | undefined) || {}),
-              ...offerDetails,
-            },
-            specificDetails: mergeComparatorSpecificDetails(bodyObject.specificDetails),
-          };
+          const comparatorPayload = buildMalpraxisComparatorPayload(
+            bodyObject,
+            offerDetails,
+            specificDetails,
+            { moralDamagesSelection }
+          );
 
           logClientTrace(currentTraceId, "comparator_request", comparatorPayload, { path: comparatorPath });
           const result = await api.post<MalpraxisOffer[]>(
@@ -790,22 +825,34 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
                 <select
                   className={selectCls}
                   value={moralDamagesLimit}
-                  onChange={(e) => setMoralDamagesLimit(e.target.value)}
+                  onChange={(e) => {
+                    setMoralDamagesLimit(e.target.value);
+                    if (e.target.value && e.target.value !== "0") {
+                      setCustomMoralDamagesLimitValue("");
+                    }
+                  }}
                 >
                   <option value="">Selecteaza</option>
-                  {moralDamagesLimits.map((m) => (
-                    <option key={m.code} value={m.code}>{m.name}</option>
+                  {moralDamagesLimits.map((m, i) => (
+                    <option key={m.code || `moral-${i}`} value={m.code}>{m.name}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className={labelCls}>Limita personalizata daune morale</label>
+                <label className={labelCls}>
+                  Limita personalizata daune morale (suma fixa)
+                </label>
                 <input
                   type="text"
                   className={inputCls}
                   value={customMoralDamagesLimitValue}
-                  onChange={(e) => setCustomMoralDamagesLimitValue(e.target.value)}
-                  placeholder={currencyId || "EUR"}
+                  onChange={(e) => {
+                    setCustomMoralDamagesLimitValue(e.target.value);
+                    if (e.target.value.trim()) {
+                      setMoralDamagesLimit("0");
+                    }
+                  }}
+                  placeholder={`Suma in ${currencyId || "EUR"} (Euroins, Asirom…)`}
                 />
               </div>
             </div>
@@ -819,8 +866,8 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
                   onChange={(e) => setAuthorizationTypeCode(e.target.value)}
                 >
                   <option value="">Selecteaza</option>
-                  {authorizationTypes.map((a) => (
-                    <option key={a.code} value={a.code}>{a.name}</option>
+                  {authorizationTypes.map((a, i) => (
+                    <option key={a.code || `auth-${i}`} value={a.code}>{a.name}</option>
                   ))}
                 </select>
               </div>
@@ -846,8 +893,8 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
                   onChange={(e) => setRetroactivePeriod(e.target.value)}
                 >
                   <option value="">Selecteaza</option>
-                  {retroactivePeriods.map((r) => (
-                    <option key={r.code} value={r.code}>{r.name}</option>
+                  {retroactivePeriods.map((r, i) => (
+                    <option key={r.code || `retro-${i}`} value={r.code}>{r.name}</option>
                   ))}
                 </select>
               </div>
@@ -1146,34 +1193,58 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
   ];
 
   return (
-    <div className="mx-auto max-w-4xl px-4 pt-24 pb-8 sm:px-6 lg:px-8">
-      {/* Page header */}
-      <div className="text-center mb-6">
-        <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/25">
-          <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" />
-          </svg>
-        </div>
-        <h2 className="text-lg font-bold text-gray-900">Asigurare Malpraxis Medical</h2>
-        <p className="mt-0.5 text-sm text-gray-500">Protectie profesionala pentru personalul medical</p>
+    <div className={`mx-auto px-4 pt-20 pb-24 sm:pt-24 sm:px-6 lg:px-8 ${isOffersStep ? "max-w-7xl" : "max-w-6xl"}`}>
+      <div className={isOffersStep ? "space-y-8" : "grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start"}>
+        {!isOffersStep && (
+        <aside className="space-y-5 lg:sticky lg:top-24">
+          <div className="rounded-3xl bg-gradient-to-br from-blue-600 to-blue-800 p-6 text-white shadow-xl shadow-blue-900/20">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15">
+              <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" />
+              </svg>
+            </div>
+            <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">Asigurare Malpraxis Medical, flux clar</h1>
+            <p className="mt-4 text-base leading-relaxed text-blue-50">Configurezi limitele, verifici ofertele eligibile si continui rapid catre plata securizata.</p>
+          </div>
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="grid gap-2">
+              {TRUST_BADGES.map((badge) => (
+                <div key={badge} className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                  <span className="h-2 w-2 rounded-full bg-blue-500" />
+                  {badge}
+                </div>
+              ))}
+            </div>
+          </div>
+        </aside>
+        )}
+        <main className={`space-y-5 ${isOffersStep ? "w-full" : ""}`}>
+          <div className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+            <WizardStepper
+              steps={steps}
+              currentStep={currentStep}
+              onStepChange={goTo}
+              remainingText={REMAINING_BY_STEP[currentStep]}
+            />
+            {error && (
+              <div className="mt-6 flex items-start gap-2 rounded-xl bg-red-50 p-4 text-sm text-red-700">
+                <svg className="mt-0.5 h-4 w-4 shrink-0 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                </svg>
+                <span className="flex-1">{error}</span>
+                <button
+                  onClick={() => setError(null)}
+                  className="shrink-0 font-semibold text-red-500 hover:text-red-700 transition-colors"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            )}
+          </div>
+        </main>
       </div>
-      <WizardStepper steps={steps} currentStep={currentStep} onStepChange={goTo} />
-      {error && (
-        <div className="mt-6 mx-auto max-w-2xl flex items-start gap-2 rounded-xl bg-red-50 p-4 text-sm text-red-700">
-          <svg className="mt-0.5 h-4 w-4 shrink-0 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-          </svg>
-          <span className="flex-1">{error}</span>
-          <button
-            onClick={() => setError(null)}
-            className="shrink-0 font-semibold text-red-500 hover:text-red-700 transition-colors"
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-      )}
     </div>
   );
 }

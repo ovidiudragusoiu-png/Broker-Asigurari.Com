@@ -18,7 +18,8 @@ async function fetchPdfBuffer(
   docType: "offer" | "policy",
   id: number,
   orderHash: string,
-  auditContext: { email?: string; productType?: string }
+  auditContext: { email?: string; productType?: string },
+  filenameOverride?: string
 ): Promise<{ buffer: Buffer; filename: string } | null> {
   try {
     const endpoint =
@@ -57,12 +58,23 @@ async function fetchPdfBuffer(
     return {
       buffer: pdfBuffer,
       filename:
-        docType === "offer" ? `oferta-${id}.pdf` : `polita-${id}.pdf`,
+        filenameOverride ??
+        (docType === "offer" ? `oferta-${id}.pdf` : `polita-${id}.pdf`),
     };
   } catch (err) {
     console.error(`[DocumentEmail] Failed to fetch ${docType} ${id}:`, err);
     return null;
   }
+}
+
+function sanitizePdfFilename(label: string, suffix: string): string {
+  const base = label
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+  return `${base || "supliment"}-${suffix}.pdf`;
 }
 
 function getProductLabel(productType: string): string {
@@ -80,7 +92,8 @@ function getProductLabel(productType: string): string {
 function buildEmailHtml(
   data: EmailDocumentsData,
   hasAttachments: boolean,
-  isEuroins = false
+  isEuroins = false,
+  addonCount = 0
 ): string {
   const productLabel = getProductLabel(data.productType);
   const dateRange =
@@ -118,7 +131,9 @@ function buildEmailHtml(
     <div style="margin-top:20px;padding:16px;background:#eff6ff;border-radius:12px;border-left:4px solid #2563EB">
       <p style="margin:0;font-size:13px;color:#1e40af;font-weight:600">
         ${hasAttachments
-          ? "Documentele politei si ofertei sunt atasate acestui email."
+          ? addonCount > 0
+            ? "Documentele politei RCA, ofertei si produselor suplimentare atasate sunt incluse in acest email."
+            : "Documentele politei si ofertei sunt atasate acestui email."
           : isEuroins
             ? "Polita a fost emisa automat de asigurator. Veti primi documentele direct de la asigurator."
             : "Documentele vor fi disponibile pentru descarcare din contul tau pe sigur.ai."}
@@ -173,6 +188,30 @@ export async function POST(request: NextRequest) {
           fetchPdfBuffer("policy", data.padPolicyId, data.orderHash, ctx)
         );
       }
+      for (const addon of data.additionalDocuments ?? []) {
+        const label = addon.label?.trim() || `Supliment ${addon.offerId}`;
+        if (addon.policyId) {
+          promises.push(
+            fetchPdfBuffer(
+              "policy",
+              addon.policyId,
+              data.orderHash,
+              ctx,
+              sanitizePdfFilename(label, "polita")
+            )
+          );
+        } else {
+          promises.push(
+            fetchPdfBuffer(
+              "offer",
+              addon.offerId,
+              data.orderHash,
+              ctx,
+              sanitizePdfFilename(label, "oferta")
+            )
+          );
+        }
+      }
 
       const results = await Promise.allSettled(promises);
       attachments = results
@@ -187,7 +226,8 @@ export async function POST(request: NextRequest) {
     }
 
     const productLabel = getProductLabel(data.productType);
-    const html = buildEmailHtml(data, attachments.length > 0, isEuroins);
+    const addonCount = data.additionalDocuments?.length ?? 0;
+    const html = buildEmailHtml(data, attachments.length > 0, isEuroins, addonCount);
 
     const result = await getResend().emails.send({
       from: `Sigur.Ai <noreply@broker-asigurari.com>`,

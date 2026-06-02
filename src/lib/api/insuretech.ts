@@ -312,6 +312,16 @@ export async function getRcaAdditionals() {
   );
 }
 
+export async function createRcaAdditionalOffers(
+  body: Record<string, unknown>,
+  orderHash: string
+) {
+  return insuretechFetch<Record<string, unknown>[]>(
+    `/online/offers/rca/additionals?orderHash=${orderHash}`,
+    { method: "POST", body }
+  );
+}
+
 export async function generateRcaOffer(
   body: Record<string, unknown>,
   orderHash: string

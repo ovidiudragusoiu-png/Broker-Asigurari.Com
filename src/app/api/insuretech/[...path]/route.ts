@@ -8,6 +8,7 @@ import {
   parseTraceBody,
   serializeTraceError,
 } from "@/lib/debug/malpraxisTrace";
+import { normalizeMalpraxisPostBody } from "@/lib/flows/malpraxisOfferPayload";
 
 const API_URL = insureTechEnv.apiUrl;
 const USERNAME = insureTechEnv.username;
@@ -24,11 +25,13 @@ const ALLOWED_PATHS: RegExp[] = [
   /^online\/address\/utils\//,
   /^online\/companies\/utils\//,
   /^online\/products\/rca($|\?)/,
+  /^online\/products\/rca\/additionals($|\?)/,
   /^online\/products\/travel($|\?)/,
   /^online\/products\/house\//,
   /^online\/products\/malpraxis($|\?)/,
   /^online\/offers\/rca\/order(\/v3($|\?)|\/v3\/\d+)/,
   /^online\/offers\/rca\/v3($|\?)/,
+  /^online\/offers\/rca\/additionals($|\?)/,
   /^online\/offers\/rca\/\d+\/details\/v3($|\?)/,
   /^online\/offers\/rca\/order\/\d+\/referenceTariff\/v3($|\?)/,
   /^online\/offers\/order\/v3($|\?|\/)/,
@@ -210,11 +213,18 @@ async function proxyRequest(req: NextRequest, method: string) {
       clearTimeout(timeoutId);
       return NextResponse.json({ message: "Request body too large" }, { status: 413 });
     }
-    const normalizedRequestBody = normalizeRcaBackendDefaults(pathSegments, requestBody);
+    let normalizedRequestBody = normalizeRcaBackendDefaults(pathSegments, requestBody);
     if (normalizedRequestBody !== requestBody) {
       console.info(`[InsureTech API] Applied RCA ITP fallback for ${pathSegments}`);
     }
-    requestBody = normalizedRequestBody;
+    const malpraxisNormalizedBody = normalizeMalpraxisPostBody(
+      pathSegments,
+      normalizedRequestBody
+    );
+    if (malpraxisNormalizedBody !== normalizedRequestBody) {
+      console.info(`[InsureTech API] Applied Malpraxis payload normalization for ${pathSegments}`);
+    }
+    requestBody = malpraxisNormalizedBody;
     if (requestBody) {
       fetchOptions.body = requestBody;
     }
@@ -273,7 +283,22 @@ async function proxyRequest(req: NextRequest, method: string) {
       }
 
       if (!response.ok) {
-        console.error(`[InsureTech API] ${method} ${pathSegments} -> ${response.status}`, responseBody);
+        const isParallelRcaQuote =
+          method === "POST" &&
+          /^online\/offers\/rca\/v3($|\?)/.test(pathSegments);
+        if (isParallelRcaQuote) {
+          // Expected when some insurers reject a quote; client surfaces per-vendor errors.
+          if (process.env.NODE_ENV === "development") {
+            console.warn(
+              `[InsureTech API] RCA quote ${pathSegments} -> ${response.status}`
+            );
+          }
+        } else {
+          console.error(
+            `[InsureTech API] ${method} ${pathSegments} -> ${response.status}`,
+            responseBody
+          );
+        }
       }
 
       if (response.ok && (method === "POST" || method === "PUT")) {

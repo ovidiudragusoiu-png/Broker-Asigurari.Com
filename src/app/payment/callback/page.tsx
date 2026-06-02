@@ -2,7 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { useState, useEffect, useRef, Suspense } from "react";
-import { api } from "@/lib/api/client";
+import { api, ApiError } from "@/lib/api/client";
 import { MALPRAXIS_TRACE_HEADER } from "@/lib/debug/malpraxisTrace";
 import Link from "next/link";
 import { btn } from "@/lib/ui/tokens";
@@ -29,7 +29,17 @@ interface PolicyEntry {
   };
   productDetails?: {
     vendorDetails?: { commercialName?: string };
+    productName?: string;
   };
+}
+
+interface StoredAddonMeta {
+  offerId: number;
+  label: string;
+}
+
+interface ResolvedAddonDocument extends StoredAddonMeta {
+  policyId: number | null;
 }
 
 interface PolicyCreateResponse {
@@ -58,10 +68,14 @@ interface CallbackErrorPresentation {
 }
 
 // Normalize both response formats into a common shape
-function extractPolicyInfo(result: PolicyCreateResponse) {
+function extractPolicyInfo(result: PolicyCreateResponse, mainOfferId?: number) {
   // RCA format: nested in policies array
   if (result.policies?.length) {
-    const p = result.policies[0];
+    const p =
+      mainOfferId != null
+        ? result.policies.find((entry) => entry.offerId === mainOfferId) ??
+          result.policies[0]
+        : result.policies[0];
     return {
       policyId: p.policyId,
       padPolicyId: null,
@@ -125,6 +139,128 @@ function getCallbackErrorPresentation(
   };
 }
 
+function parseStoredAddonMeta(
+  policyData: Record<string, unknown>,
+  fallbackOfferIds: number[]
+): StoredAddonMeta[] {
+  const rawAddons = policyData.additionalProductAddons;
+  if (Array.isArray(rawAddons)) {
+    const parsed = rawAddons
+      .map((entry) => {
+        if (!entry || typeof entry !== "object") return null;
+        const offerId = Number((entry as { offerId?: unknown }).offerId);
+        const label = String((entry as { label?: unknown }).label || "").trim();
+        if (!Number.isFinite(offerId) || offerId <= 0) return null;
+        return {
+          offerId,
+          label: label || `Supliment ${offerId}`,
+        };
+      })
+      .filter((entry): entry is StoredAddonMeta => entry !== null);
+    if (parsed.length > 0) return parsed;
+  }
+
+  return fallbackOfferIds.map((offerId) => ({
+    offerId,
+    label: `Supliment ${offerId}`,
+  }));
+}
+
+function isPolicyIssuingStillActiveError(message: string | null | undefined): boolean {
+  if (!message) return false;
+  return /INS-0030|policy issuing request is still active|a policy issuing request is still active/i.test(
+    message
+  );
+}
+
+function isRetryablePolicyCreateHttpError(err: unknown): boolean {
+  return err instanceof ApiError && (err.status === 504 || err.status === 408);
+}
+
+function policyCreateRetryDelayMs(err: unknown, attempt: number): number {
+  if (isRetryablePolicyCreateHttpError(err)) {
+    // Upstream may still be issuing after a gateway/client timeout.
+    return 15000 * attempt;
+  }
+  return 2500 * attempt;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isDocumentFetchError(message: string | null | undefined): boolean {
+  if (!message) return false;
+  return /INS-9999|cererea nu a fost gasita|cererea nu a fost găsită|pdf-ul nu a putut|not found|nu este disponibil/i.test(
+    message
+  );
+}
+
+function isRetryableDocumentFetchError(message: string): boolean {
+  return /cererea nu a fost gasita|cererea nu a fost găsită|request.*not found|nu a fost gasita|nu a fost găsită/i.test(
+    message
+  );
+}
+
+function getErrorMessage(err: unknown): string {
+  if (err instanceof ApiError) return err.message;
+  if (err instanceof Error) return err.message;
+  return String(err);
+}
+
+async function postPolicyWithIns0030Retry<T>(
+  path: string,
+  payload: Record<string, unknown>,
+  headers?: Record<string, string>,
+  options?: { timeoutMs?: number }
+): Promise<T> {
+  const maxAttempts = 4;
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await api.post<T>(path, payload, headers, options);
+    } catch (err) {
+      lastError = err;
+      const message =
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : String(err);
+      const shouldRetry =
+        attempt < maxAttempts &&
+        (isPolicyIssuingStillActiveError(message) ||
+          isRetryablePolicyCreateHttpError(err));
+      if (shouldRetry) {
+        await sleep(policyCreateRetryDelayMs(err, attempt));
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  throw lastError;
+}
+
+function resolveAddonDocuments(
+  storedAddons: StoredAddonMeta[],
+  policies: PolicyEntry[] | undefined,
+  mainOfferId: number
+): ResolvedAddonDocument[] {
+  const policyByOfferId = new Map<number, number | null>();
+  for (const entry of policies ?? []) {
+    if (entry.offerId !== mainOfferId) {
+      policyByOfferId.set(entry.offerId, entry.policyId);
+    }
+  }
+
+  return storedAddons.map((addon) => ({
+    ...addon,
+    policyId: policyByOfferId.get(addon.offerId) ?? null,
+  }));
+}
+
 // Checkout session data loaded from server
 interface SessionData {
   orderId: number;
@@ -158,7 +294,10 @@ function PaymentCallbackContent() {
     useState<PolicyCreateResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [addonDocuments, setAddonDocuments] = useState<ResolvedAddonDocument[]>([]);
+  const [documentErrors, setDocumentErrors] = useState<Record<string, string>>({});
   const autoEmitAttempted = useRef(false);
+  const policyCreateInFlight = useRef(false);
   const emailSentTo = useRef("");
   const insurerAutoCreated = useRef(false);
 
@@ -202,12 +341,34 @@ function PaymentCallbackContent() {
       setError("Parametrii de plată sunt invalizi.");
       return;
     }
+    if (policyCreateInFlight.current) return;
+    policyCreateInFlight.current = true;
     setCreating(true);
     setError(null);
     try {
       // Verify payment via InsureTech API before proceeding to policy creation.
+      let policyDataForAddons: Record<string, unknown> = session?.policyData || {};
+      if (!session?.policyData) {
+        try {
+          const raw = localStorage.getItem("rcaPolicyData");
+          if (raw) policyDataForAddons = JSON.parse(raw);
+        } catch { /* */ }
+      }
+      const additionalOfferIds = Array.isArray(
+        policyDataForAddons.additionalProductsOfferIds
+      )
+        ? (policyDataForAddons.additionalProductsOfferIds as unknown[])
+            .map((id) => Number(id))
+            .filter((id) => Number.isFinite(id) && id > 0)
+        : [];
+      const storedAddonMeta = parseStoredAddonMeta(
+        policyDataForAddons,
+        additionalOfferIds
+      );
       const padOid = resolvedPadOfferId ? [resolvedPadOfferId] : [];
-      const checkPayload = { offerIds: [Number(offerId), ...padOid] };
+      const checkPayload = {
+        offerIds: [Number(offerId), ...padOid, ...additionalOfferIds],
+      };
       let paymentVerified = false;
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
@@ -293,9 +454,15 @@ function PaymentCallbackContent() {
         error: false,
         message: null as string | null,
       };
+      let emailAddonDocuments: ResolvedAddonDocument[] = resolveAddonDocuments(
+        storedAddonMeta,
+        undefined,
+        Number(offerId)
+      );
 
       if (skipPolicyCreation) {
         console.log("[PaymentCallback] Skipping policies/v3 for", productType, "(insurer auto-creates policy)");
+        setAddonDocuments(emailAddonDocuments);
         setPolicyResponse({
           orderId: session?.orderId || (offerDetails?.orderId as number) || 0,
           vendorName: offerVendor,
@@ -336,6 +503,7 @@ function PaymentCallbackContent() {
           payload = {
             rcaOfferId: Number(offerId),
             paymentMethodType: "CardOnline",
+            additionalProductsOfferIds: additionalOfferIds,
           };
           try { localStorage.removeItem("rcaPolicyData"); } catch { /* */ }
         } else {
@@ -347,7 +515,7 @@ function PaymentCallbackContent() {
 
         try { localStorage.removeItem("customerEmail"); } catch { /* */ }
 
-        const result = await api.post<PolicyCreateResponse>(
+        let result = await postPolicyWithIns0030Retry<PolicyCreateResponse>(
           policyEndpoint,
           payload,
           {
@@ -360,7 +528,38 @@ function PaymentCallbackContent() {
         );
         console.log("[PaymentCallback] policies response:", JSON.stringify(result));
 
-        const policyInfo = extractPolicyInfo(result);
+        let policyInfo = extractPolicyInfo(result, Number(offerId));
+
+        if (
+          policyInfo.error &&
+          isPolicyIssuingStillActiveError(policyInfo.message)
+        ) {
+          await sleep(2500);
+          result = await postPolicyWithIns0030Retry<PolicyCreateResponse>(
+            policyEndpoint,
+            payload,
+            {
+              Accept: "application/json",
+              ...(traceId && productType === "MALPRAXIS"
+                ? { [MALPRAXIS_TRACE_HEADER]: traceId }
+                : {}),
+            },
+            { timeoutMs: 120000 }
+          );
+          console.log(
+            "[PaymentCallback] policies response (INS-0030 retry):",
+            JSON.stringify(result)
+          );
+          policyInfo = extractPolicyInfo(result, Number(offerId));
+        }
+
+        const resolvedAddons = resolveAddonDocuments(
+          storedAddonMeta,
+          result.policies,
+          Number(offerId)
+        );
+        emailAddonDocuments = resolvedAddons;
+        setAddonDocuments(resolvedAddons);
 
         const alreadyIssued = policyInfo.error && policyInfo.message?.includes("Exista deja o polita emisa");
         const offerExpired = policyInfo.error && policyInfo.message?.includes("Data platii trebuie sa fie intre");
@@ -438,6 +637,11 @@ function PaymentCallbackContent() {
                 vendorName: info.vendorName,
                 startDate: info.startDate,
                 endDate: info.endDate,
+                additionalDocuments: emailAddonDocuments.map((addon) => ({
+                  offerId: addon.offerId,
+                  policyId: addon.policyId,
+                  label: addon.label,
+                })),
               }),
             });
             const emailResult = await emailResp.json().catch(() => ({}));
@@ -453,8 +657,15 @@ function PaymentCallbackContent() {
         }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Eroare la crearea poliței.");
+      const message =
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Eroare la crearea poliței.";
+      setError(message);
     } finally {
+      policyCreateInFlight.current = false;
       setCreating(false);
     }
   };
@@ -469,38 +680,103 @@ function PaymentCallbackContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSuccess, hasRequiredParams, sessionLoading]);
 
-  const downloadDocument = async (type: "offer" | "policy", id: number) => {
+  // Extract display data (works for both RCA and Travel response formats)
+  const policyInfo = policyResponse
+    ? extractPolicyInfo(policyResponse, Number(offerId))
+    : null;
+  const policyId = policyInfo?.policyId ?? null;
+  const padPolicyId = policyInfo?.padPolicyId ?? null;
+
+  const reportDocumentDownloadError = (errorKey: string | undefined, message: string) => {
+    const mainPolicySucceeded =
+      policyCreated && typeof policyId === "number" && policyId > 0;
+    if (errorKey && (mainPolicySucceeded || isDocumentFetchError(message))) {
+      setDocumentErrors((prev) => ({ ...prev, [errorKey]: message }));
+      return;
+    }
+    setError(message);
+  };
+
+  const downloadDocument = async (
+    type: "offer" | "policy",
+    id: number,
+    options?: { errorKey?: string; retry?: boolean; maxAttempts?: number }
+  ) => {
+    const { errorKey, retry = false, maxAttempts = retry ? 3 : 1 } = options ?? {};
+
     if (!orderHash || !Number.isFinite(id) || id <= 0) {
-      setError("Parametrii pentru descărcarea documentului sunt invalizi.");
+      reportDocumentDownloadError(
+        errorKey,
+        "Parametrii pentru descărcarea documentului sunt invalizi."
+      );
       return;
     }
 
-    try {
-      // Get document URL from InsureTech via our proxy
-      const docEndpoint = type === "offer"
+    if (errorKey) {
+      setDocumentErrors((prev) => {
+        if (!prev[errorKey]) return prev;
+        const next = { ...prev };
+        delete next[errorKey];
+        return next;
+      });
+    }
+
+    const docEndpoint =
+      type === "offer"
         ? `/online/offers/${id}/document/v3?orderHash=${orderHash}`
         : `/online/policies/${id}/document/v3?orderHash=${orderHash}`;
-      console.log("[Download] Fetching document URL:", docEndpoint);
-      const docResp = await api.get<{ url?: string } | string>(docEndpoint, { timeoutMs: 30000 });
-      console.log("[Download] Response:", docResp);
-      const docUrl = typeof docResp === "string" ? docResp : docResp?.url;
-      if (docUrl && docUrl.startsWith("http")) {
-        window.open(docUrl, "_blank", "noopener,noreferrer");
-        return;
+
+    let lastError: unknown;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        console.log("[Download] Fetching document URL:", docEndpoint, `(attempt ${attempt})`);
+        const docResp = await api.get<{ url?: string } | string>(docEndpoint, {
+          timeoutMs: 30000,
+        });
+        console.log("[Download] Response:", docResp);
+        const docUrl = typeof docResp === "string" ? docResp : docResp?.url;
+        if (docUrl && docUrl.startsWith("http")) {
+          window.open(docUrl, "_blank", "noopener,noreferrer");
+          return;
+        }
+        throw new Error(
+          "Documentul nu este disponibil momentan. Incercati din nou mai tarziu."
+        );
+      } catch (err) {
+        lastError = err;
+        const message = getErrorMessage(err);
+        const shouldRetry =
+          retry &&
+          attempt < maxAttempts &&
+          isRetryableDocumentFetchError(message);
+        if (shouldRetry) {
+          console.warn(`[Download] Retry ${attempt}/${maxAttempts} for ${docEndpoint}:`, message);
+          await sleep(2000 * attempt);
+          continue;
+        }
+        break;
       }
-      throw new Error("Documentul nu este disponibil momentan. Incercati din nou mai tarziu.");
-    } catch (err) {
-      console.error("[Download] Error:", err);
-      setError(
-        err instanceof Error ? err.message : "Eroare la descărcarea documentului."
-      );
     }
+
+    console.error("[Download] Error:", lastError);
+    reportDocumentDownloadError(
+      errorKey,
+      getErrorMessage(lastError) || "Eroare la descărcarea documentului."
+    );
   };
 
-  // Extract display data (works for both RCA and Travel response formats)
-  const policyInfo = policyResponse ? extractPolicyInfo(policyResponse) : null;
-  const policyId = policyInfo?.policyId ?? null;
-  const padPolicyId = policyInfo?.padPolicyId ?? null;
+  const downloadAddonDocument = async (addon: ResolvedAddonDocument) => {
+    const errorKey = `addon-${addon.offerId}`;
+    const usePolicyDoc =
+      typeof addon.policyId === "number" && addon.policyId > 0;
+    await downloadDocument(
+      usePolicyDoc ? "policy" : "offer",
+      usePolicyDoc ? addon.policyId! : addon.offerId,
+      { errorKey, retry: true, maxAttempts: 4 }
+    );
+  };
+
   const policyNumber =
     policyInfo?.series && policyInfo?.number
       ? `${policyInfo.series} ${policyInfo.number}`
@@ -537,7 +813,7 @@ function PaymentCallbackContent() {
   }
 
   return (
-    <div className="relative mx-auto max-w-xl px-4 pt-28 pb-16">
+    <div className="relative mx-auto max-w-xl px-4 pt-28 pb-[max(4rem,env(safe-area-inset-bottom))]">
       {/* Decorative background blob */}
       {isSuccess && (
         <div className="pointer-events-none absolute -top-20 left-1/2 -translate-x-1/2">
@@ -607,7 +883,7 @@ function PaymentCallbackContent() {
           </div>
 
           {/* Card body */}
-          <div className="px-6 py-5 space-y-4">
+          <div className="space-y-4 px-4 py-5 sm:px-6">
             {/* Policy details grid */}
             <div className="space-y-3">
               {!policyNumber && !policyId && (
@@ -671,34 +947,83 @@ function PaymentCallbackContent() {
 
             {/* Download buttons — hidden when insurer auto-created the policy (e.g. Euroins blocks docs) */}
             {!insurerAutoCreated.current && (
-              <div className="flex flex-col gap-3 pt-2 sm:flex-row">
+              <div className="flex flex-col gap-3 pt-2">
                 {policyId && (
-                  <button
-                    onClick={() => downloadDocument("policy", policyId)}
-                    className={`${btn.primary} flex items-center justify-center gap-2 flex-1`}
-                  >
-                    <Download className="h-4 w-4" />
-                    Descarca polita (PDF)
-                  </button>
+                  <div className="flex w-full flex-col gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        downloadDocument("policy", policyId, {
+                          errorKey: "policy",
+                          retry: true,
+                          maxAttempts: 4,
+                        })
+                      }
+                      className={`${btn.primary} flex min-h-11 w-full items-center justify-center gap-2 px-4 py-3`}
+                    >
+                      <Download className="h-4 w-4 shrink-0" aria-hidden />
+                      Descarca polita (PDF)
+                    </button>
+                    {documentErrors.policy && (
+                      <p className="text-xs text-red-600">{documentErrors.policy}</p>
+                    )}
+                  </div>
                 )}
                 {padPolicyId && (
-                  <button
-                    onClick={() => downloadDocument("policy", padPolicyId)}
-                    className={`${btn.primary} flex items-center justify-center gap-2 flex-1`}
-                  >
-                    <Download className="h-4 w-4" />
-                    Descarca polita PAD (PDF)
-                  </button>
+                  <div className="flex w-full flex-col gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        downloadDocument("policy", padPolicyId, { errorKey: "pad-policy" })
+                      }
+                      className={`${btn.primary} flex min-h-11 w-full items-center justify-center gap-2 px-4 py-3`}
+                    >
+                      <Download className="h-4 w-4 shrink-0" aria-hidden />
+                      Descarca polita PAD (PDF)
+                    </button>
+                    {documentErrors["pad-policy"] && (
+                      <p className="text-xs text-red-600">{documentErrors["pad-policy"]}</p>
+                    )}
+                  </div>
                 )}
                 {offerId && (
-                  <button
-                    onClick={() => downloadDocument("offer", Number(offerId))}
-                    className={`${btn.secondary} flex items-center justify-center gap-2 flex-1`}
-                  >
-                    <Download className="h-4 w-4" />
-                    Descarca oferta (PDF)
-                  </button>
+                  <div className="flex w-full flex-col gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        downloadDocument("offer", Number(offerId), { errorKey: "offer" })
+                      }
+                      className={`${btn.secondary} flex min-h-11 w-full items-center justify-center gap-2 px-4 py-3`}
+                    >
+                      <Download className="h-4 w-4 shrink-0" aria-hidden />
+                      Descarca oferta (PDF)
+                    </button>
+                    {documentErrors.offer && (
+                      <p className="text-xs text-red-600">{documentErrors.offer}</p>
+                    )}
+                  </div>
                 )}
+                {addonDocuments.map((addon) => {
+                  const addonErrorKey = `addon-${addon.offerId}`;
+                  const addonError = documentErrors[addonErrorKey];
+                  return (
+                    <div key={addon.offerId} className="flex w-full flex-col gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => void downloadAddonDocument(addon)}
+                        className={`${btn.secondary} flex min-h-11 w-full items-center justify-center gap-2 px-4 py-3 text-center`}
+                      >
+                        <Download className="h-4 w-4 shrink-0" aria-hidden />
+                        <span className="min-w-0">
+                          {addonError ? "Reincearca" : "Descarca"} {addon.label} (PDF)
+                        </span>
+                      </button>
+                      {addonError && (
+                        <p className="text-xs text-amber-700">{addonError}</p>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -772,8 +1097,7 @@ function PaymentCallbackContent() {
                 <button
                   onClick={() => {
                     setError(null);
-                    autoEmitAttempted.current = false;
-                    createPolicy();
+                    void createPolicy();
                   }}
                   className={`${btn.primary} ${
                     callbackError.kind === "insurer"
@@ -797,18 +1121,20 @@ function PaymentCallbackContent() {
       )}
 
       {/* ── Navigation CTAs ── */}
-      <div className="mt-10 flex flex-col items-center gap-4">
+      <div className="mt-10 flex w-full flex-col items-stretch gap-3 sm:items-center">
         {!isSuccess && (
-          <Link href="/" className={`${btn.primary} flex items-center gap-2`}>
+          <Link href="/" className={`${btn.primary} flex min-h-11 w-full items-center justify-center gap-2 sm:w-auto`}>
             Incearca din nou
-            <ArrowRight className="h-4 w-4" />
+            <ArrowRight className="h-4 w-4 shrink-0" aria-hidden />
           </Link>
         )}
         <Link
           href="/dashboard"
-          className={`flex items-center gap-2 ${isSuccess && policyCreated ? btn.primary : btn.tertiary}`}
+          className={`flex min-h-11 w-full items-center justify-center gap-2 sm:w-auto ${
+            isSuccess && policyCreated ? btn.primary : btn.tertiary
+          }`}
         >
-          {isSuccess && policyCreated && <ArrowRight className="h-4 w-4" />}
+          {isSuccess && policyCreated && <ArrowRight className="h-4 w-4 shrink-0" aria-hidden />}
           Vezi toate politele tale
         </Link>
         <Link

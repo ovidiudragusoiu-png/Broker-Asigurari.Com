@@ -12,6 +12,9 @@ import HeaderAuthButton from "@/components/portal/HeaderAuthButton";
 export default function CinematicHeader() {
   const pathname = usePathname();
   const isHome = pathname === "/";
+  // Compact variant on RCA flow: hide PNRR banner / nav / extra CTAs so the
+  // plate input is visible above the fold on small viewports (iPhone SE).
+  const isRcaRoute = pathname?.startsWith("/rca") ?? false;
   const [scrolled, setScrolled] = useState(!isHome);
 
   useEffect(() => {
@@ -33,12 +36,12 @@ export default function CinematicHeader() {
 
   return (
     <header
-      className={`fixed top-0 left-0 z-50 w-full transition-all duration-300 ${scrolled
+      className={`z-layer-header fixed top-0 left-0 w-full pt-[env(safe-area-inset-top,0px)] transition-all duration-300 ${scrolled
         ? "bg-white/90 shadow-sm backdrop-blur-md border-b border-gray-100"
         : "bg-transparent"
         }`}
     >
-      <nav className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-6 lg:px-8">
+      <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2 sm:px-6 sm:py-4 lg:px-8">
         {/* Logo + PNRR */}
         <div className="flex flex-col">
           <Link
@@ -54,34 +57,43 @@ export default function CinematicHeader() {
                 .Ai
               </span>
             </span>
-            <span className="hidden sm:inline font-extrabold ml-3"><span className="text-[#2563EB]">Fii Sigur.</span> <span className="text-[#F97316]">Fii Asigurat.</span></span>
+            {!isRcaRoute && (
+              <span className="hidden sm:inline font-extrabold ml-3"><span className="text-[#2563EB]">Fii Sigur.</span> <span className="text-[#F97316]">Fii Asigurat.</span></span>
+            )}
           </Link>
-          <Image src="/images/pnrr/banner-pnrr.jpg" alt="Finanțat de Uniunea Europeană NextGenerationEU — Guvernul României — PNRR" width={400} height={33} className="object-contain mt-1" />
+          {!isRcaRoute && (
+            <Image src="/images/pnrr/banner-pnrr.jpg" alt="Finanțat de Uniunea Europeană NextGenerationEU — Guvernul României — PNRR" width={400} height={33} className="mt-1 hidden object-contain sm:block" />
+          )}
         </div>
 
-        {/* Desktop nav */}
-        <DesktopNav scrolled={scrolled} />
+        <>
+          {/* Desktop nav */}
+          <DesktopNav scrolled={scrolled} />
 
-        {/* Mobile menu */}
-        <MobileMenu scrolled={scrolled} />
+          {/* Mobile menu */}
+          <MobileMenu scrolled={scrolled} isRcaRoute={isRcaRoute} />
 
-        {/* CTA button placeholder + actions */}
-        <div className="hidden items-center gap-6 md:flex">
-          <a
-            href="tel:+40720385551"
-            className="flex items-center gap-1.5 text-sm font-semibold text-slate-600 transition-colors hover:text-[#2563EB]"
-          >
-            <Phone className="h-4 w-4" />
-            0720 38 55 51
-          </a>
-          <HeaderAuthButton />
-          <Link
-            href="/rca"
-            className="rounded-full bg-[#F97316] px-6 py-2.5 text-sm font-bold text-white shadow-md shadow-[#F97316]/25 transition-transform hover:-translate-y-0.5 hover:shadow-lg hover:shadow-[#F97316]/40"
-          >
-            Calculator RCA
-          </Link>
-        </div>
+          {/* Keep RCA header compact, but do not hide core navigation */}
+          <div className="hidden items-center gap-6 md:flex">
+            <a
+              href="tel:+40720385551"
+              className="flex items-center gap-1.5 text-sm font-semibold text-slate-600 transition-colors hover:text-[#2563EB]"
+              aria-label="Sună la 0720 38 55 51"
+            >
+              <Phone className="h-4 w-4" />
+              0720 38 55 51
+            </a>
+            {!isRcaRoute && <HeaderAuthButton />}
+            {!isRcaRoute && (
+              <Link
+                href="/rca"
+                className="rounded-full bg-[#F97316] px-6 py-2.5 text-sm font-bold text-white shadow-md shadow-[#F97316]/25 transition-transform hover:-translate-y-0.5 hover:shadow-lg hover:shadow-[#F97316]/40"
+              >
+                Calculator RCA
+              </Link>
+            )}
+          </div>
+        </>
       </nav>
     </header>
   );

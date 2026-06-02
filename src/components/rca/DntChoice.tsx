@@ -95,7 +95,7 @@ export default function DntChoice({ onContinueDirect, productLabel = "RCA", onBa
 
       {/* DNT consultation popup */}
       {showPopup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="z-layer-modal fixed inset-0 flex items-center justify-center bg-black/50">
           <div className="mx-4 max-w-md rounded-xl bg-white p-6 shadow-xl">
             <div className="mb-4 flex items-center gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#2563EB]/10 text-[#2563EB]">

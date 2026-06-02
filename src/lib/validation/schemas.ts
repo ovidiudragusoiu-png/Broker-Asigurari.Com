@@ -150,12 +150,19 @@ export const emailValidateSchema = z.object({
 
 // ── Email documents ──
 
+export const emailAdditionalDocumentSchema = z.object({
+  offerId: z.number().int().positive(),
+  policyId: z.number().int().positive().nullable().optional().default(null),
+  label: z.string().min(1).max(200).optional(),
+});
+
 export const emailDocumentsSchema = z.object({
   email,
   productType: z.string().min(1).max(20),
   offerId: z.number().int().positive(),
   policyId: z.number().int().positive().nullable().optional().default(null),
   padPolicyId: z.number().int().positive().nullable().optional().default(null),
+  additionalDocuments: z.array(emailAdditionalDocumentSchema).optional().default([]),
   orderHash: z.string().min(1).max(200),
   policyNumber: z.string().max(100).nullable().optional().default(null),
   vendorName: z.string().max(200).nullable().optional().default(null),

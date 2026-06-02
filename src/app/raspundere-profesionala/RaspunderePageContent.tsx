@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useLayoutEffect, useCallback } from "react";
 import WizardStepper, { useWizard } from "@/components/shared/WizardStepper";
 import { api } from "@/lib/api/client";
 import { validateCNP } from "@/lib/utils/validation";
@@ -88,6 +88,12 @@ const selectCls =
 const inputCls =
   "w-full rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none";
 const labelCls = "mb-1 block text-xs font-medium text-gray-500";
+const TRUST_BADGES = [
+  "Autorizare ASF: RAJ506943",
+  "Date securizate (SSL)",
+  "Partener MaxyGo Broker de Asigurare SRL",
+];
+const REMAINING_BY_STEP = ["~2 min ramase", "~90 sec ramase", "Ultimul pas"];
 
 // ── Component ───────────────────────────────────────────────────────
 
@@ -109,6 +115,25 @@ export default function RaspundereProfesionalaPage() {
   // Nomenclatures
   const [counties, setCounties] = useState<SelectOption[]>([]);
   const [cities, setCities] = useState<SelectOption[]>([]);
+
+  useLayoutEffect(() => {
+    if (typeof window === "undefined" || typeof history === "undefined") return;
+    const previousScrollRestoration = history.scrollRestoration;
+    history.scrollRestoration = "manual";
+
+    return () => {
+      history.scrollRestoration = previousScrollRestoration;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.scrollTo(0, 0);
+    requestAnimationFrame(() => {
+      window.scrollTo(0, 0);
+      requestAnimationFrame(() => window.scrollTo(0, 0));
+    });
+  }, [currentStep]);
 
   const isBucharest = BUCHAREST_COUNTY_IDS.has(form.countyId);
   const isBucharestSentinel = form.countyId === BUCHAREST_SENTINEL;
@@ -752,19 +777,40 @@ export default function RaspundereProfesionalaPage() {
   ];
 
   return (
-    <section className="mx-auto max-w-4xl px-4 pt-24 pb-8">
-      {/* Page header */}
-      <div className="mb-6 text-center">
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg">
-          <svg className="h-7 w-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0M12 12.75h.008v.008H12v-.008z" />
-          </svg>
-        </div>
-        <h1 className="text-2xl font-bold text-gray-900">Răspundere Profesională</h1>
-        <p className="mt-1 text-sm text-gray-500">Cerere de ofertă pentru asigurarea de răspundere profesională</p>
+    <section className="mx-auto max-w-6xl px-4 pt-20 pb-24 sm:px-6 sm:pt-24 lg:px-8">
+      <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
+        <aside className="space-y-5 lg:sticky lg:top-24">
+          <div className="rounded-3xl bg-gradient-to-br from-blue-600 to-blue-800 p-6 text-white shadow-xl shadow-blue-900/20">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15">
+              <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0M12 12.75h.008v.008H12v-.008z" />
+              </svg>
+            </div>
+            <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">Raspundere Profesionala, experienta simplificata</h1>
+            <p className="mt-4 text-base leading-relaxed text-blue-50">Completezi rapid datele relevante, iar consultantii revin cu o oferta personalizata.</p>
+          </div>
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="grid gap-2">
+              {TRUST_BADGES.map((badge) => (
+                <div key={badge} className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                  <span className="h-2 w-2 rounded-full bg-blue-500" />
+                  {badge}
+                </div>
+              ))}
+            </div>
+          </div>
+        </aside>
+        <main className="space-y-5">
+          <div className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+            <WizardStepper
+              steps={steps}
+              currentStep={currentStep}
+              onStepChange={goTo}
+              remainingText={REMAINING_BY_STEP[currentStep]}
+            />
+          </div>
+        </main>
       </div>
-
-      <WizardStepper steps={steps} currentStep={currentStep} onStepChange={goTo} />
     </section>
   );
 }

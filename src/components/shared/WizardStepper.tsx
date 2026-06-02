@@ -14,6 +14,10 @@ interface WizardStepperProps {
   currentStep: number;
   onStepChange: (step: number) => void;
   remainingText?: string;
+  /** Hide the horizontal stepper on mobile (banner still shown). */
+  hideStepperOnMobile?: boolean;
+  /** Show a slim progress bar under the mobile banner (e.g. RCA step 0). */
+  showMobileProgress?: boolean;
 }
 
 export default function WizardStepper({
@@ -21,11 +25,38 @@ export default function WizardStepper({
   currentStep,
   onStepChange,
   remainingText,
+  hideStepperOnMobile = false,
+  showMobileProgress = false,
 }: WizardStepperProps) {
+  const currentStepMeta = steps[currentStep];
+  const progressPct = ((currentStep + 1) / steps.length) * 100;
+
   return (
     <div>
+      {/* Mobile step banner */}
+      <div className={`md:hidden ${hideStepperOnMobile ? "mb-3" : "mb-4"}`}>
+        <p className="text-center text-sm font-semibold text-gray-900">
+          Pas {currentStep + 1} din {steps.length} — {currentStepMeta?.title}
+        </p>
+        {showMobileProgress && (
+          <div
+            className="mt-2 h-1 w-full overflow-hidden rounded-full bg-gray-200"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(progressPct)}
+            aria-label={`Pas ${currentStep + 1} din ${steps.length}`}
+          >
+            <div
+              className="h-full rounded-full bg-[#2563EB] transition-all duration-300"
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
+        )}
+      </div>
+
       {/* Step indicators */}
-      <nav className="mb-8">
+      <nav className={`${hideStepperOnMobile ? "hidden md:block" : ""} ${hideStepperOnMobile ? "md:mb-8" : "mb-4 md:mb-8"}`}>
         {remainingText && (
           <p className="mb-3 text-center text-xs font-medium text-gray-500">
             {remainingText}

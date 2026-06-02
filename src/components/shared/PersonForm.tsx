@@ -197,7 +197,7 @@ export default function PersonForm({
       {value.legalType === "PF" ? (
         <div className="space-y-3">
           {/* Name row */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className={labelCls}>Nume</label>
               <input
@@ -225,6 +225,7 @@ export default function PersonForm({
             <label className={labelCls}>CNP</label>
             <input
               type="text"
+              inputMode="numeric"
               className={cnpInvalid || (showErrors && !cifAsString) ? inputErrCls : inputCls}
               placeholder="Cod numeric personal (13 cifre)"
               value={value.cif || ""}
@@ -270,6 +271,7 @@ export default function PersonForm({
                 <label className={labelCls}>Numar</label>
                 <input
                   type="text"
+                  inputMode="numeric"
                   className={inputCls}
                   placeholder="Ex: 123456"
                   value={value.idNumber}
@@ -301,6 +303,7 @@ export default function PersonForm({
               <label className={labelCls}>CUI</label>
               <input
                 type="text"
+                inputMode="numeric"
                 className={cuiInvalid || (showErrors && !cifAsString) ? inputErrCls : inputCls}
                 placeholder="Cod unic de inregistrare"
                 value={value.cif || ""}
@@ -344,7 +347,7 @@ export default function PersonForm({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className={labelCls}>Nr. Inregistrare (Reg. Com.)</label>
               <input
@@ -393,7 +396,7 @@ export default function PersonForm({
           </svg>
           <span className="text-xs font-medium text-gray-500">Date de contact</span>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label className={labelCls}>Email</label>
             <EmailInput
@@ -410,6 +413,7 @@ export default function PersonForm({
             <label className={labelCls}>Telefon</label>
             <input
               type="tel"
+              inputMode="tel"
               className={phoneInvalid || (showErrors && !value.phoneNumber.trim()) ? inputErrCls : inputCls}
               placeholder="07xx xxx xxx"
               value={value.phoneNumber}

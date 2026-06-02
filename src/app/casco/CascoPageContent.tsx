@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
 import WizardStepper, { useWizard } from "@/components/shared/WizardStepper";
 import { api } from "@/lib/api/client";
 import { readString, readNumber } from "@/lib/utils/rcaHelpers";
@@ -246,6 +246,25 @@ export default function CascoPage() {
   const [makes, setMakes] = useState<SelectOption[]>([]);
   const [categories, setCategories] = useState<SelectOption[]>([]);
   const [subcategories, setSubcategories] = useState<SelectOption[]>([]);
+
+  useLayoutEffect(() => {
+    if (typeof window === "undefined" || typeof history === "undefined") return;
+    const previousScrollRestoration = history.scrollRestoration;
+    history.scrollRestoration = "manual";
+
+    return () => {
+      history.scrollRestoration = previousScrollRestoration;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.scrollTo(0, 0);
+    requestAnimationFrame(() => {
+      window.scrollTo(0, 0);
+      requestAnimationFrame(() => window.scrollTo(0, 0));
+    });
+  }, [currentStep]);
 
   useEffect(() => {
     api.get<SelectOption[]>("/online/address/utils/counties")
@@ -633,7 +652,7 @@ export default function CascoPage() {
                 <div className="flex gap-2">
                   <div className="flex-1">
                     <label className={labelCls}>CUI</label>
-                    <input className={inputCls} value={form.cui} onChange={(e) => { set("cui", e.target.value); setCuiFound(false); setCuiError(null); }} placeholder="ex: 12345678" />
+                    <input inputMode="numeric" className={inputCls} value={form.cui} onChange={(e) => { set("cui", e.target.value); setCuiFound(false); setCuiError(null); }} placeholder="ex: 12345678" />
                   </div>
                   <button
                     type="button"
@@ -1086,7 +1105,7 @@ export default function CascoPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-x-4 gap-y-3">
+                <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-3">
                   <div>
                     <label className={labelCls}>Caroserie</label>
                     <select className={selectCls} value={form.bodyType} onChange={(e) => set("bodyType", e.target.value)}>
@@ -1111,7 +1130,7 @@ export default function CascoPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
+                <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-4">
                   <div>
                     <label className={labelCls}>Km la bord</label>
                     <input type="number" className={inputCls} value={form.km} onChange={(e) => set("km", e.target.value)} placeholder="ex: 50000" />
@@ -1317,7 +1336,7 @@ export default function CascoPage() {
               <span className="text-sm font-semibold text-gray-900">Date de contact</span>
             </div>
             <div className="px-5 py-4 space-y-2">
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+              <div className="grid grid-cols-1 gap-x-4 gap-y-1.5 text-sm sm:grid-cols-2">
                 <div><span className="text-gray-400">Tip:</span> <span className="font-medium text-gray-700">{form.ownerType === "PF" ? "Persoana fizica" : "Persoana juridica"}</span></div>
                 <div><span className="text-gray-400">Nume:</span> <span className="font-medium text-gray-700">{form.ownerType === "PF" ? `${form.lastName} ${form.firstName}` : form.companyName}</span></div>
                 <div><span className="text-gray-400">Email:</span> <span className="font-medium text-gray-700">{form.email}</span></div>
@@ -1344,7 +1363,7 @@ export default function CascoPage() {
                   Documente atasate: {form.files.map((f) => f.name).join(", ") || "—"}
                 </p>
               ) : (
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+                <div className="grid grid-cols-1 gap-x-4 gap-y-1.5 text-sm sm:grid-cols-2">
                   {form.plateNumber && <div><span className="text-gray-400">Nr. inmatriculare:</span> <span className="font-medium text-gray-700">{form.plateNumber}</span></div>}
                   {form.categoryName && <div><span className="text-gray-400">Categorie:</span> <span className="font-medium text-gray-700">{form.categoryName}</span></div>}
                   {form.subcategoryName && <div><span className="text-gray-400">Subcategorie:</span> <span className="font-medium text-gray-700">{form.subcategoryName}</span></div>}
@@ -1358,7 +1377,7 @@ export default function CascoPage() {
                 </div>
               )}
               <div className="border-t border-gray-100 pt-3">
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+                <div className="grid grid-cols-1 gap-x-4 gap-y-1.5 text-sm sm:grid-cols-2">
                   <div><span className="text-gray-400">Asigurat la:</span> <span className="font-medium text-gray-700">{form.currentInsurer}</span></div>
                   <div><span className="text-gray-400">Data inceput:</span> <span className="font-medium text-gray-700">{form.startDate}</span></div>
                   <div><span className="text-gray-400">Plata:</span> <span className="font-medium text-gray-700">{form.paymentFrequency}</span></div>
@@ -1518,7 +1537,7 @@ export default function CascoPage() {
 
   return (
     <>
-      <div className="mx-auto max-w-6xl px-4 pt-24 pb-24 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl px-4 pt-20 pb-[calc(6rem+env(safe-area-inset-bottom,0px))] sm:pt-24 sm:pb-24 sm:px-6 lg:px-8">
         <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
           <aside className="space-y-5 lg:sticky lg:top-24">
             <div className="rounded-3xl bg-gradient-to-br from-blue-600 to-blue-800 p-6 text-white shadow-xl shadow-blue-900/20">
@@ -1613,7 +1632,7 @@ export default function CascoPage() {
         </div>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/95 p-3 shadow-[0_-8px_20px_rgba(15,23,42,0.08)] backdrop-blur sm:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/95 px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] shadow-[0_-8px_20px_rgba(15,23,42,0.08)] backdrop-blur sm:hidden">
         <div className="mx-auto flex max-w-md gap-2">
           <a href="tel:0720385551" className={`${btn.secondary} flex-1 justify-center px-3 py-2 text-sm`}>
             Sună

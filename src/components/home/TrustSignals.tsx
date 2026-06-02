@@ -54,7 +54,7 @@ export default function TrustSignals() {
     <section ref={sectionRef} className="relative overflow-hidden bg-white py-16 sm:py-24">
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <p className="text-center text-xs font-semibold uppercase tracking-widest text-slate-400 mb-10">
-          Comparam oferte de la toti asiguratorii din piata
+          Comparăm oferte de la toți asigurătorii din piață
         </p>
 
         {/* Partner logos */}

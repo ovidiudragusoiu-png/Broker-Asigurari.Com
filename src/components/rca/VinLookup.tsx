@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api/client";
 import { validateVIN } from "@/lib/utils/validation";
 import { readString, readNumber } from "@/lib/utils/rcaHelpers";
+import { normalizeUppercaseInput } from "@/lib/utils/inputNormalization";
 import type { VehicleData, SelectOption } from "@/types/rcaFlow";
 import { btn } from "@/lib/ui/tokens";
 
@@ -34,6 +35,9 @@ export default function VinLookup({ vehicle, onChange, onContinue, mileage, onMi
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [categoryOverrideLabel, setCategoryOverrideLabel] = useState<string | null>(null);
   const [europeanCode, setEuropeanCode] = useState<string | null>(null);
+  const [attemptedContinue, setAttemptedContinue] = useState(false);
+  const [touchedFields, setTouchedFields] = useState<Record<string, boolean>>({});
+  const inputRefs = useRef<Record<string, HTMLElement | null>>({});
 
   // Load nomenclatures on mount and auto-set locked fields
   useEffect(() => {
@@ -167,16 +171,65 @@ export default function VinLookup({ vehicle, onChange, onContinue, mileage, onMi
 
   const powerInvalid = vehicle.enginePowerKw === null || vehicle.enginePowerKw <= 0;
 
-  const isVehicleReady =
-    vehicle.makeId !== null &&
-    !!vehicle.model?.trim() &&
-    vehicle.year !== null &&
-    vehicle.subcategoryId !== null &&
-    vehicle.fuelTypeId !== null &&
-    vehicle.engineCapacity !== null &&
-    !powerInvalid &&
-    vehicle.seats !== null &&
-    (!onMileageChange || (!!mileage && Number(mileage) > 0));
+  const missingRequiredFields: Record<string, boolean> = {
+    makeId: vehicle.makeId === null,
+    model: !vehicle.model?.trim(),
+    year: vehicle.year === null,
+    subcategoryId: vehicle.subcategoryId === null,
+    fuelTypeId: vehicle.fuelTypeId === null,
+    engineCapacity: vehicle.engineCapacity === null,
+    enginePowerKw: powerInvalid,
+    seats: vehicle.seats === null,
+    mileage: !!onMileageChange && (!mileage || Number(mileage) <= 0),
+  };
+
+  const missingFieldOrder = [
+    "makeId",
+    "model",
+    "year",
+    "subcategoryId",
+    "fuelTypeId",
+    "engineCapacity",
+    "enginePowerKw",
+    "seats",
+    "mileage",
+  ];
+
+  const isVehicleReady = !Object.values(missingRequiredFields).some(Boolean);
+  const shouldShowFieldError = (fieldName: string) =>
+    !!missingRequiredFields[fieldName] && (attemptedContinue || !!touchedFields[fieldName]);
+  const requiredMark = <span className="ml-0.5 text-red-600">*</span>;
+  const invalidFieldClass = "border-red-400 bg-red-50/40 focus:border-red-500 focus:ring-red-500/20";
+  const fieldBaseClass =
+    "w-full rounded-xl border-2 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:bg-white focus:outline-none";
+
+  const markTouched = (fieldName: string) => {
+    setTouchedFields((prev) => ({ ...prev, [fieldName]: true }));
+  };
+
+  const assignFieldRef = (fieldName: string) => (el: HTMLElement | null) => {
+    inputRefs.current[fieldName] = el;
+  };
+
+  const focusFirstMissingField = () => {
+    const firstMissing = missingFieldOrder.find((fieldName) => missingRequiredFields[fieldName]);
+    if (!firstMissing) return;
+    const el = inputRefs.current[firstMissing];
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    if ("focus" in el) {
+      el.focus();
+    }
+  };
+
+  const handleContinueAttempt = () => {
+    if (isVehicleReady) {
+      onContinue();
+      return;
+    }
+    setAttemptedContinue(true);
+    focusFirstMissingField();
+  };
 
   return (
     <div className="space-y-6">
@@ -191,22 +244,28 @@ export default function VinLookup({ vehicle, onChange, onContinue, mileage, onMi
 
       {/* VIN input + search */}
       <div className="mx-auto max-w-md">
-        <div className="flex gap-2">
+        <label className="mb-1 block text-xs font-medium text-gray-500">
+          Seria de șasiu (VIN)
+        </label>
+        <div className="flex flex-col gap-2 sm:flex-row">
           <input
             type="text"
+            autoCapitalize="characters"
+            autoCorrect="off"
+            spellCheck={false}
             className="flex-1 rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm font-mono uppercase text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none"
             value={vehicle.vin}
-            onChange={(e) => onChange({ vin: e.target.value.toUpperCase() })}
+            onChange={(e) => onChange({ vin: normalizeUppercaseInput(e.target.value) })}
             onKeyDown={(e) => e.key === "Enter" && lookupVIN()}
             maxLength={17}
-            placeholder="VIN (17 caractere alfanumerice)"
+            placeholder="17 caractere alfanumerice"
             autoFocus
           />
           <button
             type="button"
             onClick={lookupVIN}
             disabled={lookingUp}
-            className={btn.primary}
+            className={`${btn.primary} w-full sm:w-auto`}
           >
             {lookingUp ? (
               <span className="flex items-center gap-2">
@@ -241,60 +300,103 @@ export default function VinLookup({ vehicle, onChange, onContinue, mileage, onMi
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-500">Marca</label>
+              <label className="mb-1 block text-xs font-medium text-gray-500">Marca{requiredMark}</label>
               <select
-                className="w-full rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none"
+                ref={assignFieldRef("makeId")}
+                className={`${fieldBaseClass} ${shouldShowFieldError("makeId") ? invalidFieldClass : "border-gray-200 focus:border-[#2563EB] focus:ring-[#2563EB]/20"}`}
                 value={vehicle.makeId ?? ""}
-                onChange={(e) => onChange({ makeId: e.target.value ? Number(e.target.value) : null })}
+                onChange={(e) => {
+                  markTouched("makeId");
+                  onChange({ makeId: e.target.value ? Number(e.target.value) : null });
+                }}
+                aria-invalid={shouldShowFieldError("makeId")}
+                aria-describedby={shouldShowFieldError("makeId") ? "makeId-error" : undefined}
               >
                 <option value="">Selectează</option>
                 {makes.map((m) => (
                   <option key={m.id} value={m.id}>{m.name}</option>
                 ))}
               </select>
+              {shouldShowFieldError("makeId") && (
+                <p id="makeId-error" className="mt-0.5 text-xs font-medium text-red-600">Câmp obligatoriu</p>
+              )}
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-500">Model</label>
+              <label className="mb-1 block text-xs font-medium text-gray-500">Model{requiredMark}</label>
               <input
+                ref={assignFieldRef("model")}
                 type="text"
-                className="w-full rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none"
+                className={`${fieldBaseClass} ${shouldShowFieldError("model") ? invalidFieldClass : "border-gray-200 focus:border-[#2563EB] focus:ring-[#2563EB]/20"}`}
                 value={vehicle.model}
-                onChange={(e) => onChange({ model: e.target.value })}
+                onChange={(e) => {
+                  markTouched("model");
+                  onChange({ model: e.target.value });
+                }}
+                aria-invalid={shouldShowFieldError("model")}
+                aria-describedby={shouldShowFieldError("model") ? "model-error" : undefined}
               />
+              {shouldShowFieldError("model") && (
+                <p id="model-error" className="mt-0.5 text-xs font-medium text-red-600">Câmp obligatoriu</p>
+              )}
             </div>
           </div>
 
-          <div className="grid grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-500">An fabricație</label>
+              <label className="mb-1 block text-xs font-medium text-gray-500">An fabricație{requiredMark}</label>
               <input
+                ref={assignFieldRef("year")}
                 type="number"
-                className="w-full rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none"
+                inputMode="numeric"
+                className={`${fieldBaseClass} ${shouldShowFieldError("year") ? invalidFieldClass : "border-gray-200 focus:border-[#2563EB] focus:ring-[#2563EB]/20"}`}
                 value={vehicle.year ?? ""}
-                onChange={(e) => onChange({ year: e.target.value ? Number(e.target.value) : null })}
+                onChange={(e) => {
+                  markTouched("year");
+                  onChange({ year: e.target.value ? Number(e.target.value) : null });
+                }}
+                aria-invalid={shouldShowFieldError("year")}
+                aria-describedby={shouldShowFieldError("year") ? "year-error" : undefined}
               />
+              {shouldShowFieldError("year") && (
+                <p id="year-error" className="mt-0.5 text-xs font-medium text-red-600">Câmp obligatoriu</p>
+              )}
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-500">Cilindree (cm3)</label>
+              <label className="mb-1 block text-xs font-medium text-gray-500">Cilindree (cm3){requiredMark}</label>
               <input
+                ref={assignFieldRef("engineCapacity")}
                 type="number"
-                className="w-full rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none"
+                inputMode="numeric"
+                className={`${fieldBaseClass} ${shouldShowFieldError("engineCapacity") ? invalidFieldClass : "border-gray-200 focus:border-[#2563EB] focus:ring-[#2563EB]/20"}`}
                 value={vehicle.engineCapacity ?? ""}
-                onChange={(e) => onChange({ engineCapacity: e.target.value ? Number(e.target.value) : null })}
+                onChange={(e) => {
+                  markTouched("engineCapacity");
+                  onChange({ engineCapacity: e.target.value ? Number(e.target.value) : null });
+                }}
+                aria-invalid={shouldShowFieldError("engineCapacity")}
+                aria-describedby={shouldShowFieldError("engineCapacity") ? "engineCapacity-error" : undefined}
               />
+              {shouldShowFieldError("engineCapacity") && (
+                <p id="engineCapacity-error" className="mt-0.5 text-xs font-medium text-red-600">Câmp obligatoriu</p>
+              )}
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-500">Putere (kW)</label>
+              <label className="mb-1 block text-xs font-medium text-gray-500">Putere (kW){requiredMark}</label>
               <input
+                ref={assignFieldRef("enginePowerKw")}
                 type="number"
-                className={`w-full rounded-xl border-2 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none ${
-                  lookupDone && powerInvalid ? "border-red-400" : "border-gray-200"
-                }`}
+                inputMode="numeric"
+                className={`${fieldBaseClass} ${shouldShowFieldError("enginePowerKw") ? invalidFieldClass : "border-gray-200 focus:border-[#2563EB] focus:ring-[#2563EB]/20"}`}
                 value={vehicle.enginePowerKw ?? ""}
-                onChange={(e) => onChange({ enginePowerKw: e.target.value ? Number(e.target.value) : null })}
+                onChange={(e) => {
+                  markTouched("enginePowerKw");
+                  onChange({ enginePowerKw: e.target.value ? Number(e.target.value) : null });
+                }}
+                aria-invalid={shouldShowFieldError("enginePowerKw")}
+                aria-describedby={shouldShowFieldError("enginePowerKw") ? "enginePowerKw-error" : undefined}
               />
-              {lookupDone && powerInvalid && (
-                <p className="mt-0.5 text-xs font-medium text-red-600">
+              {shouldShowFieldError("enginePowerKw") && (
+                <p id="enginePowerKw-error" className="mt-0.5 text-xs font-medium text-red-600">
                   Verificați puterea conform talonului / CIV. Pentru vehicule electrice, completați puterea netă din CIV.
                 </p>
               )}
@@ -303,35 +405,55 @@ export default function VinLookup({ vehicle, onChange, onContinue, mileage, onMi
               <label className="mb-1 block text-xs font-medium text-gray-500">Masa (kg)</label>
               <input
                 type="number"
+                inputMode="numeric"
                 className="w-full rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none"
                 value={vehicle.totalWeight ?? ""}
                 onChange={(e) => onChange({ totalWeight: e.target.value ? Number(e.target.value) : null })}
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-500">Locuri</label>
+              <label className="mb-1 block text-xs font-medium text-gray-500">Locuri{requiredMark}</label>
               <input
+                ref={assignFieldRef("seats")}
                 type="number"
-                className="w-full rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none"
+                inputMode="numeric"
+                className={`${fieldBaseClass} ${shouldShowFieldError("seats") ? invalidFieldClass : "border-gray-200 focus:border-[#2563EB] focus:ring-[#2563EB]/20"}`}
                 value={vehicle.seats ?? ""}
-                onChange={(e) => onChange({ seats: e.target.value ? Number(e.target.value) : null })}
+                onChange={(e) => {
+                  markTouched("seats");
+                  onChange({ seats: e.target.value ? Number(e.target.value) : null });
+                }}
+                aria-invalid={shouldShowFieldError("seats")}
+                aria-describedby={shouldShowFieldError("seats") ? "seats-error" : undefined}
               />
+              {shouldShowFieldError("seats") && (
+                <p id="seats-error" className="mt-0.5 text-xs font-medium text-red-600">Câmp obligatoriu</p>
+              )}
             </div>
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-500">Combustibil</label>
+              <label className="mb-1 block text-xs font-medium text-gray-500">Combustibil{requiredMark}</label>
               <select
-                className="w-full rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none"
+                ref={assignFieldRef("fuelTypeId")}
+                className={`${fieldBaseClass} ${shouldShowFieldError("fuelTypeId") ? invalidFieldClass : "border-gray-200 focus:border-[#2563EB] focus:ring-[#2563EB]/20"}`}
                 value={vehicle.fuelTypeId ?? ""}
-                onChange={(e) => onChange({ fuelTypeId: e.target.value ? Number(e.target.value) : null })}
+                onChange={(e) => {
+                  markTouched("fuelTypeId");
+                  onChange({ fuelTypeId: e.target.value ? Number(e.target.value) : null });
+                }}
+                aria-invalid={shouldShowFieldError("fuelTypeId")}
+                aria-describedby={shouldShowFieldError("fuelTypeId") ? "fuelTypeId-error" : undefined}
               >
                 <option value="">Selectează</option>
                 {fuelTypes.map((f) => (
                   <option key={f.id} value={f.id}>{f.name}</option>
                 ))}
               </select>
+              {shouldShowFieldError("fuelTypeId") && (
+                <p id="fuelTypeId-error" className="mt-0.5 text-xs font-medium text-red-600">Câmp obligatoriu</p>
+              )}
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-500">Tip utilizare</label>
@@ -343,21 +465,25 @@ export default function VinLookup({ vehicle, onChange, onContinue, mileage, onMi
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-500">Subcategorie</label>
+              <label className="mb-1 block text-xs font-medium text-gray-500">Subcategorie{requiredMark}</label>
               <select
-                className={`w-full appearance-none rounded-xl border-2 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none ${
-                  !vehicle.subcategoryId ? "border-red-400" : "border-gray-200"
-                }`}
+                ref={assignFieldRef("subcategoryId")}
+                className={`${fieldBaseClass} appearance-none ${shouldShowFieldError("subcategoryId") ? invalidFieldClass : "border-gray-200 focus:border-[#2563EB] focus:ring-[#2563EB]/20"}`}
                 value={vehicle.subcategoryId ?? ""}
-                onChange={(e) => onChange({ subcategoryId: e.target.value ? Number(e.target.value) : null })}
+                onChange={(e) => {
+                  markTouched("subcategoryId");
+                  onChange({ subcategoryId: e.target.value ? Number(e.target.value) : null });
+                }}
+                aria-invalid={shouldShowFieldError("subcategoryId")}
+                aria-describedby={shouldShowFieldError("subcategoryId") ? "subcategoryId-error" : undefined}
               >
                 <option value="">Selectează</option>
                 {subcategories.map((s) => (
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
               </select>
-              {!vehicle.subcategoryId && (
-                <p className="mt-0.5 text-xs font-medium text-red-600">
+              {shouldShowFieldError("subcategoryId") && (
+                <p id="subcategoryId-error" className="mt-0.5 text-xs font-medium text-red-600">
                   Verificați subcategoria conform talonului.
                 </p>
               )}
@@ -376,42 +502,72 @@ export default function VinLookup({ vehicle, onChange, onContinue, mileage, onMi
             </div>
             {onMileageChange && (
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-500">Kilometraj (km)</label>
+                <label className="mb-1 block text-xs font-medium text-gray-500">Kilometraj (km){requiredMark}</label>
                 <input
+                  ref={assignFieldRef("mileage")}
                   type="number"
-                  className="w-full rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none"
+                  inputMode="numeric"
+                  className={`${fieldBaseClass} ${shouldShowFieldError("mileage") ? invalidFieldClass : "border-gray-200 focus:border-[#2563EB] focus:ring-[#2563EB]/20"}`}
                   value={mileage ?? ""}
-                  onChange={(e) => onMileageChange(e.target.value)}
+                  onChange={(e) => {
+                    markTouched("mileage");
+                    onMileageChange(e.target.value);
+                  }}
                   placeholder="Ex: 50000"
                   min={0}
+                  aria-invalid={shouldShowFieldError("mileage")}
+                  aria-describedby={shouldShowFieldError("mileage") ? "mileage-error" : undefined}
                 />
+                {shouldShowFieldError("mileage") && (
+                  <p id="mileage-error" className="mt-0.5 text-xs font-medium text-red-600">Câmp obligatoriu</p>
+                )}
               </div>
             )}
           </div>
 
           <div className="pt-2 text-center">
-            <button
-              type="button"
-              onClick={onContinue}
-              disabled={!isVehicleReady}
-              className={`${btn.primary} px-8`}
+            <div
+              className="inline-block"
+              onClick={!isVehicleReady ? handleContinueAttempt : undefined}
+              role={!isVehicleReady ? "button" : undefined}
+              tabIndex={!isVehicleReady ? 0 : undefined}
+              onKeyDown={
+                !isVehicleReady
+                  ? (e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        handleContinueAttempt();
+                      }
+                    }
+                  : undefined
+              }
+              aria-label={!isVehicleReady ? "Evidențiază câmpurile lipsă" : undefined}
             >
-              <span className="flex items-center gap-2">
-                Continuă
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                </svg>
-              </span>
-            </button>
+              <button
+                type="button"
+                onClick={handleContinueAttempt}
+                disabled={!isVehicleReady}
+                className={`${btn.primary} px-8 ${!isVehicleReady ? "pointer-events-none" : ""}`}
+              >
+                <span className="flex items-center gap-2">
+                  Continuă
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                  </svg>
+                </span>
+              </button>
+            </div>
             {!isVehicleReady && (
-              <p className="mt-1 text-xs text-amber-600">Completați toate câmpurile obligatorii</p>
+              <p className="mt-1 text-xs text-amber-700">
+                Completează câmpurile marcate cu roșu pentru a continua.
+              </p>
             )}
           </div>
         </div>
       )}
       {/* Category override warning popup */}
       {categoryOverrideLabel && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+        <div className="z-layer-modal fixed inset-0 flex items-center justify-center bg-black/40">
           <div className="mx-4 w-full max-w-sm rounded-2xl bg-amber-50 p-8 text-center shadow-xl">
             {/* Bell icon */}
             <div className="mx-auto mb-4 text-amber-500">

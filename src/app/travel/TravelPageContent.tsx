@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useLayoutEffect, useMemo } from "react";
 import WizardStepper, { useWizard } from "@/components/shared/WizardStepper";
 import PersonForm, { emptyPersonPF } from "@/components/shared/PersonForm";
 import OfferCard from "@/components/shared/OfferCard";
@@ -92,6 +92,20 @@ function countrySetForZone(zoneCode: string, zoneName: string): Set<string> | nu
   if (upper.includes("EUROP")) return EUROPE_CODES;
   return null; // worldwide / unknown → show all
 }
+
+const TRUST_BADGES = [
+  "Autorizare ASF: RAJ506943",
+  "Date securizate (SSL)",
+  "Partener MaxyGo Broker de Asigurare SRL",
+];
+
+const COVERAGE_ITEMS = [
+  "Asistenta medicala in strainatate",
+  "Protectie bagaje si documente",
+  "Optiuni suplimentare pentru storno si asistenta",
+];
+
+const REMAINING_BY_STEP = ["~2 min ramase", "~90 sec ramase", "~45 sec ramase", "Ultimul pas"];
 
 export default function TravelPage() {
   // Utils
@@ -197,6 +211,26 @@ export default function TravelPage() {
 
   // Clear stale offers/order when navigating back to trip or travelers steps
   const offersStepIndex = 2; // 0-indexed: Trip, Travelers, Offers, Payment
+  const isOffersStep = currentStep === offersStepIndex;
+  useLayoutEffect(() => {
+    if (typeof window === "undefined" || typeof history === "undefined") return;
+    const previousScrollRestoration = history.scrollRestoration;
+    history.scrollRestoration = "manual";
+
+    return () => {
+      history.scrollRestoration = previousScrollRestoration;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.scrollTo(0, 0);
+    requestAnimationFrame(() => {
+      window.scrollTo(0, 0);
+      requestAnimationFrame(() => window.scrollTo(0, 0));
+    });
+  }, [currentStep]);
+
   useEffect(() => {
     if (currentStep < offersStepIndex) {
       setOffers([]);
@@ -368,10 +402,16 @@ export default function TravelPage() {
         const inputCls = "w-full rounded-xl border-2 border-gray-200 bg-white px-3 py-2 text-sm transition-colors duration-200 focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none";
         const toggleCls = (on: boolean) => `flex items-center gap-2 rounded-lg border-2 px-3 py-2 text-left text-xs font-medium transition-all duration-200 ${on ? "border-[#2563EB] bg-blue-50/60 text-blue-700" : "border-gray-200 bg-gray-50/30 text-gray-600 hover:border-gray-300"}`;
         return (
-        <div className="mx-auto max-w-2xl space-y-4">
+        <div className="mx-auto max-w-3xl space-y-5">
+          <div className="rounded-2xl border border-blue-100 bg-blue-50/50 p-4">
+            <p className="text-sm font-semibold text-blue-800">Detalii calatorie</p>
+            <p className="mt-1 text-sm text-blue-700/80">
+              Completeaza traseul, perioada si optiunile dorite pentru a primi oferte comparabile.
+            </p>
+          </div>
           {/* Main card — destination + trip + travelers */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+          <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+            <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-500">Zona</label>
                 <select className={selectCls} value={travelZone} onChange={(e) => { setTravelZone(e.target.value); setDestinationCountryId(""); }}>
@@ -426,7 +466,7 @@ export default function TravelPage() {
           </div>
 
           {/* Options — compact toggles */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
             <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">Optiuni suplimentare</p>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               <button type="button" onClick={() => setSummerSports(!summerSports)} className={toggleCls(summerSports)}>
@@ -449,7 +489,7 @@ export default function TravelPage() {
 
             {/* Storno sub-fields */}
             {withStorno && (
-              <div className="mt-2 grid grid-cols-2 gap-3 rounded-lg border border-blue-100 bg-blue-50/30 p-3">
+              <div className="mt-2 grid grid-cols-1 gap-3 rounded-lg border border-blue-100 bg-blue-50/30 p-3 sm:grid-cols-2">
                 <div>
                   <label className="mb-1 block text-xs font-medium text-gray-500">Valoare asigurata (EUR)</label>
                   <input type="number" min={1} placeholder="ex: 2000" className={inputCls} value={stornoInsuredValueEUR} onChange={(e) => setStornoInsuredValueEUR(e.target.value ? Number(e.target.value) : "")} />
@@ -489,7 +529,7 @@ export default function TravelPage() {
           </div>
 
           {/* Continue */}
-          <div className="text-center pt-1">
+          <div className="text-center pt-2">
             <button type="button" onClick={() => isTripStepValid && next()} disabled={!isTripStepValid} className={btn.primary}>
               <span className="flex items-center justify-center gap-2">
                 Continua
@@ -504,9 +544,15 @@ export default function TravelPage() {
     {
       title: "Date Calatori",
       content: (
-        <div className="mx-auto max-w-2xl space-y-4">
+        <div className="mx-auto max-w-3xl space-y-5">
           {!showDntSubstep ? (
             <>
+              <div className="rounded-2xl border border-blue-100 bg-blue-50/50 p-4">
+                <p className="text-sm font-semibold text-blue-800">Date calatori</p>
+                <p className="mt-1 text-sm text-blue-700/80">
+                  Verificam identitatea si datele de contact pentru emiterea politei.
+                </p>
+              </div>
               {travelers.map((traveler, i) => (
                 <PersonForm
                   key={i}
@@ -614,7 +660,7 @@ export default function TravelPage() {
     {
       title: "Oferte",
       content: (
-        <div className="space-y-4">
+        <div className="space-y-5">
           {/* Back button */}
           <button type="button" onClick={prev} className="inline-flex items-center gap-2 text-sm font-semibold text-gray-500 transition-colors duration-200 hover:text-gray-700">
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" /></svg>
@@ -655,10 +701,15 @@ export default function TravelPage() {
 
             return (
               <>
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Oferte Travel disponibile
-                  <span className="ml-2 text-sm font-normal text-gray-400">({validOffers.length} oferte)</span>
-                </h3>
+                <div className="rounded-2xl border border-blue-100 bg-blue-50/40 p-4">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Oferte Travel disponibile
+                    <span className="ml-2 text-sm font-normal text-gray-500">({validOffers.length} oferte)</span>
+                  </h3>
+                  <p className="mt-1 text-sm text-gray-600">
+                    Selecteaza oferta potrivita si continua direct catre plata securizata.
+                  </p>
+                </div>
 
                 {vendorNames.map((vendor) => {
                   const vendorOffers = grouped[vendor];
@@ -753,24 +804,87 @@ export default function TravelPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-4xl px-4 pt-24 pb-8 sm:px-6 lg:px-8">
-      {/* Page header */}
-      <div className="mb-8 text-center">
-        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg">
-          <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
-          </svg>
+    <>
+      <div className={`mx-auto px-4 pt-20 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] sm:pt-24 sm:pb-24 sm:px-6 lg:px-8 ${isOffersStep ? "max-w-7xl" : "max-w-6xl"}`}>
+        <div className={isOffersStep ? "space-y-8" : "grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start"}>
+          {!isOffersStep && (
+          <aside className="space-y-5 lg:sticky lg:top-24">
+            <div className="rounded-3xl bg-gradient-to-br from-blue-600 to-blue-800 p-6 text-white shadow-xl shadow-blue-900/20">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15">
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
+                </svg>
+              </div>
+              <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
+                Asigurare Travel online, fara drumuri inutile
+              </h1>
+              <p className="mt-4 text-base leading-relaxed text-blue-50">
+                Compara ofertele disponibile, alege acoperirea potrivita si continua rapid spre plata.
+              </p>
+              <p className="mt-4 rounded-2xl bg-white/10 p-3 text-sm leading-relaxed text-blue-50">
+                Pastram aceeasi logica de ofertare, intr-o experienta mai clara si mai usor de parcurs.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+              <p className="text-sm font-semibold text-gray-900">Ce poate include polita Travel:</p>
+              <div className="mt-3 grid gap-2">
+                {COVERAGE_ITEMS.map((item) => (
+                  <div key={item} className="flex items-center gap-2 text-sm text-gray-700">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-green-50 text-xs font-bold text-green-600">✓</span>
+                    {item}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+              <div className="grid gap-2">
+                {TRUST_BADGES.map((badge) => (
+                  <div key={badge} className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                    <span className="h-2 w-2 rounded-full bg-blue-500" />
+                    {badge}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </aside>
+          )}
+
+          <main className={`space-y-5 ${isOffersStep ? "w-full" : ""}`}>
+            <div className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+              <div className="mb-5 text-center">
+                <p className="text-sm font-semibold text-blue-600">Cerere oferta Travel</p>
+                <p className="mt-1 text-sm text-gray-500">
+                  Datele tale raman confidentiale si sunt folosite doar pentru compararea ofertelor.
+                </p>
+              </div>
+              {error && (
+                <div className="mb-4 rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-700">
+                  {error}
+                  <button type="button" onClick={() => setError(null)} className="ml-2 font-medium underline">
+                    Inchide
+                  </button>
+                </div>
+              )}
+              <WizardStepper
+                steps={steps}
+                currentStep={currentStep}
+                onStepChange={goTo}
+                remainingText={REMAINING_BY_STEP[currentStep]}
+              />
+            </div>
+          </main>
         </div>
-        <h1 className="text-2xl font-bold text-gray-900">Asigurare de Calatorie</h1>
-        <p className="mt-1 text-sm text-gray-500">Calatoreste in siguranta oriunde in lume</p>
       </div>
-      {error && (
-        <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">
-          {error}
-          <button type="button" onClick={() => setError(null)} className="ml-2 font-medium underline">Inchide</button>
+
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/95 px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] shadow-[0_-8px_20px_rgba(15,23,42,0.08)] backdrop-blur sm:hidden">
+        <div className="mx-auto max-w-md">
+          <div className="rounded-xl border border-blue-100 bg-blue-50/60 px-3 py-2.5 text-center text-xs font-medium leading-snug text-blue-700">
+            Calculeaza rapid oferta potrivita pentru calatoria ta.
+          </div>
         </div>
-      )}
-      <WizardStepper steps={steps} currentStep={currentStep} onStepChange={goTo} />
-    </div>
+      </div>
+    </>
   );
 }

@@ -57,6 +57,56 @@ export function validateEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+/** Major consumer email providers — skip DNS/MX checks (often flaky in dev or restricted networks). */
+const KNOWN_EMAIL_PROVIDER_DOMAINS = new Set([
+  "gmail.com",
+  "googlemail.com",
+  "yahoo.com",
+  "yahoo.co.uk",
+  "yahoo.fr",
+  "yahoo.de",
+  "yahoo.it",
+  "yahoo.es",
+  "outlook.com",
+  "outlook.ro",
+  "hotmail.com",
+  "hotmail.co.uk",
+  "live.com",
+  "msn.com",
+  "icloud.com",
+  "me.com",
+  "mac.com",
+  "proton.me",
+  "protonmail.com",
+  "pm.me",
+  "aol.com",
+  "zoho.com",
+  "gmx.com",
+  "gmx.de",
+  "mail.com",
+  "yandex.com",
+  "yandex.ru",
+  "fastmail.com",
+  "tutanota.com",
+  "tuta.io",
+]);
+
+export function getEmailDomain(email: string): string | null {
+  const at = email.lastIndexOf("@");
+  if (at <= 0 || at === email.length - 1) return null;
+  const domain = email.slice(at + 1).trim().toLowerCase();
+  return domain.length > 0 ? domain : null;
+}
+
+export function isKnownEmailProviderDomain(domain: string): boolean {
+  return KNOWN_EMAIL_PROVIDER_DOMAINS.has(domain.trim().toLowerCase());
+}
+
+export function isKnownEmailProvider(email: string): boolean {
+  const domain = getEmailDomain(email);
+  return domain !== null && isKnownEmailProviderDomain(domain);
+}
+
 /**
  * Common email domain typos → correct domain.
  * Returns a suggested correction or null if the domain looks fine.

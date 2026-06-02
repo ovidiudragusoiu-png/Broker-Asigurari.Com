@@ -86,7 +86,7 @@ export default function ContactPage() {
 
   if (submitted) {
     return (
-      <div className="mx-auto max-w-4xl px-4 pt-24 pb-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-4xl px-4 pt-20 pb-8 sm:pt-24 sm:px-6 lg:px-8">
         <div className="text-center">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-green-500 to-green-600 shadow-lg shadow-green-500/25">
             <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -108,7 +108,7 @@ export default function ContactPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-4 pt-24 pb-8 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-4xl px-4 pt-20 pb-8 sm:pt-24 sm:px-6 lg:px-8">
       {/* Page header */}
       <div className="text-center mb-6">
         <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/25">

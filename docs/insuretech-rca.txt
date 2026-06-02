@@ -494,6 +494,12 @@ Response: ProductResponse[]
 
 4.2. Fetching Available Additional Products
 
+IMPORTANT!
+This catalog is global for the broker integration (all supplementary insurers and product tiers).
+vendorDetails on each row is the supplementary product insurer (e.g. Grawe, Colonnade), not the RCA
+insurer selected on the main offer card. The same catalog is quoted per order via 5.3.2 using orderId
+and each catalog productId. See docs/rca-supplementary-products.md in this repo.
+
 Request
 
 GET /online/products/rca/additionals
@@ -662,6 +668,8 @@ Response: RCAMultipleOffersResponse
 
 IMPORTANT!
 If the 'periodMonths' is empty or null, the the endpoint returns 2 offers: one for 6 months and another for 12 months.
+Call once per catalog productId (not filtered by RCA insurer). productDetails.productName is the
+commercial label shown to users (e.g. road assistance tier names).
 
 Request
 

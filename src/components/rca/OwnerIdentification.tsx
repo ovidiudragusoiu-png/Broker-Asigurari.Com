@@ -70,6 +70,10 @@ export default function OwnerIdentification({
         </label>
         <input
           type="text"
+          inputMode="numeric"
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck={false}
           className="w-full rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none"
           value={cnpOrCui}
           onChange={(e) => onCnpChange(e.target.value.replace(/\D/g, ""))}
@@ -114,7 +118,7 @@ export default function OwnerIdentification({
 
       {/* Privacy policy modal */}
       {showPrivacy && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="z-layer-modal fixed inset-0 flex items-center justify-center bg-black/50">
           <div className="mx-4 max-h-[80vh] max-w-lg overflow-y-auto rounded-xl bg-white p-6 shadow-xl">
             <h3 className="mb-3 text-lg font-bold text-gray-900">
               Politica de prelucrare a datelor cu caracter personal

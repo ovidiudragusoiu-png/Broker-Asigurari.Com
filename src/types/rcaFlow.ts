@@ -1,4 +1,5 @@
 import type { AddressRequest } from "./insuretech";
+import type { RcaSelectedAddon } from "./rcaAddons";
 
 // ----- Offer types (extracted from page.tsx) -----
 
@@ -44,6 +45,7 @@ export interface SelectedOfferState {
   period: string;
   withDirectSettlement: boolean;
   premium: number;
+  addons?: RcaSelectedAddon[];
 }
 
 // ----- Vehicle data -----
@@ -117,6 +119,8 @@ export interface RcaFlowState {
   hasDirectSettlementData: boolean | null;
   selectedOffer: SelectedOfferState | null;
   loadingOffers: boolean;
+  /** True after the current offer-generation batch has finished (success or failure). */
+  offersReady: boolean;
 
   // Phase 3: Post-offer data (steps 4-5)
   registrationCertSeries: string;
@@ -165,6 +169,7 @@ export type RcaAction =
   | { type: "SET_OFFERS"; offers: RcaOffer[]; hasDirectSettlementData: boolean | null }
   | { type: "APPEND_OFFERS"; offers: RcaOffer[] }
   | { type: "SET_LOADING_OFFERS"; loading: boolean }
+  | { type: "SET_OFFERS_READY"; ready: boolean }
   | { type: "SELECT_OFFER"; selected: SelectedOfferState | null }
   | { type: "SET_POLICY_DETAILS"; details: Partial<Pick<RcaFlowState, "registrationCertSeries" | "startDate" | "ownerFirstName" | "ownerLastName" | "companyName" | "registrationNumber" | "caenCode" | "idType" | "idSeries" | "idNumber" | "driverLicenceDate">> }
   | { type: "SET_COMPANY_DATA"; companyName: string; registrationNumber: string; caenCode: string | null; companyTypeId: number | null }

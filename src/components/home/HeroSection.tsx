@@ -22,7 +22,7 @@ const CATEGORIES: Category[] = [
     href: "/rca",
     icon: Car,
     active: true,
-    description: "Asigurare obligatorie de răspundere civilă auto. Compară oferte de la 11+ asigurători.",
+    description: "Asigurare obligatorie de răspundere civilă auto. Compară oferte de la toți asigurătorii.",
     features: ["Carte Verde inclusă", "Validare în timp real", "Polița emisă instant"],
     badge: "Cel mai căutat",
   },
@@ -121,28 +121,28 @@ export default function HeroSection() {
   }, []);
 
   return (
-    <section ref={heroRef} className="relative overflow-hidden bg-[#F8F9FA] pt-32 pb-8">
+    <section ref={heroRef} className="relative overflow-hidden bg-[#F8F9FA] pt-24 pb-6 sm:pt-28 sm:pb-8 lg:pt-32">
       {/* Background blobs */}
       <div className="pointer-events-none absolute left-0 top-0 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-100/50 blur-[100px]" />
       <div className="pointer-events-none absolute right-0 top-1/2 h-[400px] w-[400px] translate-x-1/3 -translate-y-1/2 rounded-full bg-orange-100/50 blur-[100px]" />
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="grid gap-12 lg:grid-cols-2 lg:gap-8 items-center">
+        <div className="grid items-center gap-8 lg:grid-cols-2 lg:gap-8">
 
           {/* Left Column */}
           <div className="max-w-2xl">
-            <h1 className="hero-text text-5xl font-extrabold tracking-tight text-[#1E293B] sm:text-6xl lg:text-7xl font-heading leading-[1.1]">
+            <h1 className="hero-text text-4xl font-extrabold tracking-tight text-[#1E293B] sm:text-5xl lg:text-7xl font-heading leading-[1.1]">
               Partenerul tău <br />
               de încredere <br />
               în <span className="text-[#2563EB]">asigurări</span>
             </h1>
 
-            <p className="hero-text mt-6 text-lg text-slate-500 max-w-lg leading-relaxed">
-              Compară sute de oferte de la 11+ asiguratori, personalizează polița și obține cel mai bun preț în doar câteva minute.
+            <p className="hero-text mt-4 max-w-lg text-base leading-relaxed text-slate-500 sm:mt-6 sm:text-lg">
+              Compară sute de oferte de la toți asigurătorii, personalizează polița și obține cel mai bun preț în doar câteva minute.
             </p>
 
             {/* CTA Buttons */}
-            <div className="hero-text mt-8 sm:mt-10 flex flex-wrap gap-3">
+            <div className="hero-text mt-6 flex flex-wrap gap-3 sm:mt-10">
               <Link
                 href="/rca"
                 className="flex items-center gap-2 rounded-full bg-[#2563EB] px-7 py-3.5 text-sm font-bold text-white shadow-md shadow-blue-500/25 transition-all hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-500/35 hover:-translate-y-0.5"
@@ -160,7 +160,7 @@ export default function HeroSection() {
           </div>
 
           {/* Right Column: Dark holographic car card */}
-          <div className="relative mt-8 lg:mt-0">
+          <div className="relative mt-6 hidden sm:mt-8 sm:block lg:mt-0">
             <div className="hero-image relative overflow-hidden rounded-[2.5rem] shadow-2xl shadow-blue-900/30 bg-[#060D1F]">
               {/* Car image */}
               <div className="relative w-full overflow-hidden aspect-[16/10]">
@@ -187,7 +187,7 @@ export default function HeroSection() {
         </div>
 
         {/* Categories Strip */}
-        <div className="hero-categories mt-16 border-t border-gray-200/60 pt-8 pb-4">
+        <div className="hero-categories mt-10 border-t border-gray-200/60 pt-6 pb-4 sm:mt-16 sm:pt-8">
           <div className="relative flex items-center overflow-x-auto rounded-full border border-gray-100 bg-white p-2 shadow-sm scrollbar-hide">
             {CATEGORIES.map((cat) => {
               const Icon = cat.icon;

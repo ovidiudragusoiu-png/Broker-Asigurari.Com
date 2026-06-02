@@ -5,6 +5,7 @@ import { isAdditionalDriverValid } from "@/lib/utils/formGuards";
 import type { AdditionalDriver } from "@/types/rcaFlow";
 import { emptyAdditionalDriver } from "@/lib/utils/rcaHelpers";
 import { btn } from "@/lib/ui/tokens";
+import { normalizeUppercaseInput } from "@/lib/utils/inputNormalization";
 import DateInput from "@/components/shared/DateInput";
 
 interface AdditionalDriverFormProps {
@@ -95,22 +96,30 @@ export default function AdditionalDriverForm({
           <div className="grid grid-cols-2 gap-3">
             <input
               type="text"
+              autoComplete="off"
+              autoCapitalize="characters"
               className={inputCls}
               value={d.lastName}
-              onChange={(e) => updateField("lastName", e.target.value)}
+              onChange={(e) => updateField("lastName", normalizeUppercaseInput(e.target.value))}
               placeholder="NUME SOFER"
             />
             <input
               type="text"
+              autoComplete="off"
+              autoCapitalize="characters"
               className={inputCls}
               value={d.firstName}
-              onChange={(e) => updateField("firstName", e.target.value)}
+              onChange={(e) => updateField("firstName", normalizeUppercaseInput(e.target.value))}
               placeholder="PRENUME SOFER"
             />
           </div>
 
           <input
             type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
             className={inputCls}
             value={d.cnp}
             onChange={(e) => updateField("cnp", e.target.value.replace(/\D/g, ""))}
@@ -122,16 +131,25 @@ export default function AdditionalDriverForm({
           <div className="grid grid-cols-2 gap-3">
             <input
               type="text"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="characters"
+              spellCheck={false}
               className={`${inputCls} uppercase`}
               value={d.idSeries}
-              onChange={(e) => updateField("idSeries", e.target.value.toUpperCase())}
+              onChange={(e) => updateField("idSeries", normalizeUppercaseInput(e.target.value))}
               placeholder="SERIE CI"
             />
             <input
               type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="characters"
+              spellCheck={false}
               className={inputCls}
               value={d.idNumber}
-              onChange={(e) => updateField("idNumber", e.target.value)}
+              onChange={(e) => updateField("idNumber", normalizeUppercaseInput(e.target.value))}
               placeholder="NUMAR CI"
             />
           </div>

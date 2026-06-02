@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { validateLicensePlate } from "@/lib/utils/validation";
 import { btn } from "@/lib/ui/tokens";
+import { normalizeUppercaseInput } from "@/lib/utils/inputNormalization";
 
 interface PlateInputProps {
   value: string;
@@ -23,12 +24,12 @@ export default function PlateInput({ value, onChange, onContinue }: PlateInputPr
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-gray-900">
+        <h2 className="text-xl font-bold text-gray-900 sm:text-2xl">
           Introduceți numărul de înmatriculare
         </h2>
-        <p className="mt-2 text-sm text-gray-500">
+        <p className="mt-1 text-xs text-gray-500 sm:mt-2 sm:text-sm">
           Nu se emit polițe în vederea înmatriculării.
         </p>
       </div>
@@ -39,10 +40,15 @@ export default function PlateInput({ value, onChange, onContinue }: PlateInputPr
         </label>
         <input
           type="text"
+          inputMode="text"
+          autoCapitalize="characters"
+          autoCorrect="off"
+          spellCheck={false}
+          autoComplete="off"
           className="w-full rounded-xl border-2 border-gray-200 bg-gray-50/50 px-4 py-3 text-center text-lg font-bold uppercase tracking-widest text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none"
           value={value}
           onChange={(e) => {
-            onChange(e.target.value.toUpperCase().replace(/[\s\-]/g, ""));
+            onChange(normalizeUppercaseInput(e.target.value).replace(/[\s\-]/g, ""));
             if (!touched) setTouched(true);
           }}
           onKeyDown={(e) => e.key === "Enter" && handleSubmit()}

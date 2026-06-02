@@ -2,14 +2,16 @@
 
 import { useMemo, useState } from "react";
 import Image from "next/image";
-import { Download } from "lucide-react";
+import { Download, Phone, Mail, Clock } from "lucide-react";
 import type {
   RcaFlowState,
   RcaOffer,
   RcaOfferLegalDisclosure,
 } from "@/types/rcaFlow";
 import { getLocalVendorLogo, periodText, getGreenCardExclusions } from "@/lib/utils/rcaHelpers";
+import { formatAddonRoPrice } from "@/lib/utils/rcaAddons";
 import { api } from "@/lib/api/client";
+import AddonOfferDownloadLink from "@/components/rca/AddonOfferDownloadLink";
 import OfferLegalInfo from "@/components/rca/OfferLegalInfo";
 import TermsModal from "./TermsModal";
 import { btn } from "@/lib/ui/tokens";
@@ -224,7 +226,7 @@ export default function ReviewSummary({
                 </svg>
               </div>
               <div>
-                <p className="inline-flex items-center gap-0.5 text-xs text-gray-400">
+                <div className="inline-flex items-center gap-0.5 text-xs text-gray-400">
                   Excluderi Carte Verde
                   <OfferLegalInfo
                     vendorName={offer.offer.vendorName}
@@ -237,7 +239,7 @@ export default function ReviewSummary({
                     onOrderReferenceTariff={onOrderReferenceTariff}
                     inline
                   />
-                </p>
+                </div>
                 <p className="text-xs text-gray-500">{exclusions.join(", ")}</p>
               </div>
             </div>
@@ -246,14 +248,38 @@ export default function ReviewSummary({
 
         {/* Price */}
         <div className="border-t border-gray-100 bg-gradient-to-r from-blue-50/50 to-white px-5 py-4 text-center">
+          {offer.addons && offer.addons.length > 0 && (
+            <div className="mb-3 space-y-1 text-left text-xs text-gray-600">
+              <div className="flex justify-between gap-2">
+                <span>RCA ({periodText(Number(offer.period))})</span>
+                <span className="font-medium">
+                  {formatAddonRoPrice(offer.premium - offer.addons.reduce((s, a) => s + a.premium, 0))} lei
+                </span>
+              </div>
+              {offer.addons.map((addon) => (
+                <div key={addon.offerId} className="flex justify-between gap-2">
+                  <span className="min-w-0">
+                    {addon.label}
+                    {orderHash && (
+                      <AddonOfferDownloadLink
+                        offerId={addon.offerId}
+                        orderHash={orderHash}
+                        className="mt-0.5 flex items-center gap-1 text-[10px] font-medium text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                      />
+                    )}
+                  </span>
+                  <span className="shrink-0 font-medium text-[#2563EB]">
+                    + {formatAddonRoPrice(addon.premium)} lei
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
           <p className="inline-flex items-center justify-center gap-1 text-xs font-medium text-gray-400">
             Total de plată
           </p>
           <p className="mt-1 text-3xl font-bold text-gray-900">
-            {new Intl.NumberFormat("ro-RO", {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            }).format(offer.premium)}{" "}
+            {formatAddonRoPrice(offer.premium)}{" "}
             <span className="text-lg font-semibold text-gray-500">LEI</span>
           </p>
           {canDownloadOffer && (
@@ -294,6 +320,33 @@ export default function ReviewSummary({
           </div>
         </div>
       )}
+
+      {/* Reassurance: fast issuance + how to reach support */}
+      <div className="mx-auto max-w-lg space-y-2 rounded-xl border border-blue-100 bg-white px-4 py-3 text-sm text-gray-700">
+        <div className="flex items-center gap-2">
+          <Clock className="h-4 w-4 shrink-0 text-[#2563EB]" aria-hidden />
+          <span>
+            Polița este emisă automat după plată — de obicei{" "}
+            <strong className="font-semibold text-gray-900">sub 5 minute</strong>.
+          </span>
+        </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pl-6 text-xs text-gray-500">
+          <a
+            href="tel:0720385551"
+            className="inline-flex items-center gap-1 font-medium text-[#2563EB] transition-colors hover:text-blue-700"
+          >
+            <Phone className="h-3.5 w-3.5" aria-hidden />
+            0720 38 55 51
+          </a>
+          <a
+            href="mailto:office@sigur.ai"
+            className="inline-flex items-center gap-1 font-medium text-[#2563EB] transition-colors hover:text-blue-700"
+          >
+            <Mail className="h-3.5 w-3.5" aria-hidden />
+            office@sigur.ai
+          </a>
+        </div>
+      </div>
 
       <div className="text-center">
         {processing ? (

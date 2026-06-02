@@ -191,7 +191,7 @@ FGA (Fondul de Garantare a Asiguraților):
 ▶ DESPRE SIGUR.AI
 
 - Broker de asigurări online autorizat prin FLETHO LLC SRL, autorizație ASF: RAJ506943
-- Comparăm oferte de la 11+ asigurători din România
+- Comparăm oferte de la toți asigurătorii din România
 - Proces 100% online: compari, completezi, plătești cu cardul, primești polița pe email
 - Tipuri de asigurări: RCA, CASCO, Travel, Locuință (PAD + facultativă), Malpraxis, Garanții, Răspundere Profesională
 - Asigurători parteneri: Allianz Țiriac, Groupama, Omniasig, Generali, Asirom, Grawe, Uniqa, Signal Iduna și alții

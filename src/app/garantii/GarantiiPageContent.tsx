@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useLayoutEffect, useCallback } from "react";
 import WizardStepper, { useWizard } from "@/components/shared/WizardStepper";
 import { api } from "@/lib/api/client";
 import { btn } from "@/lib/ui/tokens";
@@ -74,6 +74,12 @@ const selectCls =
 const inputCls =
   "w-full rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none";
 const labelCls = "mb-1 block text-xs font-medium text-gray-500";
+const TRUST_BADGES = [
+  "Autorizare ASF: RAJ506943",
+  "Date securizate (SSL)",
+  "Partener MaxyGo Broker de Asigurare SRL",
+];
+const REMAINING_BY_STEP = ["~2 min ramase", "~90 sec ramase", "Ultimul pas"];
 
 // ── Component ───────────────────────────────────────────────────────
 
@@ -95,6 +101,25 @@ export default function GarantiiPage() {
   // Nomenclatures
   const [counties, setCounties] = useState<SelectOption[]>([]);
   const [cities, setCities] = useState<SelectOption[]>([]);
+
+  useLayoutEffect(() => {
+    if (typeof window === "undefined" || typeof history === "undefined") return;
+    const previousScrollRestoration = history.scrollRestoration;
+    history.scrollRestoration = "manual";
+
+    return () => {
+      history.scrollRestoration = previousScrollRestoration;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.scrollTo(0, 0);
+    requestAnimationFrame(() => {
+      window.scrollTo(0, 0);
+      requestAnimationFrame(() => window.scrollTo(0, 0));
+    });
+  }, [currentStep]);
 
   const isBucharest = BUCHAREST_COUNTY_IDS.has(form.countyId);
   const isBucharestSentinel = form.countyId === BUCHAREST_SENTINEL;
@@ -675,19 +700,40 @@ export default function GarantiiPage() {
   ];
 
   return (
-    <section className="mx-auto max-w-4xl px-4 pt-24 pb-8">
-      {/* Page header */}
-      <div className="mb-6 text-center">
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg">
-          <svg className="h-7 w-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
-          </svg>
-        </div>
-        <h1 className="text-2xl font-bold text-gray-900">Garanții Contractuale</h1>
-        <p className="mt-1 text-sm text-gray-500">Cerere de ofertă pentru garanții contractuale</p>
+    <section className="mx-auto max-w-6xl px-4 pt-20 pb-24 sm:pt-24 sm:px-6 lg:px-8">
+      <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
+        <aside className="space-y-5 lg:sticky lg:top-24">
+          <div className="rounded-3xl bg-gradient-to-br from-blue-600 to-blue-800 p-6 text-white shadow-xl shadow-blue-900/20">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15">
+              <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+              </svg>
+            </div>
+            <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">Garantii Contractuale, proces ghidat</h1>
+            <p className="mt-4 text-base leading-relaxed text-blue-50">Trimiti cererea structurata si esti contactat cu varianta potrivita pentru tipul de garantie.</p>
+          </div>
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="grid gap-2">
+              {TRUST_BADGES.map((badge) => (
+                <div key={badge} className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                  <span className="h-2 w-2 rounded-full bg-blue-500" />
+                  {badge}
+                </div>
+              ))}
+            </div>
+          </div>
+        </aside>
+        <main className="space-y-5">
+          <div className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+            <WizardStepper
+              steps={steps}
+              currentStep={currentStep}
+              onStepChange={goTo}
+              remainingText={REMAINING_BY_STEP[currentStep]}
+            />
+          </div>
+        </main>
       </div>
-
-      <WizardStepper steps={steps} currentStep={currentStep} onStepChange={goTo} />
     </section>
   );
 }

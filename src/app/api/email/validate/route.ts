@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import dns from "dns/promises";
 import { validateBody, emailValidateSchema } from "@/lib/validation/schemas";
+import { isKnownEmailProviderDomain } from "@/lib/utils/validation";
 
 /**
  * Validates an email domain by checking for MX (mail exchange) records.
@@ -20,6 +21,10 @@ export async function POST(request: NextRequest) {
     const domain = email.split("@")[1]?.toLowerCase();
     if (!domain || domain.length < 3 || !domain.includes(".")) {
       return NextResponse.json({ valid: false, reason: "invalid_domain" });
+    }
+
+    if (isKnownEmailProviderDomain(domain)) {
+      return NextResponse.json({ valid: true });
     }
 
     // Check MX records first, then fall back to A record (RFC 5321 §5)

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import { validateEmail, suggestEmailTypo } from "@/lib/utils/validation";
+import { validateEmail, suggestEmailTypo, isKnownEmailProvider } from "@/lib/utils/validation";
 
 interface EmailInputProps {
   value: string;
@@ -61,6 +61,11 @@ export default function EmailInput({
     const trimmed = value.trim().toLowerCase();
     if (lastChecked.current === trimmed) return;
 
+    if (isKnownEmailProvider(trimmed)) {
+      lastChecked.current = trimmed;
+      return;
+    }
+
     // Abort any in-flight request
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -103,6 +108,11 @@ export default function EmailInput({
     <div>
       <input
         type="email"
+        inputMode="email"
+        autoComplete="email"
+        autoCapitalize="off"
+        autoCorrect="off"
+        spellCheck={false}
         className={inputClass}
         placeholder={placeholder}
         value={value}

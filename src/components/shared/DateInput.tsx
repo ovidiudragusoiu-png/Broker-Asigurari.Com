@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import DatePicker, { registerLocale } from "react-datepicker";
 import { ro } from "date-fns/locale/ro";
 import "react-datepicker/dist/react-datepicker.css";
@@ -33,7 +33,21 @@ function formatDate(date: Date): string {
 }
 
 const inputCls =
-  "w-full rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none";
+  "w-full min-h-[44px] rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-3 text-base text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none sm:py-2.5 sm:text-sm";
+
+function usePreferNativeDate() {
+  const [preferNative, setPreferNative] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 639px), (pointer: coarse)");
+    const update = () => setPreferNative(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
+  return preferNative;
+}
 
 export default function DateInput({
   value,
@@ -45,12 +59,28 @@ export default function DateInput({
   className,
   placeholder = "Selectează data",
 }: DateInputProps) {
+  const preferNative = usePreferNativeDate();
   const selected = parseDate(value);
   const minDate = min ? parseDate(min) : undefined;
   const maxDate = max ? parseDate(max) : undefined;
+  const mergedCls = className || inputCls;
 
-  // Suppress hydration mismatch for date picker
-  useEffect(() => {}, []);
+  if (preferNative) {
+    return (
+      <input
+        type="date"
+        value={value}
+        min={min}
+        max={max}
+        disabled={disabled}
+        readOnly={readOnly}
+        placeholder={placeholder}
+        autoComplete="off"
+        className={`${mergedCls} broker-date-native`}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    );
+  }
 
   return (
     <DatePicker
@@ -68,7 +98,7 @@ export default function DateInput({
       showYearDropdown
       dropdownMode="select"
       placeholderText={placeholder}
-      className={className || inputCls}
+      className={mergedCls}
       calendarClassName="broker-datepicker"
       autoComplete="off"
     />

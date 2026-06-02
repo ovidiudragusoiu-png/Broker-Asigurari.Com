@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useLayoutEffect } from "react";
 import WizardStepper, { useWizard } from "@/components/shared/WizardStepper";
 import PersonForm, { emptyPersonPF } from "@/components/shared/PersonForm";
 import AddressForm, { emptyAddress } from "@/components/shared/AddressForm";
@@ -53,6 +53,20 @@ interface ConstructionTypeOption {
   name: string;
   description?: string;
 }
+
+const TRUST_BADGES = [
+  "Autorizare ASF: RAJ506943",
+  "Date securizate (SSL)",
+  "Partener MaxyGo Broker de Asigurare SRL",
+];
+
+const COVERAGE_ITEMS = [
+  "Locuinta si bunuri",
+  "Riscuri naturale si accidente",
+  "Suport pentru emitere rapida",
+];
+
+const REMAINING_BY_STEP = ["~2 min ramase", "~90 sec ramase", "~45 sec ramase", "Ultimul pas"];
 
 export default function HousePage() {
   // House comparator utils
@@ -131,13 +145,35 @@ export default function HousePage() {
   const [showGdprModal, setShowGdprModal] = useState(false);
   const [downloadingOfferId, setDownloadingOfferId] = useState<number | null>(null);
   const [downloadErrors, setDownloadErrors] = useState<Record<string, string>>({});
+  const [showUnavailableOffers, setShowUnavailableOffers] = useState(false);
 
   const { currentStep, next, prev, goTo } = useWizard(4);
+  const offersStepIndex = 2; // 0-indexed: House details, Insured, Offers, Payment
+  const isOffersStep = currentStep === offersStepIndex;
   const [showErrors, setShowErrors] = useState(false);
+
+  useLayoutEffect(() => {
+    if (typeof window === "undefined" || typeof history === "undefined") return;
+    const previousScrollRestoration = history.scrollRestoration;
+    history.scrollRestoration = "manual";
+
+    return () => {
+      history.scrollRestoration = previousScrollRestoration;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.scrollTo(0, 0);
+    requestAnimationFrame(() => {
+      window.scrollTo(0, 0);
+      requestAnimationFrame(() => window.scrollTo(0, 0));
+    });
+  }, [currentStep]);
 
   // Auto-generate offers when user reaches step 3
   useEffect(() => {
-    if (currentStep === 2 && offers.length === 0 && !loadingOffers) {
+    if (currentStep === offersStepIndex && offers.length === 0 && !loadingOffers) {
       handleCreateOrderAndOffers();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -511,6 +547,17 @@ export default function HousePage() {
     } finally {
       setDownloadingOfferId(null);
     }
+  };
+
+  const hasSelectablePrice = (offer: HouseOffer) => {
+    const premium = Number(offer.policyPremium);
+    return Number.isFinite(premium) && premium > 0 && !offer.hasApiError && !offer.error;
+  };
+
+  const isUnavailableOffer = (offer: HouseOffer) => {
+    const premium = Number(offer.policyPremium);
+    const hasPositivePremium = Number.isFinite(premium) && premium > 0;
+    return !hasPositivePremium || !!offer.hasApiError || !!offer.error;
   };
 
   const steps = [
@@ -985,7 +1032,7 @@ export default function HousePage() {
         <div className="space-y-4">
           {/* Property summary bar */}
           <div className="rounded-xl border border-blue-100 bg-blue-50/60 px-4 py-3">
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-blue-400">Locuinta asigurata</p>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-blue-400">Locuinta asigurata</p>
             <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-gray-700">
               <span className="flex items-center gap-1">
                 <svg className="h-3.5 w-3.5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 21v-4.875c0-.621.504-1.125 1.125-1.125h5.25c.621 0 1.125.504 1.125 1.125V21m0 0h4.5V3.545M12.75 21h7.5V10.75M2.25 21h1.5m18 0h-18M2.25 9l4.5-1.636M18.75 3l-1.5.545m0 6.205 3 1m1.5.5-1.5-.5M6.75 7.364V3h-3v18m3-13.636 10.5-3.819" /></svg>
@@ -1019,9 +1066,9 @@ export default function HousePage() {
             </div>
           )}
           {offers.length > 0 && (() => {
-            // Only JS/network errors go to "indisponibil" — zero-premium stays in main grid
-            const mainOffers = offers.filter((o) => !o.error);
-            const failedOffers = offers.filter((o) => !!o.error);
+            // Show only selectable offers (valid positive premium and no API/network error)
+            const mainOffers = offers.filter(hasSelectablePrice);
+            const unavailableOffers = offers.filter(isUnavailableOffer);
 
             const SPECIFIC_LABELS: Record<string, string> = {
               PORTABLE_GOODS_INSURED_SUM: "Bunuri portabile",
@@ -1043,14 +1090,7 @@ export default function HousePage() {
               return acc;
             }, {});
 
-            // Sort vendors: those with at least one valid price first
-            const sortedVendors = Object.keys(grouped).sort((a, b) => {
-              const aHasPrice = grouped[a].some((o) => !o.hasApiError && o.policyPremium > 0);
-              const bHasPrice = grouped[b].some((o) => !o.hasApiError && o.policyPremium > 0);
-              if (aHasPrice && !bHasPrice) return -1;
-              if (!aHasPrice && bHasPrice) return 1;
-              return 0;
-            });
+            const sortedVendors = Object.keys(grouped);
 
             const palette = ["bg-blue-600","bg-emerald-600","bg-violet-600","bg-orange-500","bg-rose-600","bg-cyan-600","bg-pink-600"];
             const vendorColors: Record<string, string> = {};
@@ -1058,11 +1098,11 @@ export default function HousePage() {
 
             return (
               <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-gray-900">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <h3 className="text-base font-semibold text-gray-900 sm:text-lg">
                     {mainOffers.filter(o => o.policyPremium > 0).length} oferte disponibile
                   </h3>
-                  <button type="button" onClick={() => { setOffers([]); setSelectedOffer(null); setPadOffer(null); setOrderId(null); setOrderHash(null); setError(null); prev(); }} className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">
+                  <button type="button" onClick={() => { setOffers([]); setSelectedOffer(null); setPadOffer(null); setOrderId(null); setOrderHash(null); setError(null); prev(); }} className="flex min-h-11 w-full items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 sm:w-auto sm:py-1.5 sm:text-xs">
                     <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" /></svg>
                     Inapoi
                   </button>
@@ -1081,7 +1121,6 @@ export default function HousePage() {
                     <div className="grid gap-3 sm:grid-cols-2">
                       {vendorOffers.map((offer, offerIdx) => {
                         const isSelected = selectedOffer?.id === offer.id;
-                        const unavailable = offer.hasApiError || offer.policyPremium === 0;
                         const relevantDetails = (offer.specificDetails || []).filter(
                           (d) => d.value !== 0 && d.value !== false && d.value !== null && SPECIFIC_LABELS[d.code]
                         );
@@ -1093,52 +1132,40 @@ export default function HousePage() {
                         return (
                           <div
                             key={`${vendor}-${offer.id ?? offerIdx}`}
-                            className={`rounded-xl border-2 p-4 transition-all duration-200 ${
-                              unavailable
-                                ? "border-gray-100 bg-gray-50 opacity-60"
-                                : isSelected
+                            className={`rounded-xl border-2 p-4 transition-all duration-200 sm:p-4 ${
+                              isSelected
                                   ? "border-blue-600 bg-blue-50/60 shadow-md shadow-blue-500/10"
                                   : "border-gray-200 bg-white"
                             }`}
                           >
-                            {/* Header: name + price */}
-                            <div className="mb-3 flex items-start justify-between gap-2">
-                              <div className="min-w-0">
-                                <p className="text-sm font-semibold text-gray-900 leading-tight">{offer.productName}</p>
+                            {/* Header: name + price — stacked on narrow screens */}
+                            <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+                              <div className="min-w-0 flex-1">
+                                <p className="text-base font-semibold leading-snug text-gray-900 sm:text-sm">{offer.productName}</p>
                                 {offer.productSubPackage && (
-                                  <span className="mt-1 inline-block rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-700">
+                                  <span className="mt-1.5 inline-block rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700">
                                     {offer.productSubPackage}
                                   </span>
                                 )}
                               </div>
-                              <div className="shrink-0 text-right">
-                                {unavailable ? (
-                                  <div className="text-right">
-                                    <span className="text-xs font-medium text-red-400">Indisponibil</span>
-                                    {offer.message && (
-                                      <p className="mt-0.5 max-w-[160px] text-[10px] leading-tight text-gray-400">
-                                        {offer.message.split("|").pop()?.trim()}
-                                      </p>
-                                    )}
-                                  </div>
-                                ) : (
-                                  <>
-                                    <p className="text-xl font-bold text-blue-600 leading-tight">
-                                      {offer.policyPremium.toLocaleString("ro-RO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                    </p>
-                                    <p className="text-[11px] font-medium text-gray-400">{offer.currency} / an</p>
-                                  </>
-                                )}
+                              <div className="flex items-baseline justify-between gap-2 border-t border-gray-100 pt-2 sm:block sm:shrink-0 sm:border-0 sm:pt-0 sm:text-right">
+                                <span className="text-xs font-medium text-gray-400 sm:hidden">Prima / an</span>
+                                <div>
+                                  <p className="text-xl font-bold leading-tight text-blue-600 sm:text-xl">
+                                    {offer.policyPremium.toLocaleString("ro-RO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </p>
+                                  <p className="text-xs font-medium text-gray-400">{offer.currency} / an</p>
+                                </div>
                               </div>
                             </div>
 
                             {/* Sume asigurate */}
-                            {!unavailable && (offer.insuredAmount != null || offer.contentAmount != null) && (
+                            {(offer.insuredAmount != null || offer.contentAmount != null) && (
                               <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
                                 {offer.insuredAmount != null && offer.insuredAmount > 0 && (
                                   <div className="rounded-lg bg-slate-50 px-2.5 py-1.5">
-                                    <p className="text-[9px] font-semibold uppercase tracking-widest text-slate-400">Cladire asigurata</p>
-                                    <p className="text-sm font-bold text-slate-800">
+                                    <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 sm:text-[9px] sm:tracking-widest">Cladire asigurata</p>
+                                    <p className="text-base font-bold text-slate-800 sm:text-sm">
                                       {Number(offer.insuredAmount).toLocaleString("ro-RO")}
                                       <span className="ml-1 text-xs font-normal text-slate-400">{offer.insuredAmountCurrency || offer.currency}</span>
                                     </p>
@@ -1146,8 +1173,8 @@ export default function HousePage() {
                                 )}
                                 {offer.contentAmount != null && offer.contentAmount > 0 && (
                                   <div className="rounded-lg bg-slate-50 px-2.5 py-1.5">
-                                    <p className="text-[9px] font-semibold uppercase tracking-widest text-slate-400">Continut asigurat</p>
-                                    <p className="text-sm font-bold text-slate-800">
+                                    <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 sm:text-[9px] sm:tracking-widest">Continut asigurat</p>
+                                    <p className="text-base font-bold text-slate-800 sm:text-sm">
                                       {Number(offer.contentAmount).toLocaleString("ro-RO")}
                                       <span className="ml-1 text-xs font-normal text-slate-400">{offer.currency}</span>
                                     </p>
@@ -1157,20 +1184,20 @@ export default function HousePage() {
                             )}
 
                             {/* Coverages (named risks with sums) */}
-                            {!unavailable && coverages.length > 0 && (
+                            {coverages.length > 0 && (
                               <div className="mb-3 rounded-lg bg-gray-50 px-3 py-2">
-                                <p className="mb-1.5 text-[9px] font-semibold uppercase tracking-widest text-gray-400">Riscuri acoperite</p>
-                                <div className="space-y-1">
+                                <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-gray-400">Riscuri acoperite</p>
+                                <div className="space-y-1.5">
                                   {coverages.map((cov, idx) => (
-                                    <div key={idx} className="flex items-center justify-between gap-2">
-                                      <span className="flex items-center gap-1.5 text-[11px] text-gray-600">
+                                    <div key={idx} className="flex items-start justify-between gap-2">
+                                      <span className="flex min-w-0 items-start gap-1.5 text-xs leading-snug text-gray-600">
                                         <svg className="h-2.5 w-2.5 shrink-0 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                                           <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                                         </svg>
                                         {cov.name}
                                       </span>
                                       {cov.sumInsured != null && cov.sumInsured > 0 && (
-                                        <span className="shrink-0 text-[11px] font-semibold text-gray-700">
+                                        <span className="shrink-0 text-xs font-semibold text-gray-700">
                                           {Number(cov.sumInsured).toLocaleString("ro-RO")} {offer.currency}
                                         </span>
                                       )}
@@ -1181,10 +1208,10 @@ export default function HousePage() {
                             )}
 
                             {/* Extra coverages from specificDetails */}
-                            {!unavailable && relevantDetails.length > 0 && (
+                            {relevantDetails.length > 0 && (
                               <div className="mb-3 flex flex-wrap gap-1.5">
                                 {relevantDetails.map((d) => (
-                                  <span key={d.code} className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-medium text-green-700">
+                                  <span key={d.code} className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700">
                                     <svg className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                                     </svg>
@@ -1199,17 +1226,17 @@ export default function HousePage() {
                             )}
 
                             {/* PAD breakdown */}
-                            {!unavailable && withPad && padOffer && padOffer.id > 0 && (
+                            {withPad && padOffer && padOffer.id > 0 && (
                               <div className="mb-3 rounded-lg border border-blue-100 bg-blue-50/40 px-3 py-2">
-                                <div className="flex items-center justify-between text-[11px]">
+                                <div className="flex items-center justify-between text-xs">
                                   <span className="text-gray-600">Prima locuinta (facultativa)</span>
                                   <span className="font-semibold text-gray-800">{offer.policyPremium.toLocaleString("ro-RO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {offer.currency}</span>
                                 </div>
-                                <div className="mt-0.5 flex items-center justify-between text-[11px]">
+                                <div className="mt-0.5 flex items-center justify-between text-xs">
                                   <span className="text-gray-600">Prima PAD (PAID)</span>
                                   <span className="font-semibold text-gray-800">{padOffer.premium.toLocaleString("ro-RO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {padOffer.currency}</span>
                                 </div>
-                                <div className="mt-1.5 flex items-center justify-between border-t border-blue-100 pt-1.5 text-[12px]">
+                                <div className="mt-1.5 flex items-center justify-between border-t border-blue-100 pt-1.5 text-sm sm:text-xs">
                                   <span className="font-semibold text-blue-700">Total de plata</span>
                                   {offer.currency === padOffer.currency ? (
                                     <span className="font-bold text-blue-700">{totalWithPad!.toLocaleString("ro-RO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {offer.currency}</span>
@@ -1221,22 +1248,22 @@ export default function HousePage() {
                             )}
 
                             {/* Recommendation note */}
-                            {!unavailable && offer.message && (() => {
+                            {offer.message && (() => {
                               const note = offer.message.split("|").pop()?.trim();
                               return note ? (
-                                <p className="mb-2 line-clamp-2 rounded-md bg-amber-50 px-2 py-1.5 text-[10px] leading-relaxed text-amber-700">
+                                <p className="mb-2 line-clamp-3 rounded-md bg-amber-50 px-2.5 py-2 text-xs leading-relaxed text-amber-700">
                                   ℹ {note}
                                 </p>
                               ) : null;
                             })()}
 
                             {/* Installments */}
-                            {!unavailable && offer.installments && offer.installments.length > 1 && (
+                            {offer.installments && offer.installments.length > 1 && (
                               <div className="border-t border-gray-100 pt-2">
-                                <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Rate plata</p>
-                                <div className="space-y-0.5">
+                                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">Rate plata</p>
+                                <div className="space-y-1">
                                   {offer.installments.map((inst, idx) => (
-                                    <div key={idx} className="flex justify-between text-[11px] text-gray-600">
+                                    <div key={idx} className="flex justify-between text-xs text-gray-600">
                                       <span>Rata {inst.number}</span>
                                       <span className="font-medium">{Number(inst.amount).toLocaleString("ro-RO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {offer.currency}</span>
                                     </div>
@@ -1246,19 +1273,19 @@ export default function HousePage() {
                             )}
 
                             {/* Action buttons */}
-                            {!unavailable && (()=> {
+                            {(()=> {
                               const cardKey = offer.id != null ? String(offer.id) : `${vendor}-${offerIdx}`;
                               const dlError = downloadErrors[cardKey];
                               const noId = offer.id == null;
                               return (
                                 <div className="mt-3 border-t border-gray-100 pt-3">
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
                                     <button
                                       type="button"
                                       onClick={() => handleDownloadOfferDoc(offer.id!, cardKey)}
                                       disabled={downloadingOfferId === offer.id || noId}
                                       title={noId ? "Document indisponibil pentru acest asigurator" : undefined}
-                                      className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-600 transition-all hover:border-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                      className="flex min-h-11 w-full flex-1 items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-medium text-gray-600 transition-all hover:border-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 sm:py-2 sm:text-xs"
                                     >
                                       {downloadingOfferId === offer.id ? (
                                         <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-gray-400 border-t-transparent" />
@@ -1283,7 +1310,7 @@ export default function HousePage() {
                                         } catch { /* */ }
                                         next();
                                       }}
-                                      className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all ${
+                                      className={`flex min-h-11 w-full flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-all sm:py-2 sm:text-xs ${
                                         isSelected ? "bg-blue-600 text-white" : "bg-blue-600 text-white hover:bg-blue-700"
                                       }`}
                                     >
@@ -1301,7 +1328,7 @@ export default function HousePage() {
                                     </button>
                                   </div>
                                   {dlError && (
-                                    <p className="mt-1.5 text-[10px] text-amber-600">{dlError}</p>
+                                    <p className="mt-1.5 text-xs text-amber-600">{dlError}</p>
                                   )}
                                 </div>
                               );
@@ -1313,19 +1340,65 @@ export default function HousePage() {
                   </div>
                 ); })}
 
-                {/* JS/network errors */}
-                {failedOffers.length > 0 && (
-                  <div>
-                    <p className="mb-2 text-xs font-medium text-gray-400">Erori tehnice ({failedOffers.length})</p>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {failedOffers.map((offer, i) => (
-                        <div key={offer.id || i} className="rounded-xl border border-red-100 bg-red-50/50 p-3 opacity-60">
-                          <p className="text-sm font-medium text-gray-700">{offer.productName || "Necunoscut"}</p>
-                          <p className="text-xs text-gray-400">{offer.vendorName}</p>
-                          <p className="mt-1 text-xs text-red-500">{offer.error}</p>
+                {unavailableOffers.length > 0 && (
+                  <div className="rounded-xl border border-gray-200 bg-white">
+                    <button
+                      type="button"
+                      onClick={() => setShowUnavailableOffers((prev) => !prev)}
+                      className="flex min-h-11 w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-gray-50"
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-gray-700">Oferte indisponibile</span>
+                        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-600">
+                          {unavailableOffers.length}
+                        </span>
+                      </span>
+                      <svg
+                        className={`h-4 w-4 text-gray-500 transition-transform ${showUnavailableOffers ? "rotate-180" : ""}`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                      </svg>
+                    </button>
+                    {showUnavailableOffers && (
+                      <div className="border-t border-gray-100 px-4 py-3">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {unavailableOffers.map((offer, offerIdx) => {
+                            const premium = Number(offer.policyPremium);
+                            const hasPositivePremium = Number.isFinite(premium) && premium > 0;
+                            const reason =
+                              offer.error ||
+                              offer.message?.split("|").pop()?.trim() ||
+                              (offer.hasApiError
+                                ? "Eroare API la generarea ofertei."
+                                : !hasPositivePremium
+                                  ? "Prima nu este disponibila pentru selectie."
+                                  : "Oferta indisponibila.");
+
+                            return (
+                              <div
+                                key={`unavailable-${offer.productId}-${offer.id ?? offerIdx}`}
+                                className="rounded-xl border border-gray-200 bg-gray-50 p-4"
+                              >
+                                <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
+                                  <div className="min-w-0">
+                                    <p className="text-base font-semibold text-gray-900 sm:text-sm">{offer.productName || "Oferta locuinta"}</p>
+                                    <p className="text-xs text-gray-500">{offer.vendorName || "Asigurator indisponibil"}</p>
+                                  </div>
+                                  <span className="w-fit shrink-0 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700">
+                                    Indisponibila
+                                  </span>
+                                </div>
+                                <p className="text-xs leading-relaxed text-gray-600">{reason}</p>
+                              </div>
+                            );
+                          })}
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -1356,29 +1429,70 @@ export default function HousePage() {
   ];
 
   return (
-    <div className="mx-auto max-w-4xl px-4 pt-24 pb-8 sm:px-6 lg:px-8">
-      {/* Page header */}
-      <div className="mb-8 text-center">
-        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg">
-          <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 21v-4.875c0-.621.504-1.125 1.125-1.125h5.25c.621 0 1.125.504 1.125 1.125V21m0 0h4.5V3.545M12.75 21h7.5V10.75M2.25 21h1.5m18 0h-18M2.25 9l4.5-1.636M18.75 3l-1.5.545m0 6.205 3 1m1.5.5-1.5-.5M6.75 7.364V3h-3v18m3-13.636 10.5-3.819" />
-          </svg>
-        </div>
-        <h1 className="text-2xl font-bold text-gray-900">Asigurare Locuinta</h1>
-        <p className="mt-1 text-sm text-gray-500">Protectie completa pentru locuinta dumneavoastra</p>
-      </div>
-      {error && (
-        <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">
-          {error}
-          <button onClick={() => setError(null)} className="ml-2 font-medium underline">Inchide</button>
-        </div>
-      )}
-      <WizardStepper steps={steps} currentStep={currentStep} onStepChange={goTo} />
+    <>
+      <div className={`mx-auto px-4 pt-20 pb-24 sm:pt-24 sm:px-6 lg:px-8 ${isOffersStep ? "max-w-7xl" : "max-w-6xl"}`}>
+        <div className={isOffersStep ? "space-y-8" : "grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start"}>
+          {!isOffersStep && (
+          <aside className="space-y-5 lg:sticky lg:top-24">
+            <div className="rounded-3xl bg-gradient-to-br from-blue-600 to-blue-800 p-6 text-white shadow-xl shadow-blue-900/20">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15">
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 21v-4.875c0-.621.504-1.125 1.125-1.125h5.25c.621 0 1.125.504 1.125 1.125V21m0 0h4.5V3.545M12.75 21h7.5V10.75M2.25 21h1.5m18 0h-18M2.25 9l4.5-1.636M18.75 3l-1.5.545m0 6.205 3 1m1.5.5-1.5-.5M6.75 7.364V3h-3v18m3-13.636 10.5-3.819" />
+                </svg>
+              </div>
+              <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">Asigurare Locuinta online, simplu si clar</h1>
+              <p className="mt-4 text-base leading-relaxed text-blue-50">
+                Completezi datele locuintei, compari ofertele disponibile si continui rapid catre plata securizata.
+              </p>
+            </div>
 
+            <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+              <p className="text-sm font-semibold text-gray-900">Ce poate include protectia:</p>
+              <div className="mt-3 grid gap-2">
+                {COVERAGE_ITEMS.map((item) => (
+                  <div key={item} className="flex items-center gap-2 text-sm text-gray-700">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-green-50 text-xs font-bold text-green-600">✓</span>
+                    {item}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+              <div className="grid gap-2">
+                {TRUST_BADGES.map((badge) => (
+                  <div key={badge} className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                    <span className="h-2 w-2 rounded-full bg-blue-500" />
+                    {badge}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </aside>
+          )}
+
+          <main className={`space-y-5 ${isOffersStep ? "w-full" : ""}`}>
+            <div className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+              {error && (
+                <div className="mb-4 rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-700">
+                  {error}
+                  <button onClick={() => setError(null)} className="ml-2 font-medium underline">Inchide</button>
+                </div>
+              )}
+              <WizardStepper
+                steps={steps}
+                currentStep={currentStep}
+                onStepChange={goTo}
+                remainingText={REMAINING_BY_STEP[currentStep]}
+              />
+            </div>
+          </main>
+        </div>
+      </div>
 
       {/* GDPR Modal */}
       {showGdprModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={() => setShowGdprModal(false)}>
+        <div className="z-layer-modal fixed inset-0 flex items-center justify-center bg-black/40 px-4" onClick={() => setShowGdprModal(false)}>
           <div className="relative w-full max-w-lg rounded-2xl bg-white p-8 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="mb-5 flex items-center gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50">
@@ -1404,6 +1518,6 @@ export default function HousePage() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

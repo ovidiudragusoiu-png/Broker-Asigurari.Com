@@ -5,6 +5,7 @@ import { api } from "@/lib/api/client";
 import type { AddressRequest } from "@/types/insuretech";
 import type { OwnerType } from "@/types/rcaFlow";
 import { btn } from "@/lib/ui/tokens";
+import { normalizeUppercaseInput } from "@/lib/utils/inputNormalization";
 import EmailInput from "@/components/shared/EmailInput";
 import DateInput from "@/components/shared/DateInput";
 
@@ -52,6 +53,8 @@ interface PolicyDetailsFormProps {
   onPhoneChange: (phone: string) => void;
   onContinue: () => void;
   isValid: boolean;
+  /** Called when the user clicks "Modifică emailul" — should jump back to step 2 */
+  onEditEmail?: () => void;
 }
 
 export default function PolicyDetailsForm({
@@ -76,7 +79,11 @@ export default function PolicyDetailsForm({
   onPhoneChange,
   onContinue,
   isValid,
+  onEditEmail,
 }: PolicyDetailsFormProps) {
+  // Email is already collected and validated in step 2 (OwnerIdentification).
+  // Lock it here to remove the double-entry friction; user can jump back to edit.
+  const emailLocked = !!email && !!onEditEmail;
   const updateAddress = (field: keyof AddressRequest, value: string | number | null) => {
     onAddressChange({ ...address, [field]: value });
   };
@@ -119,15 +126,16 @@ export default function PolicyDetailsForm({
   }, [address.cityId]);
 
   const handleStreetInputChange = (value: string) => {
-    setStreetQuery(value);
+    const normalizedValue = normalizeUppercaseInput(value);
+    setStreetQuery(normalizedValue);
     setStreetSelected(false);
     // Also update the raw streetName so it persists if user doesn't pick from dropdown
-    onAddressChange({ ...address, streetName: value, streetTypeId: null });
-    searchStreets(value);
+    onAddressChange({ ...address, streetName: normalizedValue, streetTypeId: null });
+    searchStreets(normalizedValue);
   };
 
   const handleStreetSelect = (result: StreetResult) => {
-    const fullName = `${result.streetTypeName} ${result.streetName}`;
+    const fullName = normalizeUppercaseInput(`${result.streetTypeName} ${result.streetName}`);
     setStreetQuery(fullName);
     setStreetSelected(true);
     setShowStreetDropdown(false);
@@ -180,16 +188,20 @@ export default function PolicyDetailsForm({
           <div className="grid grid-cols-2 gap-3">
             <input
               type="text"
+              autoComplete="family-name"
+              autoCapitalize="characters"
               className={inputCls}
               value={ownerLastName}
-              onChange={(e) => onFieldChange("ownerLastName", e.target.value)}
+              onChange={(e) => onFieldChange("ownerLastName", normalizeUppercaseInput(e.target.value))}
               placeholder="NUME PROPRIETAR"
             />
             <input
               type="text"
+              autoComplete="given-name"
+              autoCapitalize="characters"
               className={inputCls}
               value={ownerFirstName}
-              onChange={(e) => onFieldChange("ownerFirstName", e.target.value)}
+              onChange={(e) => onFieldChange("ownerFirstName", normalizeUppercaseInput(e.target.value))}
               placeholder="PRENUME PROPRIETAR"
             />
           </div>
@@ -198,16 +210,25 @@ export default function PolicyDetailsForm({
           <div className="grid grid-cols-2 gap-3">
             <input
               type="text"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="characters"
+              spellCheck={false}
               className={`${inputCls} uppercase`}
               value={idSeries}
-              onChange={(e) => onFieldChange("idSeries", e.target.value.toUpperCase())}
+              onChange={(e) => onFieldChange("idSeries", normalizeUppercaseInput(e.target.value))}
               placeholder="SERIE CI"
             />
             <input
               type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="characters"
+              spellCheck={false}
               className={inputCls}
               value={idNumber}
-              onChange={(e) => onFieldChange("idNumber", e.target.value)}
+              onChange={(e) => onFieldChange("idNumber", normalizeUppercaseInput(e.target.value))}
               placeholder="NUMAR CI"
             />
           </div>
@@ -230,18 +251,24 @@ export default function PolicyDetailsForm({
             <div className="col-span-2">
               <input
                 type="text"
+                autoComplete="organization"
+                autoCapitalize="characters"
                 className={inputCls}
                 value={companyName}
-                onChange={(e) => onFieldChange("companyName", e.target.value)}
+                onChange={(e) => onFieldChange("companyName", normalizeUppercaseInput(e.target.value))}
                 placeholder="NUME FIRMA"
               />
             </div>
           </div>
           <input
             type="text"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="characters"
+            spellCheck={false}
             className={inputCls}
             value={registrationNumber}
-            onChange={(e) => onFieldChange("registrationNumber", e.target.value)}
+            onChange={(e) => onFieldChange("registrationNumber", normalizeUppercaseInput(e.target.value))}
             placeholder="NR. INREGISTRARE (REG. COM.)"
           />
 
@@ -296,16 +323,44 @@ export default function PolicyDetailsForm({
       {/* Email + Phone */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className={labelCls}>
-            Email
-          </label>
-          <EmailInput
-            value={email}
-            onChange={onEmailChange}
-            placeholder="email@exemplu.ro"
-            className={inputCls}
-            errorClassName={inputCls.replace("border-gray-200", "border-red-300")}
-          />
+          <div className="mb-1 flex items-baseline justify-between gap-2">
+            <label className={labelCls.replace("mb-1 block ", "")}>Email</label>
+            {emailLocked && (
+              <button
+                type="button"
+                onClick={onEditEmail}
+                className="text-[11px] font-medium text-[#2563EB] underline-offset-2 hover:underline"
+              >
+                Modifică emailul
+              </button>
+            )}
+          </div>
+          {emailLocked ? (
+            <div
+              className={`${inputCls} flex items-center justify-between bg-gray-50 text-gray-700`}
+              aria-readonly="true"
+            >
+              <span className="break-all">{email}</span>
+              <svg
+                className="ml-2 h-3.5 w-3.5 shrink-0 text-gray-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+                aria-hidden
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-1.5 0h12a1.5 1.5 0 011.5 1.5v7.5a1.5 1.5 0 01-1.5 1.5h-12a1.5 1.5 0 01-1.5-1.5v-7.5a1.5 1.5 0 011.5-1.5z" />
+              </svg>
+            </div>
+          ) : (
+            <EmailInput
+              value={email}
+              onChange={onEmailChange}
+              placeholder="email@exemplu.ro"
+              className={inputCls}
+              errorClassName={inputCls.replace("border-gray-200", "border-red-300")}
+            />
+          )}
         </div>
         <div>
           <label className={labelCls}>
@@ -313,6 +368,8 @@ export default function PolicyDetailsForm({
           </label>
           <input
             type="tel"
+            inputMode="tel"
+            autoComplete="tel-national"
             className={inputCls}
             value={phoneNumber}
             onChange={(e) => onPhoneChange(e.target.value)}
@@ -328,6 +385,7 @@ export default function PolicyDetailsForm({
             Sector
           </label>
           <select
+            autoComplete="address-level2"
             className={inputCls}
             value={address.countyId ?? ""}
             onChange={(e) => {
@@ -350,80 +408,92 @@ export default function PolicyDetailsForm({
       )}
 
       {/* Address - street autocomplete + number fields */}
-      <div className="grid grid-cols-6 gap-3">
-        <div className="col-span-3 relative" ref={streetContainerRef}>
-          <label className={labelCls}>
-            Nume stradă
-          </label>
+      <div className="relative" ref={streetContainerRef}>
+        <label className={labelCls}>
+          Nume stradă
+        </label>
+        <input
+          type="text"
+          autoComplete="address-line1"
+          autoCapitalize="characters"
+          className={inputCls}
+          value={streetQuery}
+          onChange={(e) => handleStreetInputChange(e.target.value)}
+          onFocus={() => { if (streetResults.length > 0 && !streetSelected) setShowStreetDropdown(true); }}
+          placeholder={address.cityId ? "Introduceți min. 3 litere..." : "Selectează sectorul mai întâi"}
+          disabled={!address.cityId}
+        />
+        {showStreetDropdown && streetResults.length > 0 && (
+          <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-xl border border-gray-200 bg-white shadow-lg">
+            {streetResults.map((r) => (
+              <li key={r.id}>
+                <button
+                  type="button"
+                  className="w-full px-3 py-2 text-left text-sm hover:bg-[#2563EB]/5"
+                  onClick={() => handleStreetSelect(r)}
+                >
+                  {r.streetTypeName} {r.streetName}
+                  {r.streetNumberRange ? ` ${r.streetNumberRange}` : ""}
+                  <span className="ml-1 text-gray-400">| CP: {r.postalCode}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div>
+          <label className={labelCls}>Număr</label>
           <input
             type="text"
-            className={inputCls}
-            value={streetQuery}
-            onChange={(e) => handleStreetInputChange(e.target.value)}
-            onFocus={() => { if (streetResults.length > 0 && !streetSelected) setShowStreetDropdown(true); }}
-            placeholder={address.cityId ? "Introduceți min. 3 litere..." : "Selectează sectorul mai întâi"}
-            disabled={!address.cityId}
-          />
-          {showStreetDropdown && streetResults.length > 0 && (
-            <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-xl border border-gray-200 bg-white shadow-lg">
-              {streetResults.map((r) => (
-                <li key={r.id}>
-                  <button
-                    type="button"
-                    className="w-full px-3 py-2 text-left text-sm hover:bg-[#2563EB]/5"
-                    onClick={() => handleStreetSelect(r)}
-                  >
-                    {r.streetTypeName} {r.streetName}
-                    {r.streetNumberRange ? ` ${r.streetNumberRange}` : ""}
-                    <span className="ml-1 text-gray-400">| CP: {r.postalCode}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-        <div className="col-span-1">
-          <label className={labelCls}>
-            &nbsp;
-          </label>
-          <input
-            type="text"
+            autoComplete="address-line2"
             className={inputCls}
             value={address.streetNumber}
-            onChange={(e) => updateAddress("streetNumber", e.target.value)}
-            placeholder="NR."
+            onChange={(e) => updateAddress("streetNumber", normalizeUppercaseInput(e.target.value))}
+            placeholder="Nr."
           />
         </div>
-        <div className="col-span-1">
-          <label className={labelCls}>
-            &nbsp;
-          </label>
+        <div>
+          <label className={labelCls}>Bloc</label>
           <input
             type="text"
+            autoCapitalize="characters"
             className={inputCls}
             value={address.building}
-            onChange={(e) => updateAddress("building", e.target.value)}
-            placeholder="BLOC"
+            onChange={(e) => updateAddress("building", normalizeUppercaseInput(e.target.value))}
+            placeholder="Bloc"
           />
         </div>
-        <div className="col-span-1">
-          <label className={labelCls}>
-            &nbsp;
-          </label>
+        <div>
+          <label className={labelCls}>Scara</label>
           <input
             type="text"
+            autoCapitalize="characters"
             className={inputCls}
             value={address.entrance}
-            onChange={(e) => updateAddress("entrance", e.target.value)}
-            placeholder="SCARA"
+            onChange={(e) => updateAddress("entrance", normalizeUppercaseInput(e.target.value))}
+            placeholder="Sc."
+          />
+        </div>
+        <div>
+          <label className={labelCls}>Apartament</label>
+          <input
+            type="text"
+            autoCapitalize="characters"
+            className={inputCls}
+            value={address.apartment}
+            onChange={(e) => updateAddress("apartment", normalizeUppercaseInput(e.target.value))}
+            placeholder="Ap."
           />
         </div>
       </div>
-      <div className="grid grid-cols-6 gap-3">
-        <div className="col-span-2">
+      <div className="grid grid-cols-2 gap-3">
+        <div>
           <label className={labelCls}>Cod poștal</label>
           <input
             type="text"
+            inputMode="numeric"
+            autoComplete="postal-code"
             className={inputCls}
             value={address.postalCode}
             onChange={(e) => updateAddress("postalCode", e.target.value)}
@@ -432,27 +502,17 @@ export default function PolicyDetailsForm({
             readOnly={streetSelected}
           />
         </div>
-        <div className="col-span-1">
-          <label className={labelCls}>&nbsp;</label>
+        <div>
+          <label className={labelCls}>Etaj</label>
           <input
             type="text"
+            inputMode="numeric"
             className={inputCls}
             value={address.floorId != null ? String(address.floorId) : ""}
             onChange={(e) => updateAddress("floorId", e.target.value ? Number(e.target.value) || null : null)}
-            placeholder="ETAJ"
+            placeholder="Etaj"
           />
         </div>
-        <div className="col-span-1">
-          <label className={labelCls}>&nbsp;</label>
-          <input
-            type="text"
-            className={inputCls}
-            value={address.apartment}
-            onChange={(e) => updateAddress("apartment", e.target.value)}
-            placeholder="AP."
-          />
-        </div>
-        <div className="col-span-2" />
       </div>
 
       {/* Continue */}

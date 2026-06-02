@@ -4,6 +4,9 @@ import {
   validateEmail,
   validatePhoneRO,
   validateVIN,
+  isKnownEmailProvider,
+  isKnownEmailProviderDomain,
+  getEmailDomain,
 } from "./validation";
 
 describe("validation utils", () => {
@@ -27,6 +30,15 @@ describe("validation utils", () => {
   it("validates email addresses", () => {
     expect(validateEmail("john@example.com")).toBe(true);
     expect(validateEmail("john.example.com")).toBe(false);
+  });
+
+  it("recognizes known email provider domains", () => {
+    expect(getEmailDomain("user@gmail.com")).toBe("gmail.com");
+    expect(isKnownEmailProviderDomain("gmail.com")).toBe(true);
+    expect(isKnownEmailProviderDomain("Gmail.COM")).toBe(true);
+    expect(isKnownEmailProvider("ovidiu.dragusoiu@gmail.com")).toBe(true);
+    expect(isKnownEmailProvider("user@example.com")).toBe(false);
+    expect(isKnownEmailProviderDomain("example.com")).toBe(false);
   });
 
   it("validates Romanian phone numbers", () => {

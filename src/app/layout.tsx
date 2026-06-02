@@ -1,5 +1,6 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Link from "next/link";
+import { Inter } from "next/font/google";
 import { ShieldCheck, Phone, Mail, Clock, Facebook, Instagram } from "lucide-react";
 import Image from "next/image";
 import CinematicHeader from "@/components/layout/CinematicHeader";
@@ -8,10 +9,22 @@ import { AuthProvider } from "@/components/portal/AuthProvider";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: "Sigur.Ai - Fii sigur. Fii asigurat.",
   description:
     "Compara si cumpara asigurari online: RCA, Travel, Locuinta, CASCO, Malpraxis, Garantii. Cele mai bune oferte de la asiguratorii din Romania.",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -20,7 +33,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ro">
+    <html lang="ro" className={inter.variable}>
       <head>
         {/* JSON-LD: Organization */}
         <script
@@ -57,15 +70,8 @@ export default function RootLayout({
           gtag('consent', 'default', { analytics_storage: 'granted', ad_storage: 'denied' });
           gtag('config', 'G-3V7KLWL34F');
         `}} />
-        {/* Google Fonts: Inter, Plus Jakarta Sans */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400..800&family=Plus+Jakarta+Sans:wght@500..800&display=swap"
-          rel="stylesheet"
-        />
       </head>
-      <body className="flex min-h-screen flex-col bg-brand-bg text-brand-text font-sans antialiased selection:bg-brand-accent selection:text-white">
+      <body className="flex min-h-screen flex-col overflow-x-hidden bg-brand-bg text-brand-text font-sans antialiased selection:bg-brand-accent selection:text-white">
         <AuthProvider>
 
         <CinematicHeader />
@@ -146,6 +152,7 @@ export default function RootLayout({
                   <li><Link href="/termeni" className="transition-colors hover:text-white">Termeni și Condiții</Link></li>
                   <li><Link href="/confidentialitate" className="transition-colors hover:text-white">Confidențialitate</Link></li>
                   <li><a href="https://anpc.ro/" target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-white">ANPC</a></li>
+                  <li><Link href="/procedura-baar" className="transition-colors hover:text-white">Procedura BAAR</Link></li>
                 </ul>
               </div>
 

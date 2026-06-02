@@ -25,7 +25,7 @@ const BENEFITS = [
     icon: Clock,
     title: "Economie de timp & bani",
     description:
-      "Compari sute de oferte de la 11+ asiguratori într-un singur loc. Fără deplasări, fără cozi, fără presiune comercială.",
+      "Compari sute de oferte de la toți asigurătorii într-un singur loc. Fără deplasări, fără cozi, fără presiune comercială.",
     features: [
       "Compari rapid prețurile disponibile",
       "Vezi acoperirile și alegi oferta potrivită pentru tine",
@@ -79,7 +79,7 @@ const FAQS = [
   {
     question: "Cum funcționează platforma?",
     answer:
-      "Completezi datele necesare, compari ofertele de la 11+ asiguratori, alegi varianta potrivită, plătești online cu cardul și primești polița pe email — totul în mai puțin de 3 minute.",
+      "Completezi datele necesare, compari ofertele de la toți asigurătorii, alegi varianta potrivită, plătești online cu cardul și primești polița pe email — totul în mai puțin de 3 minute.",
   },
   {
     question: "Cât costă serviciul vostru?",
@@ -195,7 +195,7 @@ export default function DespreNoiContent() {
   return (
     <>
       {/* ───── 1. HERO ───── */}
-      <section ref={heroRef} className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-blue-900 pt-32 pb-20 sm:pb-28">
+      <section ref={heroRef} className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-blue-900 pt-24 pb-16 sm:pt-32 sm:pb-20 lg:pb-28">
         {/* Blobs */}
         <div className="pointer-events-none absolute left-0 top-0 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500/20 blur-[120px]" />
         <div className="pointer-events-none absolute right-0 bottom-0 h-[400px] w-[400px] translate-x-1/3 translate-y-1/3 rounded-full bg-orange-500/10 blur-[100px]" />
@@ -225,7 +225,7 @@ export default function DespreNoiContent() {
               Am fondat <strong className="text-[#1E293B]">Sigur.Ai</strong> din convingerea că nimeni nu ar trebui să piardă timp și energie pentru a-și asigura mașina, locuința sau sănătatea. Procesul tradițional — deplasări la sediu, dosare de hârtie, oferte limitate — era depășit.
             </p>
             <p>
-              Am construit o platformă unde poți <strong className="text-[#2563EB]">compara sute de oferte de la 11+ asiguratori</strong>, alege varianta potrivită și finaliza totul online, în mai puțin de 3 minute. Fără presiune comercială, fără costuri ascunse.
+              Am construit o platformă unde poți <strong className="text-[#2563EB]">compara sute de oferte de la toți asigurătorii</strong>, alege varianta potrivită și finaliza totul online, în mai puțin de 3 minute. Fără presiune comercială, fără costuri ascunse.
             </p>
             <p>
               <strong className="text-[#1E293B]">FLETHO LLC SRL</strong> este intermediar secundar persoană juridică și partener al MaxyGo Broker de Asigurare SRL.

@@ -223,6 +223,7 @@ export default function AddressForm({
       <div>
         <label className={labelCls}>Tara</label>
         <select
+          autoComplete="country"
           className={selectCls}
           value={value.countryId ?? ""}
           onChange={(e) => {
@@ -251,6 +252,7 @@ export default function AddressForm({
           <div>
             <label className={labelCls}>Judet</label>
             <select
+              autoComplete="address-level1"
               className={`${selectCls} ${showErrors && !value.countyId ? errBorder : ""}`}
               value={isBucharest ? BUCHAREST_SENTINEL : (value.countyId ?? "")}
               onChange={(e) => {
@@ -279,6 +281,7 @@ export default function AddressForm({
             </label>
             {isBucharest || value.countyId === BUCHAREST_SENTINEL ? (
               <select
+                autoComplete="address-level2"
                 className={`${selectCls} ${showErrors && !isBucharest ? errBorder : ""}`}
                 value={isBucharest ? value.countyId ?? "" : ""}
                 onChange={(e) => {
@@ -298,6 +301,7 @@ export default function AddressForm({
               </select>
             ) : (
               <select
+                autoComplete="address-level2"
                 className={`${selectCls} ${showErrors && !value.cityId ? errBorder : ""}`}
                 value={value.cityId ?? ""}
                 onChange={(e) =>
@@ -323,6 +327,7 @@ export default function AddressForm({
             <label className={labelCls}>Regiune / Stat</label>
             <input
               type="text"
+              autoComplete="address-level1"
               className={`${inputCls} ${showErrors && !value.foreignCountyName?.trim() ? errBorder : ""}`}
               placeholder="Ex: Bavaria"
               value={value.foreignCountyName ?? ""}
@@ -335,6 +340,7 @@ export default function AddressForm({
             <label className={labelCls}>Oras</label>
             <input
               type="text"
+              autoComplete="address-level2"
               className={`${inputCls} ${showErrors && !value.foreignCityName?.trim() ? errBorder : ""}`}
               placeholder="Ex: München"
               value={value.foreignCityName ?? ""}
@@ -384,6 +390,7 @@ export default function AddressForm({
           <label className={labelCls}>Nume strada</label>
           <input
             type="text"
+            autoComplete="address-line1"
             className={`${inputCls} ${showErrors && !value.streetName?.trim() ? errBorder : ""}`}
             placeholder={value.cityId ? "Min. 3 litere..." : "Selecteaza localitate"}
             value={streetQuery}
@@ -422,6 +429,7 @@ export default function AddressForm({
           <label className={labelCls}>Numar</label>
           <input
             type="text"
+            autoComplete="address-line2"
             className={`${inputCls} ${showErrors && !value.streetNumber?.trim() ? errBorder : ""}`}
             placeholder="Nr."
             value={value.streetNumber}
@@ -485,6 +493,8 @@ export default function AddressForm({
           <label className={labelCls}>Cod postal</label>
           <input
             type="text"
+            inputMode="numeric"
+            autoComplete="postal-code"
             className={`${inputCls} ${showErrors && !value.postalCode?.trim() ? errBorder : ""}`}
             placeholder="Ex: 010101"
             value={value.postalCode}

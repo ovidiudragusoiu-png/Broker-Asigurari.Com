@@ -11,7 +11,7 @@ gsap.registerPlugin(ScrollTrigger);
 const PRODUCTS = [
   {
     title: "Asigurare RCA",
-    description: "Asigurare obligatorie auto. Compară instant oferte de la 11+ asiguratori și alege cel mai bun preț.",
+    description: "Asigurare obligatorie auto. Compară instant oferte de la toți asigurătorii și alege cel mai bun preț.",
     icon: Car,
     href: "/rca",
   },

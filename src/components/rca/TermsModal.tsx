@@ -27,10 +27,10 @@ export default function TermsModal({ isOpen, onAgree, onClose, productLabel = "R
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="mx-4 flex max-h-[85vh] w-full max-w-2xl flex-col rounded-xl bg-white shadow-xl">
+    <div className="z-layer-modal fixed inset-0 flex bg-black/50 max-md:items-stretch md:items-center md:justify-center">
+      <div className="mx-4 flex w-full max-w-2xl flex-col rounded-xl bg-white shadow-xl max-md:mx-0 max-md:h-[100dvh] max-md:max-h-none max-md:rounded-none max-md:shadow-none md:max-h-[85vh]">
         {/* Header */}
-        <div className="border-b px-6 py-4 text-center">
+        <div className="shrink-0 border-b px-4 py-3 text-center md:px-6 md:py-4">
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-bold text-gray-900">Termeni și condiții</h2>
             <button
@@ -52,7 +52,7 @@ export default function TermsModal({ isOpen, onAgree, onClose, productLabel = "R
         <div
           ref={scrollRef}
           onScroll={handleScroll}
-          className="flex-1 overflow-y-auto px-6 py-4 text-sm text-gray-700"
+          className="min-h-0 flex-1 overflow-y-auto px-4 py-4 text-sm text-gray-700 md:px-6"
         >
           <div className="space-y-4">
             <p className="text-center font-bold text-gray-900">
@@ -344,9 +344,9 @@ export default function TermsModal({ isOpen, onAgree, onClose, productLabel = "R
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="border-t px-6 py-4">
-          <label className="flex items-center gap-3 text-sm">
+        {/* Footer — sticky on mobile with iOS safe-area */}
+        <div className="shrink-0 border-t bg-white px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] max-md:sticky max-md:bottom-0 md:static md:px-6 md:pb-4">
+          <label className="flex items-start gap-3 text-sm">
             <span className="text-[#2563EB] font-bold">&gt;&gt;</span>
             <input
               type="checkbox"
@@ -360,12 +360,12 @@ export default function TermsModal({ isOpen, onAgree, onClose, productLabel = "R
             </span>
           </label>
 
-          <div className="mt-4 text-center">
+          <div className="mt-4">
             <button
               type="button"
               onClick={onAgree}
               disabled={!agreed}
-              className={btn.primary}
+              className={`${btn.primary} w-full max-md:py-3.5 md:mx-auto md:block md:w-auto`}
             >
               De acord
             </button>

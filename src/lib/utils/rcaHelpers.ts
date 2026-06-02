@@ -497,6 +497,8 @@ export function normalizeRcaOffer(
 // ============================================================
 
 export function toRcaDate(date: string): string {
+  if (!date) return date;
+  if (date.includes("T")) return date;
   return `${date}T00:00:00`;
 }
 
@@ -840,6 +842,7 @@ export function emptyRcaFlowState(): RcaFlowState {
     hasDirectSettlementData: null,
     selectedOffer: null,
     loadingOffers: false,
+    offersReady: false,
 
     registrationCertSeries: "",
     startDate: formatDate(new Date(Date.now() + 86400000)), // tomorrow
@@ -896,7 +899,13 @@ export function rcaFlowReducer(state: RcaFlowState, action: import("@/types/rcaF
     case "SET_ORDER":
       return { ...state, orderId: action.orderId, orderHash: action.orderHash };
     case "SET_OFFERS":
-      return { ...state, offers: action.offers, hasDirectSettlementData: action.hasDirectSettlementData, loadingOffers: false };
+      return {
+        ...state,
+        offers: action.offers,
+        hasDirectSettlementData: action.hasDirectSettlementData,
+        loadingOffers: false,
+        offersReady: action.offers.length > 0,
+      };
     case "APPEND_OFFERS": {
       const merged = [...state.offers, ...action.offers];
       const hasDS = merged.some((o) => {
@@ -907,6 +916,8 @@ export function rcaFlowReducer(state: RcaFlowState, action: import("@/types/rcaF
     }
     case "SET_LOADING_OFFERS":
       return { ...state, loadingOffers: action.loading };
+    case "SET_OFFERS_READY":
+      return { ...state, offersReady: action.ready };
     case "SELECT_OFFER":
       return { ...state, selectedOffer: action.selected };
     case "SET_POLICY_DETAILS":
