@@ -202,43 +202,34 @@ input[type="date"].broker-date-native::-webkit-date-and-time-value {
 /* ===== Z-index stacking (mobile overlays) =====
  * Low → high: chat (35) · header (40) · menu dropdown (45) ·
  * sheet backdrop/sheet (48–49) · modal (50) · elevated modal (60)
+ * Registered as @utility so Tailwind v4 does not strip z-*-prefixed classes.
  */
-:root {
-  --z-layer-chat: 35;
-  --z-layer-header: 40;
-  --z-layer-menu: 45;
-  --z-layer-sheet-backdrop: 48;
-  --z-layer-sheet: 49;
-  --z-layer-modal: 50;
-  --z-layer-modal-elevated: 60;
+@utility z-layer-chat {
+  z-index: 35;
 }
 
-.z-layer-chat {
-  z-index: var(--z-layer-chat);
+@utility z-layer-header {
+  z-index: 40;
 }
 
-.z-layer-header {
-  z-index: var(--z-layer-header);
+@utility z-layer-menu {
+  z-index: 45;
 }
 
-.z-layer-menu {
-  z-index: var(--z-layer-menu);
+@utility z-layer-sheet-backdrop {
+  z-index: 48;
 }
 
-.z-layer-sheet-backdrop {
-  z-index: var(--z-layer-sheet-backdrop);
+@utility z-layer-sheet {
+  z-index: 49;
 }
 
-.z-layer-sheet {
-  z-index: var(--z-layer-sheet);
+@utility z-layer-modal {
+  z-index: 50;
 }
 
-.z-layer-modal {
-  z-index: var(--z-layer-modal);
-}
-
-.z-layer-modal-elevated {
-  z-index: var(--z-layer-modal-elevated);
+@utility z-layer-modal-elevated {
+  z-index: 60;
 }
 
 /* ===== GSAP Fade Up Initial State ===== */
