@@ -1,12 +1,27 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Lock } from "lucide-react";
 import { btn, inputClass } from "@/lib/ui/tokens";
 
+function siteAccessErrorMessage(status: number, serverError?: string): string {
+  if (serverError) return serverError;
+
+  switch (status) {
+    case 400:
+      return "Cerere invalidă. Introduceți parola și încercați din nou.";
+    case 401:
+      return "Parolă incorectă. Folosiți exact valoarea din SITE_PREVIEW_PASSWORD (.env.local sau Vercel).";
+    case 404:
+      return "Accesul nu este restricționat momentan.";
+    case 500:
+      return "Eroare de configurare server (SITE_PREVIEW_PASSWORD lipsă sau invalid).";
+    default:
+      return `Eroare neașteptată (${status}). Încercați din nou.`;
+  }
+}
+
 export default function SiteAccessForm() {
-  const router = useRouter();
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -19,19 +34,20 @@ export default function SiteAccessForm() {
     try {
       const res = await fetch("/api/site-access", {
         method: "POST",
+        credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ password: password.trim() }),
       });
 
-      const data = await res.json();
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
 
       if (!res.ok) {
-        setError(data.error || "Parolă incorectă.");
+        setError(siteAccessErrorMessage(res.status, data.error));
         return;
       }
 
-      router.push("/");
-      router.refresh();
+      // Full navigation so middleware sees the new httpOnly cookie (soft router.push can miss it on mobile).
+      window.location.assign("/");
     } catch {
       setError("Eroare de conexiune. Încercați din nou.");
     } finally {
@@ -51,7 +67,11 @@ export default function SiteAccessForm() {
         id="site-access-password"
         type="password"
         required
-        autoComplete="current-password"
+        autoComplete="off"
+        autoCapitalize="none"
+        autoCorrect="off"
+        spellCheck={false}
+        enterKeyHint="done"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
         className={inputClass}

@@ -5,22 +5,46 @@ export const SITE_ACCESS_COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
 
 const textEncoder = new TextEncoder();
 
+/** Trim and strip optional surrounding quotes from .env values. */
+function normalizeEnvValue(value: string | undefined): string | null {
+  if (!value) return null;
+  let normalized = value.trim();
+  if (
+    (normalized.startsWith('"') && normalized.endsWith('"')) ||
+    (normalized.startsWith("'") && normalized.endsWith("'"))
+  ) {
+    normalized = normalized.slice(1, -1).trim();
+  }
+  return normalized || null;
+}
+
+/** Cookie options for site-access; Secure only on HTTPS (works on http://LAN-IP in dev). */
+export function siteAccessCookieOptions(request: Request) {
+  const secure = new URL(request.url).protocol === "https:";
+  return {
+    httpOnly: true,
+    secure,
+    sameSite: "lax" as const,
+    path: "/",
+    maxAge: SITE_ACCESS_COOKIE_MAX_AGE,
+  };
+}
+
 export function isSitePasswordGateEnabled(): boolean {
   return (
-    process.env.SITE_PREVIEW_MODE === "true" &&
-    Boolean(process.env.SITE_PREVIEW_PASSWORD?.trim())
+    normalizeEnvValue(process.env.SITE_PREVIEW_MODE) === "true" &&
+    Boolean(getSitePreviewPassword())
   );
 }
 
 export function getSitePreviewPassword(): string | null {
-  const password = process.env.SITE_PREVIEW_PASSWORD?.trim();
-  return password || null;
+  return normalizeEnvValue(process.env.SITE_PREVIEW_PASSWORD);
 }
 
 function getSiteAccessHmacKey(): string {
   return (
-    process.env.JWT_SECRET?.trim() ||
-    process.env.SITE_PREVIEW_PASSWORD?.trim() ||
+    normalizeEnvValue(process.env.JWT_SECRET) ||
+    getSitePreviewPassword() ||
     "site-access"
   );
 }
@@ -57,11 +81,16 @@ export async function siteAccessCookieValue(password: string): Promise<string> {
   return hmacSha256Hex(getSiteAccessHmacKey(), password);
 }
 
+/** Trim user input; env password is already trimmed in getSitePreviewPassword(). */
+export function normalizeSiteAccessPassword(input: string): string {
+  return input.trim();
+}
+
 export function isSiteAccessPasswordValid(
   provided: string,
   expected: string
 ): boolean {
-  return secretsMatch(provided, expected);
+  return secretsMatch(normalizeSiteAccessPassword(provided), expected);
 }
 
 export async function hasValidSiteAccessCookie(

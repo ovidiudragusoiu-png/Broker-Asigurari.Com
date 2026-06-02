@@ -2,15 +2,15 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import {
   SITE_ACCESS_COOKIE,
-  SITE_ACCESS_COOKIE_MAX_AGE,
   getSitePreviewPassword,
   isSiteAccessPasswordValid,
   isSitePasswordGateEnabled,
+  siteAccessCookieOptions,
   siteAccessCookieValue,
 } from "@/lib/siteAccess";
 
 const bodySchema = z.object({
-  password: z.string().min(1).max(200),
+  password: z.string().trim().min(1).max(200),
 });
 
 export async function POST(request: Request) {
@@ -39,13 +39,7 @@ export async function POST(request: Request) {
   response.cookies.set(
     SITE_ACCESS_COOKIE,
     await siteAccessCookieValue(expectedPassword),
-    {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: SITE_ACCESS_COOKIE_MAX_AGE,
-    }
+    siteAccessCookieOptions(request)
   );
 
   return response;

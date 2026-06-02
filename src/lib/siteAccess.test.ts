@@ -16,6 +16,7 @@ describe("siteAccess", () => {
   it("validates preview password and cookie", async () => {
     const password = "staging-password";
     expect(isSiteAccessPasswordValid(password, password)).toBe(true);
+    expect(isSiteAccessPasswordValid(`  ${password}  `, password)).toBe(true);
     expect(isSiteAccessPasswordValid("wrong", password)).toBe(false);
 
     const cookie = await siteAccessCookieValue(password);
