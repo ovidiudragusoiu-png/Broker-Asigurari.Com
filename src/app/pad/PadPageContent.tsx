@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useLayoutEffect } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import WizardStepper, { useWizard } from "@/components/shared/WizardStepper";
 import PersonForm, { emptyPersonPF } from "@/components/shared/PersonForm";
 import AddressForm, { emptyAddress } from "@/components/shared/AddressForm";
@@ -46,6 +46,43 @@ const TRUST_BADGES = [
   "Partener MaxyGo Broker de Asigurare SRL",
 ];
 const REMAINING_BY_STEP = ["~2 min ramase", "~90 sec ramase", "~45 sec ramase", "Ultimul pas"];
+
+const requiredMark = <span className="ml-0.5 text-red-600" aria-hidden="true">*</span>;
+
+const selectCls =
+  "w-full appearance-none rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none";
+const inputCls =
+  "w-full rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none";
+const padFieldErrorSuffix =
+  "!border-red-300 bg-red-50/40 focus:!border-red-500 focus:!ring-red-500/20";
+
+function padSelectClass(invalid: boolean) {
+  return invalid ? `${selectCls} ${padFieldErrorSuffix}` : selectCls;
+}
+
+function padInputClass(invalid: boolean) {
+  return invalid ? `${inputCls} ${padFieldErrorSuffix}` : inputCls;
+}
+
+function PadFieldLabel({
+  children,
+  required,
+}: {
+  children: ReactNode;
+  required?: boolean;
+}) {
+  return (
+    <label className="mb-1 block text-xs font-medium text-gray-500">
+      {children}
+      {required ? requiredMark : null}
+    </label>
+  );
+}
+
+function FieldError({ show, message }: { show: boolean; message: string }) {
+  if (!show) return null;
+  return <p className="mt-1 text-xs text-red-600">{message}</p>;
+}
 
 export default function PadPage() {
   /* ---- Utils from API ---- */
@@ -98,25 +135,6 @@ export default function PadPage() {
   const offersStepIndex = 2; // 0-indexed: Property, People, Offer, Payment
   const isOffersStep = currentStep === offersStepIndex;
 
-  useLayoutEffect(() => {
-    if (typeof window === "undefined" || typeof history === "undefined") return;
-    const previousScrollRestoration = history.scrollRestoration;
-    history.scrollRestoration = "manual";
-
-    return () => {
-      history.scrollRestoration = previousScrollRestoration;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.scrollTo(0, 0);
-    requestAnimationFrame(() => {
-      window.scrollTo(0, 0);
-      requestAnimationFrame(() => window.scrollTo(0, 0));
-    });
-  }, [currentStep]);
-
   /* ---- Clear stale offer/order when navigating back to earlier steps ---- */
   useEffect(() => {
     if (currentStep < 2) {
@@ -152,6 +170,80 @@ export default function PadPage() {
 
   const isPeopleStepValid =
     isPersonValid(contractor, { skipIdDocument: true }) && (sameAsContractor || isPersonValid(insured, { skipIdDocument: true }));
+
+  const step1FieldRefs = useRef<Record<string, HTMLElement | null>>({});
+  const step2FormRef = useRef<HTMLDivElement>(null);
+
+  const padStep1Errors = {
+    padPropertyType: !padPropertyType,
+    environmentType: !environmentType,
+    buildingStructure: !buildingStructureTypeId,
+    constructionType: !constructionTypeId,
+    constructionYear: !constructionYear || Number(constructionYear) <= 1800,
+    area: !area || Number(area) <= 0,
+    noOfRooms: !noOfRooms || Number(noOfRooms) <= 0,
+    noOfFloors: noOfFloors === "" || Number(noOfFloors) < 0,
+    noOfConstructedBuildings: !noOfConstructedBuildings || Number(noOfConstructedBuildings) <= 0,
+    policyStartDate: !policyStartDate,
+    previousPolicyNumber: isRenewal && !previousPolicyNumber.trim(),
+    address: !isAddressValid(propertyAddress),
+  };
+
+  const PAD_STEP1_FIELD_ORDER = [
+    "padPropertyType",
+    "environmentType",
+    "buildingStructure",
+    "constructionType",
+    "constructionYear",
+    "area",
+    "noOfRooms",
+    "noOfFloors",
+    "noOfConstructedBuildings",
+    "previousPolicyNumber",
+    "policyStartDate",
+    "address",
+  ] as const;
+
+  const showStep1FieldError = (key: keyof typeof padStep1Errors) =>
+    showErrors && padStep1Errors[key];
+
+  const setStep1FieldRef = (key: string) => (el: HTMLElement | null) => {
+    step1FieldRefs.current[key] = el;
+  };
+
+  const focusFirstPadStep1Error = () => {
+    const first = PAD_STEP1_FIELD_ORDER.find((key) => padStep1Errors[key]);
+    if (!first) return;
+    const el = step1FieldRefs.current[first];
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    const focusable = el.querySelector<HTMLElement>(
+      "input:not([type=hidden]):not([readonly]), select, textarea"
+    );
+    focusable?.focus({ preventScroll: true });
+  };
+
+  const handlePadStep1Continue = () => {
+    if (isPropertyStepValid) {
+      setShowErrors(false);
+      next();
+      return;
+    }
+    setShowErrors(true);
+    requestAnimationFrame(() => focusFirstPadStep1Error());
+  };
+
+  const handlePadStep2Continue = () => {
+    if (isPeopleStepValid) {
+      setShowErrors(false);
+      setShowDnt(true);
+      return;
+    }
+    setShowErrors(true);
+    requestAnimationFrame(() => {
+      step2FormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
 
   /* ---- Fetch PAD utils ---- */
   useEffect(() => {
@@ -339,12 +431,6 @@ export default function PadPage() {
     }
   };
 
-  /* ---- CSS helpers ---- */
-  const selectCls =
-    "w-full appearance-none rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none";
-  const inputCls =
-    "w-full rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none";
-
   /* ============================================================ */
   /* Steps                                                        */
   /* ============================================================ */
@@ -358,10 +444,10 @@ export default function PadPage() {
           <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm space-y-4">
             {/* Row 1: PAD type + Environment */}
             <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-500">Tip PAD</label>
+              <div ref={setStep1FieldRef("padPropertyType")}>
+                <PadFieldLabel required>Tip PAD</PadFieldLabel>
                 <select
-                  className={selectCls}
+                  className={padSelectClass(showStep1FieldError("padPropertyType"))}
                   value={padPropertyType}
                   onChange={(e) => setPadPropertyType(e.target.value)}
                 >
@@ -372,11 +458,12 @@ export default function PadPage() {
                     </option>
                   ))}
                 </select>
+                <FieldError show={showStep1FieldError("padPropertyType")} message="Selectati tipul PAD" />
               </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-500">Mediu</label>
+              <div ref={setStep1FieldRef("environmentType")}>
+                <PadFieldLabel required>Mediu</PadFieldLabel>
                 <select
-                  className={selectCls}
+                  className={padSelectClass(showStep1FieldError("environmentType"))}
                   value={environmentType}
                   onChange={(e) => setEnvironmentType(e.target.value)}
                 >
@@ -387,16 +474,17 @@ export default function PadPage() {
                     </option>
                   ))}
                 </select>
+                <FieldError show={showStep1FieldError("environmentType")} message="Selectati mediul" />
               </div>
             </div>
 
             {/* Row 2: Building structure + Construction type (shown after PAD type selected) */}
             {padPropertyType && (
               <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-500">Structura cladire</label>
+                <div ref={setStep1FieldRef("buildingStructure")}>
+                  <PadFieldLabel required>Structura cladire</PadFieldLabel>
                   <select
-                    className={selectCls}
+                    className={padSelectClass(showStep1FieldError("buildingStructure"))}
                     value={buildingStructureTypeId}
                     onChange={(e) => setBuildingStructureTypeId(e.target.value)}
                   >
@@ -407,11 +495,12 @@ export default function PadPage() {
                       </option>
                     ))}
                   </select>
+                  <FieldError show={showStep1FieldError("buildingStructure")} message="Selectati structura cladirii" />
                 </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-500">Tip constructie</label>
+                <div ref={setStep1FieldRef("constructionType")}>
+                  <PadFieldLabel required>Tip constructie</PadFieldLabel>
                   <select
-                    className={selectCls}
+                    className={padSelectClass(showStep1FieldError("constructionType"))}
                     value={constructionTypeId}
                     onChange={(e) => setConstructionTypeId(e.target.value)}
                   >
@@ -422,71 +511,77 @@ export default function PadPage() {
                       </option>
                     ))}
                   </select>
+                  <FieldError show={showStep1FieldError("constructionType")} message="Selectati tipul de constructie" />
                 </div>
               </div>
             )}
 
             {/* Row 3: Year + Area */}
             <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-500">An constructie</label>
+              <div ref={setStep1FieldRef("constructionYear")}>
+                <PadFieldLabel required>An constructie</PadFieldLabel>
                 <input
                   type="number"
-                  className={inputCls}
+                  className={padInputClass(showStep1FieldError("constructionYear"))}
                   placeholder="ex: 2005"
                   value={constructionYear}
                   onChange={(e) => setConstructionYear(e.target.value)}
                   min={1800}
                   max={2030}
                 />
+                <FieldError show={showStep1FieldError("constructionYear")} message="Introduceti anul constructiei" />
               </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-500">Suprafata (mp)</label>
+              <div ref={setStep1FieldRef("area")}>
+                <PadFieldLabel required>Suprafata (mp)</PadFieldLabel>
                 <input
                   type="number"
-                  className={inputCls}
+                  className={padInputClass(showStep1FieldError("area"))}
                   placeholder="ex: 70"
                   value={area}
                   onChange={(e) => setArea(e.target.value)}
                   min={1}
                 />
+                <FieldError show={showStep1FieldError("area")} message="Introduceti suprafata" />
               </div>
             </div>
 
             {/* Row 4: Rooms + Floors + Buildings */}
             <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-3">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-500">Nr. camere</label>
+              <div ref={setStep1FieldRef("noOfRooms")}>
+                <PadFieldLabel required>Nr. camere</PadFieldLabel>
                 <input
                   type="number"
-                  className={inputCls}
+                  className={padInputClass(showStep1FieldError("noOfRooms"))}
                   placeholder="ex: 2"
                   value={noOfRooms}
                   onChange={(e) => setNoOfRooms(e.target.value)}
                   min={1}
                 />
+                <FieldError show={showStep1FieldError("noOfRooms")} message="Introduceti numarul de camere" />
               </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-500">Nr. etaje</label>
+              <div ref={setStep1FieldRef("noOfFloors")}>
+                <PadFieldLabel required>Nr. etaje</PadFieldLabel>
                 <input
                   type="number"
-                  className={inputCls}
+                  className={padInputClass(showStep1FieldError("noOfFloors"))}
                   placeholder="ex: 4"
                   value={noOfFloors}
                   onChange={(e) => setNoOfFloors(e.target.value)}
-                  min={1}
+                  min={0}
                 />
+                <FieldError show={showStep1FieldError("noOfFloors")} message="Introduceti numarul de etaje" />
               </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-500">Nr. cladiri</label>
+              <div ref={setStep1FieldRef("noOfConstructedBuildings")}>
+                <PadFieldLabel required>Nr. cladiri</PadFieldLabel>
                 <input
                   type="number"
-                  className={inputCls}
+                  className={padInputClass(showStep1FieldError("noOfConstructedBuildings"))}
                   placeholder="1"
                   value={noOfConstructedBuildings}
                   onChange={(e) => setNoOfConstructedBuildings(e.target.value)}
                   min={1}
                 />
+                <FieldError show={showStep1FieldError("noOfConstructedBuildings")} message="Introduceti numarul de cladiri" />
               </div>
             </div>
 
@@ -540,7 +635,7 @@ export default function PadPage() {
               {isRenewal && (
                 <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-gray-500">Serie polita anterioara</label>
+                    <PadFieldLabel>Serie polita anterioara</PadFieldLabel>
                     <input
                       type="text"
                       className={`${inputCls} bg-gray-100 cursor-not-allowed`}
@@ -548,36 +643,38 @@ export default function PadPage() {
                       readOnly
                     />
                   </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-gray-500">Numar polita anterioara</label>
+                  <div ref={setStep1FieldRef("previousPolicyNumber")}>
+                    <PadFieldLabel required>Numar polita anterioara</PadFieldLabel>
                     <input
                       type="text"
-                      className={inputCls}
+                      className={padInputClass(showStep1FieldError("previousPolicyNumber"))}
                       placeholder="ex: 123456"
                       value={previousPolicyNumber}
                       onChange={(e) => setPreviousPolicyNumber(e.target.value)}
                     />
+                    <FieldError show={showStep1FieldError("previousPolicyNumber")} message="Introduceti numarul politei anterioare" />
                   </div>
                 </div>
               )}
 
               {/* Start date */}
-              <div className="max-w-xs">
-                <label className="mb-1 block text-xs font-medium text-gray-500">
+              <div ref={setStep1FieldRef("policyStartDate")} className="max-w-xs">
+                <PadFieldLabel required>
                   Data inceput polita
                   {!isRenewal && (
-                    <span className="ml-1 text-gray-400">(azi + 5 zile, cfm. legii)</span>
+                    <span className="ml-1 font-normal text-gray-400">(azi + 5 zile, cfm. legii)</span>
                   )}
                   {isRenewal && (
-                    <span className="ml-1 text-gray-400">(max. azi + 30 zile)</span>
+                    <span className="ml-1 font-normal text-gray-400">(max. azi + 30 zile)</span>
                   )}
-                </label>
+                </PadFieldLabel>
                 {isRenewal ? (
                   <DateInput
                     value={policyStartDate}
                     min={(() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().split("T")[0]; })()}
                     max={(() => { const d = new Date(); d.setDate(d.getDate() + 30); return d.toISOString().split("T")[0]; })()}
                     onChange={(v) => setPolicyStartDate(v)}
+                    className={padInputClass(showStep1FieldError("policyStartDate"))}
                   />
                 ) : (
                   <DateInput
@@ -587,19 +684,30 @@ export default function PadPage() {
                     className={`${inputCls} bg-gray-100 cursor-not-allowed`}
                   />
                 )}
+                <FieldError show={showStep1FieldError("policyStartDate")} message="Selectati data de inceput" />
               </div>
             </div>
 
             {/* Property address */}
-            <div className="border-t border-gray-100 pt-4">
+            <div
+              ref={setStep1FieldRef("address")}
+              className={`border-t pt-4 ${showStep1FieldError("address") ? "border-red-200" : "border-gray-100"}`}
+            >
               <div className="mb-3 flex items-center gap-2">
                 <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
                 </svg>
-                <span className="text-xs font-medium text-gray-500">Adresa proprietate</span>
+                <span className="text-xs font-medium text-gray-500">
+                  Adresa proprietate
+                  {requiredMark}
+                </span>
               </div>
               <AddressForm value={propertyAddress} onChange={setPropertyAddress} showErrors={showErrors} />
+              <FieldError
+                show={showStep1FieldError("address")}
+                message="Completati adresa proprietatii (judet, localitate, strada, numar, cod postal)"
+              />
             </div>
           </div>
 
@@ -737,7 +845,7 @@ export default function PadPage() {
           <div className="text-center pt-2">
             <button
               type="button"
-              onClick={() => { if (isPropertyStepValid) { setShowErrors(false); next(); } else { setShowErrors(true); } }}
+              onClick={handlePadStep1Continue}
               disabled={false}
               className={`${btn.primary} px-8`}
             >
@@ -764,7 +872,7 @@ export default function PadPage() {
           backLabel="Inapoi la date persoane"
         />
       ) : (
-        <div className="mx-auto max-w-2xl space-y-4">
+        <div ref={step2FormRef} className="mx-auto max-w-2xl space-y-4">
           <PersonForm
             value={contractor}
             onChange={setContractor}
@@ -822,7 +930,7 @@ export default function PadPage() {
             </button>
             <button
               type="button"
-              onClick={() => { if (isPeopleStepValid) { setShowErrors(false); setShowDnt(true); } else { setShowErrors(true); } }}
+              onClick={handlePadStep2Continue}
               disabled={false}
               className={`${btn.primary} px-8`}
             >

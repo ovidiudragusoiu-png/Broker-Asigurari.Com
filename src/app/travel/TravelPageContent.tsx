@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useLayoutEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import WizardStepper, { useWizard } from "@/components/shared/WizardStepper";
 import PersonForm, { emptyPersonPF } from "@/components/shared/PersonForm";
 import OfferCard from "@/components/shared/OfferCard";
@@ -212,25 +212,6 @@ export default function TravelPage() {
   // Clear stale offers/order when navigating back to trip or travelers steps
   const offersStepIndex = 2; // 0-indexed: Trip, Travelers, Offers, Payment
   const isOffersStep = currentStep === offersStepIndex;
-  useLayoutEffect(() => {
-    if (typeof window === "undefined" || typeof history === "undefined") return;
-    const previousScrollRestoration = history.scrollRestoration;
-    history.scrollRestoration = "manual";
-
-    return () => {
-      history.scrollRestoration = previousScrollRestoration;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.scrollTo(0, 0);
-    requestAnimationFrame(() => {
-      window.scrollTo(0, 0);
-      requestAnimationFrame(() => window.scrollTo(0, 0));
-    });
-  }, [currentStep]);
-
   useEffect(() => {
     if (currentStep < offersStepIndex) {
       setOffers([]);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useLayoutEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import WizardStepper, { useWizard } from "@/components/shared/WizardStepper";
 import { api } from "@/lib/api/client";
 import { btn } from "@/lib/ui/tokens";
@@ -101,25 +101,6 @@ export default function GarantiiPage() {
   // Nomenclatures
   const [counties, setCounties] = useState<SelectOption[]>([]);
   const [cities, setCities] = useState<SelectOption[]>([]);
-
-  useLayoutEffect(() => {
-    if (typeof window === "undefined" || typeof history === "undefined") return;
-    const previousScrollRestoration = history.scrollRestoration;
-    history.scrollRestoration = "manual";
-
-    return () => {
-      history.scrollRestoration = previousScrollRestoration;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.scrollTo(0, 0);
-    requestAnimationFrame(() => {
-      window.scrollTo(0, 0);
-      requestAnimationFrame(() => window.scrollTo(0, 0));
-    });
-  }, [currentStep]);
 
   const isBucharest = BUCHAREST_COUNTY_IDS.has(form.countyId);
   const isBucharestSentinel = form.countyId === BUCHAREST_SENTINEL;

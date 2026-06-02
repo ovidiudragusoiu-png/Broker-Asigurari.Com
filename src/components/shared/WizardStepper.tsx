@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useWizardStepScroll } from "@/lib/hooks/useWizardStepScroll";
 
 interface Step {
   title: string;
@@ -28,11 +29,12 @@ export default function WizardStepper({
   hideStepperOnMobile = false,
   showMobileProgress = false,
 }: WizardStepperProps) {
+  const rootRef = useWizardStepScroll(currentStep);
   const currentStepMeta = steps[currentStep];
   const progressPct = ((currentStep + 1) / steps.length) * 100;
 
   return (
-    <div>
+    <div ref={rootRef} className="scroll-mt-20 sm:scroll-mt-24">
       {/* Mobile step banner */}
       <div className={`md:hidden ${hideStepperOnMobile ? "mb-3" : "mb-4"}`}>
         <p className="text-center text-sm font-semibold text-gray-900">

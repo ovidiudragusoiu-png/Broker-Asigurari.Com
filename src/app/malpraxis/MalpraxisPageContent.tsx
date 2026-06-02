@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useLayoutEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import WizardStepper, { useWizard } from "@/components/shared/WizardStepper";
 import PersonForm, { emptyPersonPF } from "@/components/shared/PersonForm";
 import OfferCard from "@/components/shared/OfferCard";
@@ -182,25 +182,6 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
   const [showErrors, setShowErrors] = useState(false);
   const offersStepIndex = 2; // 0-indexed: Details, Insured, Offers, Payment
   const isOffersStep = currentStep === offersStepIndex;
-
-  useLayoutEffect(() => {
-    if (typeof window === "undefined" || typeof history === "undefined") return;
-    const previousScrollRestoration = history.scrollRestoration;
-    history.scrollRestoration = "manual";
-
-    return () => {
-      history.scrollRestoration = previousScrollRestoration;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.scrollTo(0, 0);
-    requestAnimationFrame(() => {
-      window.scrollTo(0, 0);
-      requestAnimationFrame(() => window.scrollTo(0, 0));
-    });
-  }, [currentStep]);
 
   const logClientTrace = (
     traceId: string | null,

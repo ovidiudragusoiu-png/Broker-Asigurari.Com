@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import WizardStepper, { useWizard } from "@/components/shared/WizardStepper";
 import { api } from "@/lib/api/client";
 import { readString, readNumber } from "@/lib/utils/rcaHelpers";
@@ -246,25 +246,6 @@ export default function CascoPage() {
   const [makes, setMakes] = useState<SelectOption[]>([]);
   const [categories, setCategories] = useState<SelectOption[]>([]);
   const [subcategories, setSubcategories] = useState<SelectOption[]>([]);
-
-  useLayoutEffect(() => {
-    if (typeof window === "undefined" || typeof history === "undefined") return;
-    const previousScrollRestoration = history.scrollRestoration;
-    history.scrollRestoration = "manual";
-
-    return () => {
-      history.scrollRestoration = previousScrollRestoration;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.scrollTo(0, 0);
-    requestAnimationFrame(() => {
-      window.scrollTo(0, 0);
-      requestAnimationFrame(() => window.scrollTo(0, 0));
-    });
-  }, [currentStep]);
 
   useEffect(() => {
     api.get<SelectOption[]>("/online/address/utils/counties")

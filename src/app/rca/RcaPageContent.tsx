@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useEffect, useLayoutEffect, useReducer, useCallback } from "react";
+import { Suspense, useState, useEffect, useReducer, useCallback } from "react";
 import WizardStepper, {
   useWizardUrlSync,
 } from "@/components/shared/WizardStepper";
@@ -166,32 +166,6 @@ function RcaPageInner() {
     void orderHash; void orderId; // intentionally excluded from persistence
     sessionStorage.setItem("rcaWizardState", JSON.stringify(safeState));
   }, [state, hydrated]);
-
-  // ----- Reset scroll on every wizard step change -----
-  // Step navigation uses router.push({ scroll: false }) to keep transitions snappy,
-  // which makes the browser preserve scroll position across step changes. When the
-  // user moves from a tall step (e.g. the offers list on step 5) to a shorter one
-  // (e.g. the additional-driver question on step 6), the preserved offset lands the
-  // viewport below the new content, hiding the title and stepper. Also covers the
-  // reload case where the browser would otherwise restore the previous scroll.
-  useLayoutEffect(() => {
-    if (typeof window === "undefined" || typeof history === "undefined") return;
-    const previousScrollRestoration = history.scrollRestoration;
-    history.scrollRestoration = "manual";
-
-    return () => {
-      history.scrollRestoration = previousScrollRestoration;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.scrollTo(0, 0);
-    requestAnimationFrame(() => {
-      window.scrollTo(0, 0);
-      requestAnimationFrame(() => window.scrollTo(0, 0));
-    });
-  }, [currentStep]);
 
   // ============================================================
   // Step 5: Create order + generate offers (NOW with real data)

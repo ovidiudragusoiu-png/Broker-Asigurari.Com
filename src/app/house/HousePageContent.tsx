@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useLayoutEffect } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import WizardStepper, { useWizard } from "@/components/shared/WizardStepper";
 import PersonForm, { emptyPersonPF } from "@/components/shared/PersonForm";
 import AddressForm, { emptyAddress } from "@/components/shared/AddressForm";
@@ -67,6 +67,37 @@ const COVERAGE_ITEMS = [
 ];
 
 const REMAINING_BY_STEP = ["~2 min ramase", "~90 sec ramase", "~45 sec ramase", "Ultimul pas"];
+
+const requiredMark = <span className="ml-0.5 text-red-600" aria-hidden="true">*</span>;
+
+const houseInputBase =
+  "w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none";
+const houseInputError =
+  "w-full rounded-md border border-red-400 bg-red-50/40 px-3 py-2 text-sm transition-colors focus:border-red-500 focus:ring-2 focus:ring-red-500/20 focus:outline-none";
+
+function houseFieldClass(invalid: boolean) {
+  return invalid ? houseInputError : houseInputBase;
+}
+
+function HouseFieldLabel({
+  children,
+  required,
+}: {
+  children: ReactNode;
+  required?: boolean;
+}) {
+  return (
+    <label className="mb-1 block text-sm font-medium text-gray-700">
+      {children}
+      {required ? requiredMark : null}
+    </label>
+  );
+}
+
+function FieldError({ show, message }: { show: boolean; message: string }) {
+  if (!show) return null;
+  return <p className="mt-1 text-xs text-red-600">{message}</p>;
+}
 
 export default function HousePage() {
   // House comparator utils
@@ -152,25 +183,6 @@ export default function HousePage() {
   const isOffersStep = currentStep === offersStepIndex;
   const [showErrors, setShowErrors] = useState(false);
 
-  useLayoutEffect(() => {
-    if (typeof window === "undefined" || typeof history === "undefined") return;
-    const previousScrollRestoration = history.scrollRestoration;
-    history.scrollRestoration = "manual";
-
-    return () => {
-      history.scrollRestoration = previousScrollRestoration;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.scrollTo(0, 0);
-    requestAnimationFrame(() => {
-      window.scrollTo(0, 0);
-      requestAnimationFrame(() => window.scrollTo(0, 0));
-    });
-  }, [currentStep]);
-
   // Auto-generate offers when user reaches step 3
   useEffect(() => {
     if (currentStep === offersStepIndex && offers.length === 0 && !loadingOffers) {
@@ -195,6 +207,79 @@ export default function HousePage() {
     !!padConstructionTypeId &&
     noOfFloors >= 0;
   const isContractorValid = isPersonValid(contractor, { skipIdDocument: true });
+
+  const step1FieldRefs = useRef<Record<string, HTMLElement | null>>({});
+  const step2FormRef = useRef<HTMLDivElement>(null);
+
+  const houseStep1Errors = {
+    constructionType: !constructionTypeCode,
+    constructionYear: !constructionYear || constructionYear <= 0,
+    surfaceArea: !surfaceArea || surfaceArea <= 0,
+    numberOfRooms: !numberOfRooms || numberOfRooms <= 0,
+    finishType: !finishTypeCode,
+    environmentType: !environmentTypeCode,
+    buildingStructure: !buildingStructureTypeId,
+    padConstructionType: !padConstructionTypeId,
+    address: !isAddressValid(houseAddress),
+    floor: isBloc && !houseAddress.floorId,
+    buildingSum: buildingSum <= 0,
+  };
+
+  const HOUSE_STEP1_FIELD_ORDER = [
+    "constructionType",
+    "constructionYear",
+    "surfaceArea",
+    "numberOfRooms",
+    "finishType",
+    "environmentType",
+    "buildingStructure",
+    "padConstructionType",
+    "address",
+    "floor",
+    "buildingSum",
+  ] as const;
+
+  const showStep1FieldError = (key: keyof typeof houseStep1Errors) =>
+    showErrors && houseStep1Errors[key];
+
+  const setStep1FieldRef = (key: string) => (el: HTMLElement | null) => {
+    step1FieldRefs.current[key] = el;
+  };
+
+  const focusFirstHouseStep1Error = () => {
+    const first = HOUSE_STEP1_FIELD_ORDER.find((key) => houseStep1Errors[key]);
+    if (!first) return;
+    const refKey = first === "floor" ? "address" : first;
+    const el = step1FieldRefs.current[refKey];
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    const focusable = el.querySelector<HTMLElement>(
+      "input:not([type=hidden]), select, textarea"
+    );
+    focusable?.focus({ preventScroll: true });
+  };
+
+  const handleHouseStep1Continue = () => {
+    if (isHouseDetailsValid) {
+      setShowErrors(false);
+      next();
+      return;
+    }
+    setShowErrors(true);
+    requestAnimationFrame(() => focusFirstHouseStep1Error());
+  };
+
+  const handleContractorStepContinue = () => {
+    if (isContractorValid) {
+      setShowErrors(false);
+      setShowDntSubstep(true);
+      return;
+    }
+    setShowErrors(true);
+    requestAnimationFrame(() => {
+      step2FormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
 
   // Load house comparator utils
   useEffect(() => {
@@ -568,10 +653,10 @@ export default function HousePage() {
           <h3 className="text-lg font-semibold text-gray-900">Detalii locuinta</h3>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Tip constructie</label>
+            <div ref={setStep1FieldRef("constructionType")}>
+              <HouseFieldLabel required>Tip constructie</HouseFieldLabel>
               <select
-                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                className={houseFieldClass(showStep1FieldError("constructionType"))}
                 value={constructionTypeCode}
                 onChange={(e) => setConstructionTypeCode(e.target.value)}
               >
@@ -580,42 +665,50 @@ export default function HousePage() {
                   <option key={c.code} value={c.code}>{c.name}</option>
                 ))}
               </select>
+              <FieldError show={showStep1FieldError("constructionType")} message="Selectati tipul de constructie" />
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">An constructie</label>
+            <div ref={setStep1FieldRef("constructionYear")}>
+              <HouseFieldLabel required>An constructie</HouseFieldLabel>
               <input
                 type="number"
-                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                className={houseFieldClass(showStep1FieldError("constructionYear"))}
                 value={constructionYear ?? ""}
                 onChange={(e) => setConstructionYear(e.target.value ? Number(e.target.value) : null)}
+                min={1800}
+                max={new Date().getFullYear()}
               />
+              <FieldError show={showStep1FieldError("constructionYear")} message="Introduceti anul constructiei" />
             </div>
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Suprafata (mp)</label>
+            <div ref={setStep1FieldRef("surfaceArea")}>
+              <HouseFieldLabel required>Suprafata (mp)</HouseFieldLabel>
               <input
                 type="number"
-                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                className={houseFieldClass(showStep1FieldError("surfaceArea"))}
                 value={surfaceArea ?? ""}
                 onChange={(e) => setSurfaceArea(e.target.value ? Number(e.target.value) : null)}
+                min={1}
               />
+              <FieldError show={showStep1FieldError("surfaceArea")} message="Introduceti suprafata locuintei" />
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Numar camere</label>
+            <div ref={setStep1FieldRef("numberOfRooms")}>
+              <HouseFieldLabel required>Numar camere</HouseFieldLabel>
               <input
                 type="number"
-                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                className={houseFieldClass(showStep1FieldError("numberOfRooms"))}
                 value={numberOfRooms ?? ""}
                 onChange={(e) => setNumberOfRooms(e.target.value ? Number(e.target.value) : null)}
+                min={1}
               />
+              <FieldError show={showStep1FieldError("numberOfRooms")} message="Introduceti numarul de camere" />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Numar etaje</label>
+              <HouseFieldLabel>Numar etaje</HouseFieldLabel>
               <input
                 type="number"
-                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                className={houseFieldClass(false)}
                 value={noOfFloors}
                 min={0}
                 onChange={(e) => setNoOfFloors(Math.max(0, Number(e.target.value) || 0))}
@@ -624,10 +717,10 @@ export default function HousePage() {
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Tip finisaj</label>
+            <div ref={setStep1FieldRef("finishType")}>
+              <HouseFieldLabel required>Tip finisaj</HouseFieldLabel>
               <select
-                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                className={houseFieldClass(showStep1FieldError("finishType"))}
                 value={finishTypeCode}
                 onChange={(e) => setFinishTypeCode(e.target.value)}
               >
@@ -636,11 +729,12 @@ export default function HousePage() {
                   <option key={f.code} value={f.code}>{f.name}</option>
                 ))}
               </select>
+              <FieldError show={showStep1FieldError("finishType")} message="Selectati tipul de finisaj" />
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Mediu</label>
+            <div ref={setStep1FieldRef("environmentType")}>
+              <HouseFieldLabel required>Mediu</HouseFieldLabel>
               <select
-                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                className={houseFieldClass(showStep1FieldError("environmentType"))}
                 value={environmentTypeCode}
                 onChange={(e) => setEnvironmentTypeCode(e.target.value)}
               >
@@ -649,14 +743,15 @@ export default function HousePage() {
                   <option key={et.code} value={et.code}>{et.name}</option>
                 ))}
               </select>
+              <FieldError show={showStep1FieldError("environmentType")} message="Selectati mediul locuintei" />
             </div>
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Tip proprietate PAD</label>
+              <HouseFieldLabel required>Tip proprietate PAD</HouseFieldLabel>
               <select
-                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                className={houseFieldClass(false)}
                 value={padPropertyType}
                 onChange={(e) => setPadPropertyType(e.target.value)}
               >
@@ -664,10 +759,10 @@ export default function HousePage() {
                 <option value="B">Tip B (lemn, chirpici)</option>
               </select>
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Structura cladire</label>
+            <div ref={setStep1FieldRef("buildingStructure")}>
+              <HouseFieldLabel required>Structura cladire</HouseFieldLabel>
               <select
-                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                className={houseFieldClass(showStep1FieldError("buildingStructure"))}
                 value={buildingStructureTypeId}
                 onChange={(e) => setBuildingStructureTypeId(e.target.value)}
               >
@@ -676,11 +771,12 @@ export default function HousePage() {
                   <option key={bs.id} value={bs.id}>{bs.description || bs.name}</option>
                 ))}
               </select>
+              <FieldError show={showStep1FieldError("buildingStructure")} message="Selectati structura cladirii" />
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Tip constructie PAD</label>
+            <div ref={setStep1FieldRef("padConstructionType")}>
+              <HouseFieldLabel required>Tip constructie PAD</HouseFieldLabel>
               <select
-                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                className={houseFieldClass(showStep1FieldError("padConstructionType"))}
                 value={padConstructionTypeId}
                 onChange={(e) => setPadConstructionTypeId(e.target.value)}
               >
@@ -689,6 +785,7 @@ export default function HousePage() {
                   <option key={ct.id} value={ct.id}>{ct.description || ct.name}</option>
                 ))}
               </select>
+              <FieldError show={showStep1FieldError("padConstructionType")} message="Selectati tipul de constructie PAD" />
             </div>
           </div>
 
@@ -712,16 +809,28 @@ export default function HousePage() {
             </select>
           </div>
 
-          <div className="rounded-md border border-gray-200 p-4">
-            <h4 className="mb-3 text-sm font-semibold text-gray-700">Adresa locuinta</h4>
-            <AddressForm value={houseAddress} onChange={setHouseAddress} showErrors={showErrors} />
-            {isBloc && !houseAddress.floorId && (
-              <p className="mt-2 text-xs font-medium text-amber-600">Etajul este obligatoriu pentru locuinta tip apartament (Bloc).</p>
-            )}
+          <div
+            ref={setStep1FieldRef("address")}
+            className={`rounded-md border p-4 ${showStep1FieldError("address") || showStep1FieldError("floor") ? "border-red-300 bg-red-50/30" : "border-gray-200"}`}
+          >
+            <h4 className="mb-3 text-sm font-semibold text-gray-700">
+              Adresa locuinta
+              {requiredMark}
+            </h4>
+            <AddressForm
+              value={houseAddress}
+              onChange={setHouseAddress}
+              showErrors={showErrors}
+              floorRequired={isBloc}
+            />
+            <FieldError
+              show={showStep1FieldError("address")}
+              message="Completati adresa locuintei (judet, localitate, strada, numar, cod postal)"
+            />
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Data inceput polita</label>
+            <HouseFieldLabel required>Data inceput polita</HouseFieldLabel>
             <DateInput
               value={policyStartDate}
               min={(() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().split("T")[0]; })()}
@@ -731,23 +840,27 @@ export default function HousePage() {
 
           <h4 className="text-sm font-semibold text-gray-700">Sume asigurate</h4>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Suma cladire (EUR)</label>
+            <div ref={setStep1FieldRef("buildingSum")}>
+              <HouseFieldLabel required>Suma cladire (EUR)</HouseFieldLabel>
               <input
                 type="number"
-                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                className={houseFieldClass(showStep1FieldError("buildingSum"))}
                 value={buildingSum || ""}
                 onChange={(e) => setBuildingSum(Number(e.target.value) || 0)}
+                min={1}
               />
+              <FieldError show={showStep1FieldError("buildingSum")} message="Introduceti suma asigurata pentru cladire" />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Suma continut (EUR)</label>
+              <HouseFieldLabel>Suma continut (EUR)</HouseFieldLabel>
               <input
                 type="number"
-                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                className={houseFieldClass(false)}
                 value={contentSum || ""}
                 onChange={(e) => setContentSum(Number(e.target.value) || 0)}
+                min={0}
               />
+              <p className="mt-1 text-xs text-gray-500">Optional — completati daca doriti asigurarea continutului</p>
             </div>
           </div>
 
@@ -980,7 +1093,7 @@ export default function HousePage() {
             )}
           </div>
 
-          <button type="button" onClick={() => { if (isHouseDetailsValid) { setShowErrors(false); next(); } else { setShowErrors(true); } }} className="rounded-md bg-blue-700 px-6 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50">
+          <button type="button" onClick={handleHouseStep1Continue} className="rounded-md bg-blue-700 px-6 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50">
             Continua
           </button>
         </div>
@@ -989,7 +1102,7 @@ export default function HousePage() {
     {
       title: "Date Asigurat",
       content: !showDntSubstep ? (
-        <div className="space-y-6">
+        <div className="space-y-6" ref={step2FormRef}>
           <PersonForm
             value={contractor}
             onChange={setContractor}
@@ -1015,7 +1128,7 @@ export default function HousePage() {
           </div>
           <div className="flex gap-3">
             <button type="button" onClick={prev} className="rounded-md border border-gray-300 px-6 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Inapoi</button>
-            <button type="button" onClick={() => { if (isContractorValid) { setShowErrors(false); setShowDntSubstep(true); } else { setShowErrors(true); } }} className="rounded-md bg-blue-700 px-6 py-2 text-sm font-medium text-white hover:bg-blue-800">Continuă</button>
+            <button type="button" onClick={handleContractorStepContinue} className="rounded-md bg-blue-700 px-6 py-2 text-sm font-medium text-white hover:bg-blue-800">Continuă</button>
           </div>
         </div>
       ) : (

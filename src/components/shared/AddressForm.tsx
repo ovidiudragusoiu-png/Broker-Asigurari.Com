@@ -17,6 +17,8 @@ interface AddressFormProps {
   addressType?: "HOME" | "MAILING";
   /** When true, highlight empty mandatory fields with red borders */
   showErrors?: boolean;
+  /** When true, floor is required (e.g. apartment in a block) */
+  floorRequired?: boolean;
 }
 
 interface SelectOption {
@@ -64,6 +66,7 @@ export default function AddressForm({
   onChange,
   addressType = "HOME",
   showErrors = false,
+  floorRequired = false,
 }: AddressFormProps) {
   const [countries, setCountries] = useState<SelectOption[]>([]);
   const [counties, setCounties] = useState<SelectOption[]>([]);
@@ -471,9 +474,12 @@ export default function AddressForm({
       {/* Floor & Postal code */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className={labelCls}>Etaj</label>
+          <label className={labelCls}>
+            Etaj
+            {floorRequired && <span className="ml-0.5 text-red-600">*</span>}
+          </label>
           <select
-            className={selectCls}
+            className={`${selectCls} ${showErrors && floorRequired && !value.floorId ? errBorder : ""}`}
             value={value.floorId ?? ""}
             onChange={(e) =>
               update({
@@ -488,6 +494,9 @@ export default function AddressForm({
               </option>
             ))}
           </select>
+          {showErrors && floorRequired && !value.floorId && (
+            <p className="mt-1 text-xs text-red-600">Selectati etajul</p>
+          )}
         </div>
         <div>
           <label className={labelCls}>Cod postal</label>
