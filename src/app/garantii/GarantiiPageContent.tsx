@@ -7,6 +7,7 @@ import { btn } from "@/lib/ui/tokens";
 import DntChoice from "@/components/rca/DntChoice";
 import TermsModal from "@/components/rca/TermsModal";
 import EmailInput from "@/components/shared/EmailInput";
+import { useScrollIntoViewWhen } from "@/lib/hooks/useScrollIntoViewWhen";
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -88,6 +89,7 @@ export default function GarantiiPage() {
   const [form, setForm] = useState<GarantiiForm>(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const successRef = useScrollIntoViewWhen(submitted);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [showGdprModal, setShowGdprModal] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
@@ -241,7 +243,7 @@ export default function GarantiiPage() {
 
   if (submitted) {
     return (
-      <section className="mx-auto max-w-3xl px-4 pt-24 pb-8 text-center">
+      <section ref={successRef} className="mx-auto max-w-3xl scroll-mt-20 px-4 pt-24 pb-8 text-center sm:scroll-mt-24">
         <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-green-400 to-green-500 shadow-lg">
           <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
