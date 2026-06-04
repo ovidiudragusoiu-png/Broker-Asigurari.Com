@@ -1,20 +1,21 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import WizardStepper, { useWizard } from "@/components/shared/WizardStepper";
 import PersonForm, { emptyPersonPF } from "@/components/shared/PersonForm";
 import OfferCard from "@/components/shared/OfferCard";
 import PaymentFlow from "@/components/shared/PaymentFlow";
 import DntChoice from "@/components/rca/DntChoice";
+import MalpraxisAgreementsForm from "@/components/malpraxis/MalpraxisAgreementsForm";
 import { api } from "@/lib/api/client";
 import type { PersonRequest } from "@/types/insuretech";
 import { calculatePolicyEndDate } from "@/lib/utils/formatters";
 import { isPersonValid } from "@/lib/utils/formGuards";
 import { dateOfBirthFromCNP } from "@/lib/utils/validation";
-import { autoSignConsent } from "@/lib/flows/consent";
 import { createOrderAndOffers } from "@/lib/flows/offerFlow";
 import { buildMalpraxisOrderPayload } from "@/lib/flows/payloadBuilders";
 import {
+  buildAbcClaimSpecificDetails,
   buildMalpraxisBodiesPayload,
   buildMalpraxisComparatorPayload,
   buildMalpraxisEligibilityPayload,
@@ -22,9 +23,24 @@ import {
   buildMalpraxisMoralSublimitValues,
   groupMalpraxisEligibilityBatches,
   inferMalpraxisProductCode,
+  inferMalpraxisProductCodeByProductId,
   parseMalpraxisMoralDamagesSelection,
   type MalpraxisSpecificDetail,
 } from "@/lib/flows/malpraxisOfferPayload";
+import {
+  buildMalpraxisProductMatrix,
+  getIncludedProductIdsFromMatrix,
+  mapMatrixExcludedToOffers,
+} from "@/lib/flows/malpraxisProductMatrix";
+import {
+  fetchMalpraxisInsurerOffer,
+  getInsurerRetryHintMessage,
+  inferInsurerAdjustmentFields,
+  mergeInsurerOverrideIntoInput,
+  resolveInsurerOverride,
+  type MalpraxisInsurerOverride,
+} from "@/lib/flows/malpraxisInsurerRetry";
+import MalpraxisInsurerRetryCard from "@/components/malpraxis/MalpraxisInsurerRetryCard";
 import DateInput from "@/components/shared/DateInput";
 import { getArray } from "@/lib/utils/dto";
 import { btn } from "@/lib/ui/tokens";
@@ -41,6 +57,35 @@ const selectCls =
 const inputCls =
   "w-full rounded-xl border-2 border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 transition-colors duration-200 focus:border-[#2563EB] focus:bg-white focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none";
 const labelCls = "mb-1 block text-xs font-medium text-gray-500";
+/** Malpraxis offers use a single installment (field removed from UI). */
+const MALPRAXIS_INSTALLMENTS_NO = 1;
+const detailsErrBorder =
+  "!border-red-300 focus:!border-red-500 focus:!ring-red-500/20";
+
+function getMalpraxisDetailsMissingLabels(input: {
+  professionId: string;
+  categoryId: string;
+  needsSubcategory: boolean;
+  subcategoryId: string;
+  generalLimit: string;
+  moralDamagesLimit: string;
+  authorizationTypeCode: string;
+  currencyId: string;
+  retroactivePeriod: string;
+  policyStartDate: string;
+}): string[] {
+  const missing: string[] = [];
+  if (!input.professionId.trim()) missing.push("Profesie");
+  if (!input.categoryId.trim()) missing.push("Categorie");
+  if (input.needsSubcategory && !input.subcategoryId.trim()) missing.push("Specialitate");
+  if (!input.generalLimit.trim()) missing.push("Suma asigurata");
+  if (!input.moralDamagesLimit.trim()) missing.push("Limita daune morale (%)");
+  if (!input.authorizationTypeCode.trim()) missing.push("Tip autorizatie");
+  if (!input.currencyId.trim()) missing.push("Moneda");
+  if (!input.retroactivePeriod.trim()) missing.push("Perioada retroactiva");
+  if (!input.policyStartDate.trim()) missing.push("Data inceput polita");
+  return missing;
+}
 
 const normalizeVendorKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
 const isPharmacistSelection = (...values: Array<string | undefined>) => values.some((value) => /farmac/i.test(value || ""));
@@ -130,7 +175,6 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
   const [moralDamagesLimits, setMoralDamagesLimits] = useState<CodeName[]>([]);
   const [retroactivePeriods, setRetroactivePeriods] = useState<CodeName[]>([]);
   const [currencies, setCurrencies] = useState<string[]>([]);
-  const [installmentsOptions, setInstallmentsOptions] = useState<number[]>([]);
   const [, setVendorSpecificDetails] = useState<VendorSpecificGroup[]>([]);
   const [products, setProducts] = useState<{ id: number; productName: string; vendorDetails?: { name: string; linkLogo?: string } }[]>([]);
 
@@ -143,7 +187,6 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
   const [customMoralDamagesLimitValue, setCustomMoralDamagesLimitValue] = useState("");
   const [currencyId, setCurrencyId] = useState("EUR");
   const [authorizationTypeCode, setAuthorizationTypeCode] = useState("");
-  const [installmentsNo, setInstallmentsNo] = useState(1);
   const [retroactivePeriod, setRetroactivePeriod] = useState("");
   const [policyStartDate, setPolicyStartDate] = useState("");
 
@@ -161,14 +204,17 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
   const [loadingOffers, setLoadingOffers] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showErrorOffers, setShowErrorOffers] = useState(false);
+  const [insurerOverrides, setInsurerOverrides] = useState<Record<number, MalpraxisInsurerOverride>>({});
+  const [retryingInsurerId, setRetryingInsurerId] = useState<number | null>(null);
 
-  // Prior liability toggles (vendor-specific)
-  const [previousLiability, setPreviousLiability] = useState(false);
-  const [previousLiabilityDamages, setPreviousLiabilityDamages] = useState(false);
+  // ABC claim booleans (utils: KNOWLEDGE_* / REGISTERED_*; comparator wire: PREVIOUS_* / PRIOR_*)
+  const [knowledgeCompensationClaims, setKnowledgeCompensationClaims] = useState(false);
+  const [registeredCompensationClaims, setRegisteredCompensationClaims] = useState(false);
 
   // GDPR & DNT
   const [showGdprModal, setShowGdprModal] = useState(false);
   const [showDntSubstep, setShowDntSubstep] = useState(false);
+  const [showConsent, setShowConsent] = useState(false);
 
   // Download state (per-card)
   const [downloadingOfferId, setDownloadingOfferId] = useState<number | null>(null);
@@ -180,8 +226,10 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
 
   const { currentStep, next, prev, goTo } = useWizard(4);
   const [showErrors, setShowErrors] = useState(false);
+  const [showDetailsErrors, setShowDetailsErrors] = useState(false);
   const offersStepIndex = 2; // 0-indexed: Details, Insured, Offers, Payment
   const isOffersStep = currentStep === offersStepIndex;
+  const hideMarketingSidebar = isOffersStep || showDntSubstep || showConsent;
 
   const logClientTrace = (
     traceId: string | null,
@@ -218,17 +266,34 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
   const effectiveCategoryType = effectiveSubcategory?.type || categoryId;
   const effectiveComparatorId = effectiveSubcategory?.comparatorId;
 
-  const isMalpraxisDetailsValid =
-    !!professionId &&
-    !!categoryId &&
-    (!needsSubcategory || !!subcategoryId) &&
-    !!generalLimit &&
-    !!moralDamagesLimit &&
-    !!authorizationTypeCode &&
-    !!currencyId &&
-    !!retroactivePeriod &&
-    !!policyStartDate;
+  const malpraxisDetailsMissingLabels = getMalpraxisDetailsMissingLabels({
+    professionId,
+    categoryId,
+    needsSubcategory,
+    subcategoryId,
+    generalLimit,
+    moralDamagesLimit,
+    authorizationTypeCode,
+    currencyId,
+    retroactivePeriod,
+    policyStartDate,
+  });
+  const isMalpraxisDetailsValid = malpraxisDetailsMissingLabels.length === 0;
   const isInsuredStepValid = isPersonValid(insured, { skipIdDocument: true });
+
+  const detailsFieldCls = (isMissing: boolean) =>
+    isMissing && showDetailsErrors ? `${selectCls} ${detailsErrBorder}` : selectCls;
+  const detailsInputCls = (isMissing: boolean) =>
+    isMissing && showDetailsErrors ? `${inputCls} ${detailsErrBorder}` : inputCls;
+
+  const handleDetailsContinue = () => {
+    if (isMalpraxisDetailsValid) {
+      setShowDetailsErrors(false);
+      next();
+      return;
+    }
+    setShowDetailsErrors(true);
+  };
 
   useEffect(() => {
     api
@@ -257,7 +322,6 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
             typeof c === "string" ? c : String(c.id ?? c.name ?? "")
           ).filter(Boolean)
         );
-        setInstallmentsOptions(getArray<number>(data.installmentsNo));
         setVendorSpecificDetails(getArray<VendorSpecificGroup>(data.vendorSpecificDetails));
       })
       .catch(() => setError("Nu am putut incarca utilitarele Malpraxis"));
@@ -277,6 +341,8 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
       setOrderHash(null);
       setDebugTraceId(null);
       setSelectedOffer(null);
+      setShowDntSubstep(false);
+      setShowConsent(false);
     }
   }, [currentStep]);
 
@@ -287,6 +353,14 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStep]);
+
+  useEffect(() => {
+    const hasValid = offers.some((offer) => !offer.error);
+    const hasErrors = offers.some((offer) => offer.error);
+    if (hasValid && hasErrors) {
+      setShowErrorOffers(true);
+    }
+  }, [offers]);
 
   const tomorrowDate = (() => {
     const d = new Date();
@@ -310,6 +384,7 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
     generatingRef.current = true;
     setError(null);
     setLoadingOffers(true);
+    setInsurerOverrides({});
 
     const runId = ++activeRunIdRef.current;
     const currentTraceId = createMalpraxisTraceId();
@@ -347,7 +422,18 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
 
         return true;
       });
-      const selectedProductIds = candidateProducts.map((product) => product.id);
+      const moralDamagesSelectionForMatrix = parseMalpraxisMoralDamagesSelection({
+        moralDamagesLimit,
+        customMoralDamagesLimit: customMoralDamagesLimitValue,
+        generalLimit: generalLimit.trim(),
+      });
+      const productMatrix = buildMalpraxisProductMatrix(
+        candidateProducts,
+        moralDamagesSelectionForMatrix,
+        retroactivePeriod
+      );
+      const selectedProductIds = getIncludedProductIdsFromMatrix(productMatrix);
+      const matrixExcludedOffers = mapMatrixExcludedToOffers(productMatrix, candidateProducts);
       logClientTrace(currentTraceId, "client_snapshot", {
         selectedProfession: selectedProfession
           ? { code: selectedProfession.code, name: selectedProfession.name }
@@ -364,12 +450,11 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
         customMoralDamagesLimit: customMoralDamagesLimitValue,
         authorizationTypeCode,
         retroactivePeriod,
-        installmentsNo,
+        installmentsNo: MALPRAXIS_INSTALLMENTS_NO,
         selectedProductIds,
+        productMatrix,
         pharmacistContext,
       });
-
-      await autoSignConsent(insuredWithDob, "MALPRAXIS");
 
       const offerDetails = buildMalpraxisOfferDetails({
         malpraxisProfessionId: effectiveComparatorId ?? professionId,
@@ -380,7 +465,7 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
         customMoralDamagesLimit: customMoralDamagesLimitValue,
         currency: currencyId,
         operatingAuthorizationType: authorizationTypeCode,
-        installmentsNo,
+        installmentsNo: MALPRAXIS_INSTALLMENTS_NO,
         retroactivePeriod,
       });
       const moralDamagesSelection = parseMalpraxisMoralDamagesSelection({
@@ -417,22 +502,51 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
           code: "SUBLIMIT_MORAL_DAMAGE_PER_INSURANCE_PERIOD",
           value: moralSublimitsForBodies.perPeriod,
         },
-        { code: "PREVIOUS_CIVIL_LIABILITY", value: previousLiability ? "DA" : "NU" },
-        { code: "PRIOR_CIVIL_LIABILITY_DAMAGES", value: previousLiabilityDamages ? "DA" : "NU" },
+        ...buildAbcClaimSpecificDetails({
+          knowledgeCompensationClaims,
+          registeredCompensationClaims,
+        }),
       ];
 
       const startDateFormatted = `${policyStartDate}T00:00:00`;
       const requestedProductIds = selectedProductIds.map((productId) => String(productId));
+      const matrixExcludedMalpraxisOffers: MalpraxisOffer[] = matrixExcludedOffers.map(
+        (offer) => ({
+          id: 0,
+          productId: offer.productId,
+          productName: offer.vendorName ? `${offer.vendorName} Malpraxis` : "Malpraxis",
+          vendorName: offer.vendorName,
+          vendorLogo: undefined,
+          policyPremium: 0,
+          currency: "RON",
+          error: true,
+          message: offer.message,
+        })
+      );
+
+      if (requestedProductIds.length === 0) {
+        logClientTrace(currentTraceId, "offers_ready", {
+          orderId: null,
+          orderHash: null,
+          offers: matrixExcludedMalpraxisOffers,
+        });
+        setOffers(matrixExcludedMalpraxisOffers);
+        return;
+      }
+
       let eligibleProductIds = requestedProductIds;
+      const matrixIncludedIdSet = new Set(requestedProductIds);
       const eligibilityPath = "/online/offers/malpraxis/comparator/products/eligible";
       const eligibilityBatches = groupMalpraxisEligibilityBatches(
-        candidateProducts.map((product) => ({
-          productId: product.id,
-          productCode: inferMalpraxisProductCode(
-            product.vendorDetails?.name || "",
-            product.productName || ""
-          ),
-        })),
+        candidateProducts
+          .filter((product) => matrixIncludedIdSet.has(String(product.id)))
+          .map((product) => ({
+            productId: product.id,
+            productCode: inferMalpraxisProductCode(
+              product.vendorDetails?.name || "",
+              product.productName || ""
+            ),
+          })),
         {
           malpraxisProfessionId: effectiveComparatorId ?? professionId,
           category: selectedCategory?.type || categoryId,
@@ -442,7 +556,7 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
           customMoralDamagesLimit: customMoralDamagesLimitValue,
           currency: currencyId,
           operatingAuthorizationType: authorizationTypeCode,
-          installmentsNo,
+          installmentsNo: MALPRAXIS_INSTALLMENTS_NO,
           retroactivePeriod,
         },
         moralDamagesSelection
@@ -647,7 +761,12 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
       setOrderId(order.id);
       setOrderHash(order.hash);
 
-      const allOffers = [...results, ...droppedOffers, ...uniqueIneligible];
+      const allOffers = [
+        ...results,
+        ...droppedOffers,
+        ...uniqueIneligible,
+        ...matrixExcludedMalpraxisOffers,
+      ];
       const seenErrorVendors = new Set(
         allOffers
           .filter((offer) => !offer.error)
@@ -687,7 +806,6 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
 
   const validOffers = offers.filter((o) => !o.error);
   const errorOffers = offers.filter((o) => o.error);
-
   const handleDownloadOfferDoc = async (offerId: number, cardKey: string) => {
     if (!orderHash) return;
     setDownloadingOfferId(offerId);
@@ -716,7 +834,193 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
     setSelectedOffer(null);
     setError(null);
     setShowErrorOffers(false);
+    setInsurerOverrides({});
     handleCreateOrderAndOffers();
+  };
+
+  const malpraxisGlobalFormSlice = useMemo(
+    () => ({
+      moralDamagesLimit,
+      customMoralDamagesLimit: customMoralDamagesLimitValue,
+      retroactivePeriod,
+      generalLimit: generalLimit.trim(),
+    }),
+    [moralDamagesLimit, customMoralDamagesLimitValue, retroactivePeriod, generalLimit]
+  );
+
+  const buildMalpraxisFormInput = (override?: MalpraxisInsurerOverride) => {
+    const resolved = override ?? {
+      moralDamagesLimit,
+      customMoralDamagesLimit: customMoralDamagesLimitValue,
+      retroactivePeriod,
+    };
+    return mergeInsurerOverrideIntoInput(
+      {
+        malpraxisProfessionId: effectiveComparatorId ?? professionId,
+        category: selectedCategory?.type || categoryId,
+        categoryType: effectiveCategoryType,
+        generalLimit: generalLimit.trim(),
+        moralDamagesLimit: resolved.moralDamagesLimit,
+        customMoralDamagesLimit: resolved.customMoralDamagesLimit,
+        currency: currencyId,
+        operatingAuthorizationType: authorizationTypeCode,
+        installmentsNo: MALPRAXIS_INSTALLMENTS_NO,
+        retroactivePeriod: resolved.retroactivePeriod,
+      },
+      resolved
+    );
+  };
+
+  const buildSpecificDetailsForQuote = (
+    productCode: string,
+    offerDetails: ReturnType<typeof buildMalpraxisOfferDetails>,
+    moralSelection: ReturnType<typeof parseMalpraxisMoralDamagesSelection>
+  ): MalpraxisSpecificDetail[] => {
+    const moralSublimits = buildMalpraxisMoralSublimitValues(
+      productCode,
+      moralSelection,
+      offerDetails
+    );
+    return [
+      { code: "EVENT_LIMIT_INSURED_AMOUNT", value: offerDetails.generalLimit },
+      { code: "OPERATING_LICENSE_TYPE", value: authorizationTypeCode || "0" },
+      { code: "SUBLIMIT_MORAL_DAMAGE_PER_EVENT", value: moralSublimits.perEvent },
+      { code: "SUBLIMIT_MORAL_DAMAGE_PER_INSURANCE_PERIOD", value: moralSublimits.perPeriod },
+      ...buildAbcClaimSpecificDetails({
+        knowledgeCompensationClaims,
+        registeredCompensationClaims,
+      }),
+    ];
+  };
+
+  const normalizeMalpraxisOfferFromApi = (
+    raw: Record<string, unknown>,
+    productId: number
+  ): MalpraxisOffer => {
+    const responseProduct = raw.product as Record<string, unknown> | undefined;
+    const responseVendorDetails = responseProduct?.vendorDetails as Record<string, unknown> | undefined;
+    const prod = products.find((product) => product.id === productId);
+    const vendorName =
+      (raw.productDetails as { vendorDetails?: { commercialName?: string } } | undefined)?.vendorDetails
+        ?.commercialName ||
+      (responseVendorDetails?.commercialName as string | undefined) ||
+      (responseVendorDetails?.name as string | undefined) ||
+      prod?.vendorDetails?.name ||
+      "";
+    const logo =
+      (raw.productDetails as { vendorDetails?: { linkLogo?: string } } | undefined)?.vendorDetails
+        ?.linkLogo || (responseVendorDetails?.linkLogo as string | undefined);
+
+    const policyPremium = Number(raw.policyPremium ?? 0);
+    const hasError = Boolean(raw.error);
+
+    return {
+      id: Number(raw.id ?? 0),
+      productId,
+      productName: vendorName ? `${vendorName} Malpraxis` : "Malpraxis",
+      vendorName,
+      vendorLogo: logo || undefined,
+      policyPremium,
+      currency: String(raw.currency || "EUR"),
+      error: hasError,
+      message: hasError ? String(raw.message || "Oferta indisponibila") : null,
+      installments: raw.installments as MalpraxisOffer["installments"],
+      productDetails: raw.productDetails as MalpraxisOffer["productDetails"],
+    };
+  };
+
+  const handleRetryInsurer = async (failedOffer: MalpraxisOffer) => {
+    if (!orderId || !orderHash || !policyStartDate) {
+      return;
+    }
+
+    const productId = failedOffer.productId;
+    const product = products.find((item) => item.id === productId);
+    const productCode =
+      inferMalpraxisProductCode(product?.vendorDetails?.name || "", product?.productName || "") ||
+      inferMalpraxisProductCodeByProductId(productId) ||
+      "";
+
+    if (!productCode) {
+      return;
+    }
+
+    const override = resolveInsurerOverride(
+      malpraxisGlobalFormSlice,
+      productCode,
+      failedOffer.message || "",
+      insurerOverrides[productId]
+    );
+    setInsurerOverrides((prev) => ({ ...prev, [productId]: override }));
+    setRetryingInsurerId(productId);
+
+    const formInput = buildMalpraxisFormInput(override);
+    const offerDetails = buildMalpraxisOfferDetails(formInput);
+    const moralSelection = parseMalpraxisMoralDamagesSelection({
+      moralDamagesLimit: String(formInput.moralDamagesLimit ?? "0"),
+      customMoralDamagesLimit: String(formInput.customMoralDamagesLimit ?? ""),
+      generalLimit: offerDetails.generalLimit,
+    });
+    const specificDetails = buildSpecificDetailsForQuote(productCode, offerDetails, moralSelection);
+    const startDateFormatted = `${policyStartDate}T00:00:00`;
+    const traceHeaders = debugTraceId ? { [MALPRAXIS_TRACE_HEADER]: debugTraceId } : undefined;
+
+    try {
+      const result = await fetchMalpraxisInsurerOffer({
+        orderId,
+        orderHash,
+        productId,
+        productCode,
+        clientId: Number(insured.cif) || 0,
+        policyStartDate: startDateFormatted,
+        policyEndDate,
+        formInput,
+        specificDetails,
+        traceHeaders,
+      });
+
+      let updated: MalpraxisOffer;
+      if (!result.isEligible) {
+        updated = {
+          id: 0,
+          productId,
+          productName: failedOffer.productName,
+          vendorName: failedOffer.vendorName,
+          vendorLogo: failedOffer.vendorLogo,
+          policyPremium: 0,
+          currency: "RON",
+          error: true,
+          message: result.eligibilityReason || result.errorMessage || "Produsul nu este eligibil",
+        };
+      } else if (result.offer) {
+        updated = normalizeMalpraxisOfferFromApi(result.offer, productId);
+        if (!updated.vendorName) {
+          updated.vendorName = failedOffer.vendorName;
+        }
+        if (!updated.productName) {
+          updated.productName = failedOffer.productName;
+        }
+        if (!updated.vendorLogo) {
+          updated.vendorLogo = failedOffer.vendorLogo;
+        }
+      } else {
+        updated = {
+          id: 0,
+          productId,
+          productName: failedOffer.productName,
+          vendorName: failedOffer.vendorName,
+          vendorLogo: failedOffer.vendorLogo,
+          policyPremium: 0,
+          currency: "RON",
+          error: true,
+          message: result.errorMessage || "Eroare generare oferta",
+        };
+      }
+
+      setOffers((prev) => prev.map((offer) => (offer.productId === productId ? updated : offer)));
+    } finally {
+      setRetryingInsurerId(null);
+    }
   };
 
   const steps = [
@@ -729,7 +1033,8 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
               <div>
                 <label className={labelCls}>Profesie</label>
                 <select
-                  className={selectCls}
+                  id="malpraxis-field-profession"
+                  className={detailsFieldCls(!professionId.trim())}
                   value={professionId}
                   onChange={(e) => {
                     setProfessionId(e.target.value);
@@ -746,7 +1051,7 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
               <div>
                 <label className={labelCls}>Categorie</label>
                 <select
-                  className={selectCls}
+                  className={detailsFieldCls(!categoryId.trim())}
                   value={categoryId}
                   onChange={(e) => {
                     setCategoryId(e.target.value);
@@ -771,7 +1076,7 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
               <div>
                 <label className={labelCls}>Specialitate</label>
                 <select
-                  className={selectCls}
+                  className={detailsFieldCls(needsSubcategory && !subcategoryId.trim())}
                   value={subcategoryId}
                   onChange={(e) => {
                     setSubcategoryId(e.target.value);
@@ -795,7 +1100,7 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
                 <label className={labelCls}>Suma asigurata</label>
                 <input
                   type="text"
-                  className={inputCls}
+                  className={detailsInputCls(!generalLimit.trim())}
                   value={generalLimit}
                   onChange={(e) => setGeneralLimit(e.target.value)}
                   placeholder="ex: 50000"
@@ -804,7 +1109,8 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
               <div>
                 <label className={labelCls}>Limita daune morale (%)</label>
                 <select
-                  className={selectCls}
+                  id="malpraxis-field-moral-percent"
+                  className={detailsFieldCls(!moralDamagesLimit.trim())}
                   value={moralDamagesLimit}
                   onChange={(e) => {
                     setMoralDamagesLimit(e.target.value);
@@ -824,6 +1130,7 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
                   Limita personalizata daune morale (suma fixa)
                 </label>
                 <input
+                  id="malpraxis-field-moral-custom"
                   type="text"
                   className={inputCls}
                   value={customMoralDamagesLimitValue}
@@ -842,7 +1149,8 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
               <div>
                 <label className={labelCls}>Tip autorizatie</label>
                 <select
-                  className={selectCls}
+                  id="malpraxis-field-authorization"
+                  className={detailsFieldCls(!authorizationTypeCode.trim())}
                   value={authorizationTypeCode}
                   onChange={(e) => setAuthorizationTypeCode(e.target.value)}
                 >
@@ -869,7 +1177,8 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
               <div>
                 <label className={labelCls}>Perioada retroactiva</label>
                 <select
-                  className={selectCls}
+                  id="malpraxis-field-retroactive"
+                  className={detailsFieldCls(!retroactivePeriod.trim())}
                   value={retroactivePeriod}
                   onChange={(e) => setRetroactivePeriod(e.target.value)}
                 >
@@ -881,58 +1190,53 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-              <div>
-                <label className={labelCls}>Numar rate</label>
-                <select
-                  className={selectCls}
-                  value={installmentsNo}
-                  onChange={(e) => setInstallmentsNo(Number(e.target.value))}
-                >
-                  {installmentsOptions.map((n) => (
-                    <option key={n} value={n}>{n} {n === 1 ? "rata" : "rate"}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className={labelCls}>Data inceput polita</label>
-                <DateInput
-                  value={policyStartDate}
-                  min={tomorrowDate}
-                  onChange={(v) => setPolicyStartDate(v)}
-                />
-              </div>
+            <div>
+              <label className={labelCls}>Data inceput polita</label>
+              <DateInput
+                value={policyStartDate}
+                min={tomorrowDate}
+                onChange={(v) => setPolicyStartDate(v)}
+                className={detailsInputCls(!policyStartDate.trim())}
+              />
             </div>
 
-            {/* Prior liability toggles (vendor-specific for ABC Insurance) */}
-            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-              <label className="flex items-center gap-2 cursor-pointer">
+            <div className="grid grid-cols-1 gap-y-3 sm:grid-cols-2 sm:gap-x-4">
+              <label className="flex cursor-pointer items-start gap-2">
                 <input
                   type="checkbox"
-                  checked={previousLiability}
-                  onChange={(e) => setPreviousLiability(e.target.checked)}
-                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  checked={knowledgeCompensationClaims}
+                  onChange={(e) => setKnowledgeCompensationClaims(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
-                <span className="text-xs text-gray-700">Raspundere civila anterioara</span>
+                <span className="text-xs leading-snug text-gray-700">
+                  Ați avut răspundere civilă profesională anterioară?
+                </span>
               </label>
-              <label className="flex items-center gap-2 cursor-pointer">
+              <label className="flex cursor-pointer items-start gap-2">
                 <input
                   type="checkbox"
-                  checked={previousLiabilityDamages}
-                  onChange={(e) => setPreviousLiabilityDamages(e.target.checked)}
-                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  checked={registeredCompensationClaims}
+                  onChange={(e) => setRegisteredCompensationClaims(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
-                <span className="text-xs text-gray-700">Daune raspundere civila anterioara</span>
+                <span className="text-xs leading-snug text-gray-700">
+                  Au existat daune din răspundere civilă profesională anterioară?
+                </span>
               </label>
             </div>
           </div>
 
-          <div className="flex justify-center">
+          <div className="flex flex-col items-center gap-2">
+            {!isMalpraxisDetailsValid && (
+              <p className="max-w-md text-center text-xs text-amber-800">
+                {showDetailsErrors ? "Completeaza campurile obligatorii: " : "Lipseste: "}
+                <span className="font-medium">{malpraxisDetailsMissingLabels.join(", ")}</span>.
+              </p>
+            )}
             <button
               type="button"
-              onClick={() => isMalpraxisDetailsValid && next()}
-              disabled={!isMalpraxisDetailsValid}
-              className={`${btn.primary} px-8`}
+              onClick={handleDetailsContinue}
+              className={`${btn.primary} px-8 ${!isMalpraxisDetailsValid ? "opacity-70" : ""}`}
             >
               <span className="flex items-center gap-2">
                 Continua
@@ -941,6 +1245,9 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
                 </svg>
               </span>
             </button>
+            {showDetailsErrors && !isMalpraxisDetailsValid && (
+              <p className="text-xs text-gray-500">Campurile lipsa sunt marcate cu rosu.</p>
+            )}
           </div>
         </div>
       ),
@@ -949,7 +1256,27 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
       title: "Date Asigurat",
       content: (
         <div className="mx-auto max-w-2xl space-y-4">
-          {!showDntSubstep ? (
+          {showConsent ? (
+            <MalpraxisAgreementsForm
+              personData={{
+                ...insured,
+                address: { ...insured.address, streetTypeId: insured.address.streetTypeId ?? 1 },
+                ...(insured.legalType === "PF" && insured.cif
+                  ? { dateOfBirth: dateOfBirthFromCNP(String(insured.cif)) }
+                  : {}),
+              }}
+              onComplete={() => {
+                setShowConsent(false);
+                next();
+              }}
+              onError={(msg) => setError(msg)}
+              onBack={() => {
+                setShowConsent(false);
+                setShowDntSubstep(true);
+              }}
+              backLabel="Inapoi la alegerea modului de continuare"
+            />
+          ) : !showDntSubstep ? (
             <>
               <PersonForm value={insured} onChange={setInsured} title="Asigurat (medic)" hideIdDocument showErrors={showErrors} />
 
@@ -1042,7 +1369,15 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
               </div>
             </>
           ) : (
-            <DntChoice productLabel="Malpraxis" onContinueDirect={() => { setShowDntSubstep(false); next(); }} onBack={() => setShowDntSubstep(false)} />
+            <DntChoice
+              productLabel="Malpraxis"
+              onContinueDirect={() => {
+                setShowDntSubstep(false);
+                setShowConsent(true);
+              }}
+              onBack={() => setShowDntSubstep(false)}
+              backLabel="Inapoi la date asigurat"
+            />
           )}
         </div>
       ),
@@ -1101,26 +1436,75 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
                 onClick={() => setShowErrorOffers(!showErrorOffers)}
                 className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium text-gray-500 hover:text-gray-700"
               >
-                <span>Oferte indisponibile ({errorOffers.length})</span>
+                <span>
+                  {validOffers.length === 0
+                    ? `De ce nu au ofertat asigurătorii (${errorOffers.length})`
+                    : `Oferte indisponibile (${errorOffers.length})`}
+                </span>
                 <svg className={`h-4 w-4 transition-transform ${showErrorOffers ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                 </svg>
               </button>
               {showErrorOffers && (
                 <div className="grid gap-3 px-4 pb-4 md:grid-cols-2">
-                  {errorOffers.map((offer, i) => (
-                    <OfferCard
-                      key={`err-${offer.productId}-${i}`}
-                      productName={offer.productName}
-                      vendorName={offer.vendorName}
-                      vendorLogo={offer.vendorLogo}
-                      premium={0}
-                      currency={offer.currency}
-                      error={offer.message || "Eroare"}
-                      selected={false}
-                      onSelect={() => {}}
-                    />
-                  ))}
+                  {errorOffers.map((offer, i) => {
+                    const product = products.find((item) => item.id === offer.productId);
+                    const productCode =
+                      inferMalpraxisProductCode(
+                        product?.vendorDetails?.name || "",
+                        product?.productName || ""
+                      ) || inferMalpraxisProductCodeByProductId(offer.productId) || "";
+                    const rawMessage = offer.message || "";
+                    const adjustableFields = inferInsurerAdjustmentFields(
+                      productCode,
+                      rawMessage
+                    );
+                    const override = resolveInsurerOverride(
+                      malpraxisGlobalFormSlice,
+                      productCode,
+                      rawMessage,
+                      insurerOverrides[offer.productId]
+                    );
+                    const hintMessage = getInsurerRetryHintMessage(productCode, rawMessage);
+
+                    if (adjustableFields.length === 0) {
+                      return (
+                        <OfferCard
+                          key={`err-${offer.productId}-${i}`}
+                          productName={offer.productName}
+                          vendorName={offer.vendorName}
+                          vendorLogo={offer.vendorLogo}
+                          premium={0}
+                          currency={offer.currency}
+                          error={offer.message || "Eroare"}
+                          selected={false}
+                          onSelect={() => {}}
+                        />
+                      );
+                    }
+
+                    return (
+                      <MalpraxisInsurerRetryCard
+                        key={`retry-${offer.productId}-${i}`}
+                        productName={offer.productName}
+                        vendorName={offer.vendorName}
+                        vendorLogo={offer.vendorLogo}
+                        hintMessage={hintMessage}
+                        adjustableFields={adjustableFields}
+                        override={override}
+                        moralOptions={moralDamagesLimits}
+                        retroactiveOptions={retroactivePeriods}
+                        retrying={retryingInsurerId === offer.productId}
+                        onOverrideChange={(next) =>
+                          setInsurerOverrides((prev) => ({
+                            ...prev,
+                            [offer.productId]: next,
+                          }))
+                        }
+                        onRetry={() => handleRetryInsurer(offer)}
+                      />
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -1174,9 +1558,9 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
   ];
 
   return (
-    <div className={`mx-auto px-4 pt-20 pb-24 sm:pt-24 sm:px-6 lg:px-8 ${isOffersStep ? "max-w-7xl" : "max-w-6xl"}`}>
-      <div className={isOffersStep ? "space-y-8" : "grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start"}>
-        {!isOffersStep && (
+    <div className={`mx-auto px-4 pt-20 pb-24 sm:pt-24 sm:px-6 lg:px-8 ${hideMarketingSidebar ? (isOffersStep ? "max-w-7xl" : "max-w-4xl") : "max-w-6xl"}`}>
+      <div className={hideMarketingSidebar ? "space-y-8" : "grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start"}>
+        {!hideMarketingSidebar && (
         <aside className="space-y-5 lg:sticky lg:top-24">
           <div className="rounded-3xl bg-gradient-to-br from-blue-600 to-blue-800 p-6 text-white shadow-xl shadow-blue-900/20">
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15">
@@ -1199,7 +1583,7 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
           </div>
         </aside>
         )}
-        <main className={`space-y-5 ${isOffersStep ? "w-full" : ""}`}>
+        <main className={`space-y-5 ${hideMarketingSidebar ? "w-full" : ""}`}>
           <div className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
             <WizardStepper
               steps={steps}

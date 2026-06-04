@@ -1,10 +1,11 @@
-import type { Metadata } from "next";
+import { createPageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
-  title: "Politica de Confidențialitate | Sigur.Ai",
+export const metadata = createPageMetadata({
+  title: "Politica de confidențialitate | Sigur.Ai",
   description:
     "Politica de confidențialitate Sigur.Ai. Cum colectăm, utilizăm și protejăm datele dumneavoastră personale.",
-};
+  path: "/confidentialitate",
+});
 
 export default function ConfidentialitatePage() {
   return (

@@ -1,9 +1,12 @@
 import { ShieldCheck } from "lucide-react";
 import LoginForm from "@/components/portal/LoginForm";
+import { createPrivatePageMetadata } from "@/lib/seo/metadata";
 
-export const metadata = {
-  title: "Autentificare | Sigur.Ai",
-};
+export const metadata = createPrivatePageMetadata(
+  "Autentificare | Sigur.Ai",
+  "/login",
+  "Autentificare în contul Sigur.Ai."
+);
 
 export default function LoginPage() {
   return (
@@ -20,10 +23,7 @@ export default function LoginPage() {
             Autentifică-te pentru a accesa polițele tale
           </p>
         </div>
-
-        <div className="rounded-2xl border border-gray-100 bg-white p-8 shadow-sm">
-          <LoginForm />
-        </div>
+        <LoginForm />
       </div>
     </div>
   );

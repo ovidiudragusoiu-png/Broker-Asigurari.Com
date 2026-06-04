@@ -1,18 +1,28 @@
-import type { Metadata } from "next";
 import HousePageContent from "./HousePageContent";
+import JsonLd from "@/components/seo/JsonLd";
+import { createPageMetadata } from "@/lib/seo/metadata";
+import { insuranceServiceJsonLd } from "@/lib/seo/structuredData";
 
-export const metadata: Metadata = {
-  title: "Asigurare Locuinta Online - Protectie Completa | Sigur.Ai",
-  description:
-    "Asigurare locuință online: incendiu, inundații, cutremur, furt. Compară oferte și protejează-ți casa cu cele mai bune prețuri.",
-  openGraph: {
-    title: "Asigurare Locuinta Online - Protectie Completa | Sigur.Ai",
-    description:
-      "Asigurare locuință online: incendiu, inundații, cutremur, furt. Compară oferte de la asigurătorii din România.",
-    type: "website",
-  },
-};
+const DESCRIPTION =
+  "Asigurare locuință online: incendiu, inundații, cutremur, furt. Compară oferte și protejează-ți casa cu cele mai bune prețuri.";
+
+export const metadata = createPageMetadata({
+  title: "Asigurare locuință online — Protecție completă | Sigur.Ai",
+  description: DESCRIPTION,
+  path: "/house",
+});
 
 export default function HousePage() {
-  return <HousePageContent />;
+  return (
+    <>
+      <JsonLd
+        data={insuranceServiceJsonLd({
+          name: "Asigurare locuință online",
+          description: DESCRIPTION,
+          path: "/house",
+        })}
+      />
+      <HousePageContent />
+    </>
+  );
 }

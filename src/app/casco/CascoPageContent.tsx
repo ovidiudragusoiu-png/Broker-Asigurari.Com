@@ -214,6 +214,8 @@ const BUCHAREST_SENTINEL = "-999"; // virtual countyId for the single "Bucuresti
 
 export default function CascoPage() {
   const { currentStep, next, prev, goTo } = useWizard(4);
+  const dntStepIndex = 1;
+  const hideMarketingSidebar = currentStep === dntStepIndex;
   const [form, setForm] = useState<CascoForm>(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -1520,8 +1522,9 @@ export default function CascoPage() {
 
   return (
     <>
-      <div className="mx-auto max-w-6xl px-4 pt-20 pb-[calc(6rem+env(safe-area-inset-bottom,0px))] sm:pt-24 sm:pb-24 sm:px-6 lg:px-8">
-        <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
+      <div className={`mx-auto px-4 pt-20 pb-[calc(6rem+env(safe-area-inset-bottom,0px))] sm:pt-24 sm:pb-24 sm:px-6 lg:px-8 ${hideMarketingSidebar ? "max-w-4xl" : "max-w-6xl"}`}>
+        <div className={hideMarketingSidebar ? "space-y-8" : "grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start"}>
+          {!hideMarketingSidebar && (
           <aside className="space-y-5 lg:sticky lg:top-24">
             <div className="rounded-3xl bg-gradient-to-br from-blue-600 to-blue-800 p-6 text-white shadow-xl shadow-blue-900/20">
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15">
@@ -1569,8 +1572,9 @@ export default function CascoPage() {
               </div>
             </div>
           </aside>
+          )}
 
-          <main ref={formRef} className="space-y-5 scroll-mt-24">
+          <main ref={formRef} className={`space-y-5 scroll-mt-24 ${hideMarketingSidebar ? "w-full" : ""}`}>
             <div className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
               <div className="mb-5 text-center">
                 <p className="text-sm font-semibold text-blue-600">Cerere ofertă CASCO</p>
@@ -1589,32 +1593,37 @@ export default function CascoPage() {
               />
             </div>
 
-            <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-              <p className="text-sm font-semibold text-gray-900">Comparăm oferte de la:</p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {INSURER_BADGES.map((insurer) => (
-                  <span key={insurer} className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-600">
-                    {insurer}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <section className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-              <h2 className="text-xl font-bold text-gray-900">Întrebări frecvente CASCO</h2>
-              <div className="mt-4 divide-y divide-gray-100">
-                {CASCO_FAQS.map((faq) => (
-                  <div key={faq.question} className="py-4 first:pt-0 last:pb-0">
-                    <h3 className="text-sm font-semibold text-gray-900">{faq.question}</h3>
-                    <p className="mt-1 text-sm leading-relaxed text-gray-600">{faq.answer}</p>
+            {!hideMarketingSidebar && (
+              <>
+                <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                  <p className="text-sm font-semibold text-gray-900">Comparăm oferte de la:</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {INSURER_BADGES.map((insurer) => (
+                      <span key={insurer} className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-600">
+                        {insurer}
+                      </span>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </section>
+                </div>
+
+                <section className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+                  <h2 className="text-xl font-bold text-gray-900">Întrebări frecvente CASCO</h2>
+                  <div className="mt-4 divide-y divide-gray-100">
+                    {CASCO_FAQS.map((faq) => (
+                      <div key={faq.question} className="py-4 first:pt-0 last:pb-0">
+                        <h3 className="text-sm font-semibold text-gray-900">{faq.question}</h3>
+                        <p className="mt-1 text-sm leading-relaxed text-gray-600">{faq.answer}</p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              </>
+            )}
           </main>
         </div>
       </div>
 
+      {!hideMarketingSidebar && (
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/95 px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] shadow-[0_-8px_20px_rgba(15,23,42,0.08)] backdrop-blur sm:hidden">
         <div className="mx-auto flex max-w-md gap-2">
           <a href="tel:0720385551" className={`${btn.secondary} flex-1 justify-center px-3 py-2 text-sm`}>
@@ -1625,6 +1634,7 @@ export default function CascoPage() {
           </button>
         </div>
       </div>
+      )}
     </>
   );
 }

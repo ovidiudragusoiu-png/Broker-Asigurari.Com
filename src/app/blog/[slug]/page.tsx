@@ -2,7 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Clock, ChevronRight } from "lucide-react";
+import JsonLd from "@/components/seo/JsonLd";
 import { ARTICLES, getArticleBySlug, getAllSlugs } from "@/lib/data/articles";
+import { articleDateToIso } from "@/lib/seo/articleDates";
+import { createPageMetadata } from "@/lib/seo/metadata";
+import { blogPostingJsonLd } from "@/lib/seo/structuredData";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -17,16 +21,16 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const article = getArticleBySlug(slug);
   if (!article) return { title: "Articol negăsit" };
 
-  return {
+  const path = `/blog/${slug}`;
+  const publishedTime = articleDateToIso(article.date);
+
+  return createPageMetadata({
     title: `${article.title} | Blog Sigur.Ai`,
     description: article.excerpt,
-    openGraph: {
-      title: article.title,
-      description: article.excerpt,
-      type: "article",
-      publishedTime: article.date,
-    },
-  };
+    path,
+    openGraphType: "article",
+    publishedTime,
+  });
 }
 
 export default async function ArticlePage({ params }: PageProps) {
@@ -34,13 +38,23 @@ export default async function ArticlePage({ params }: PageProps) {
   const article = getArticleBySlug(slug);
   if (!article) notFound();
 
-  // Get related articles (same category, excluding current)
+  const path = `/blog/${slug}`;
+  const datePublished = articleDateToIso(article.date);
+
   const related = ARTICLES.filter(
     (a) => a.category === article.category && a.slug !== article.slug
   ).slice(0, 3);
 
   return (
     <>
+      <JsonLd
+        data={blogPostingJsonLd({
+          title: article.title,
+          description: article.excerpt,
+          path,
+          datePublished,
+        })}
+      />
       {/* Hero */}
       <section className={`bg-gradient-to-br ${article.gradient} py-16 sm:py-24`}>
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">

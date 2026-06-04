@@ -100,6 +100,8 @@ const REMAINING_BY_STEP = ["~2 min ramase", "~90 sec ramase", "Ultimul pas"];
 
 export default function RaspundereProfesionalaPage() {
   const { currentStep, next, prev, goTo } = useWizard(3);
+  const dntStepIndex = 1;
+  const hideMarketingSidebar = currentStep === dntStepIndex;
   const [form, setForm] = useState<RPForm>(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -760,8 +762,9 @@ export default function RaspundereProfesionalaPage() {
   ];
 
   return (
-    <section className="mx-auto max-w-6xl px-4 pt-20 pb-24 sm:px-6 sm:pt-24 lg:px-8">
-      <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
+    <section className={`mx-auto px-4 pt-20 pb-24 sm:px-6 sm:pt-24 lg:px-8 ${hideMarketingSidebar ? "max-w-4xl" : "max-w-6xl"}`}>
+      <div className={hideMarketingSidebar ? "space-y-8" : "grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start"}>
+        {!hideMarketingSidebar && (
         <aside className="space-y-5 lg:sticky lg:top-24">
           <div className="rounded-3xl bg-gradient-to-br from-blue-600 to-blue-800 p-6 text-white shadow-xl shadow-blue-900/20">
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15">
@@ -783,7 +786,8 @@ export default function RaspundereProfesionalaPage() {
             </div>
           </div>
         </aside>
-        <main className="space-y-5">
+        )}
+        <main className={`space-y-5 ${hideMarketingSidebar ? "w-full" : ""}`}>
           <div className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
             <WizardStepper
               steps={steps}

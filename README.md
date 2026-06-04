@@ -46,20 +46,7 @@ Vezi `.env.example` pentru lista completa. Fara aceste variabile, proxy-ul API n
 
 ## Acces cu parolă (înainte de lansare)
 
-Restricționează site-ul pentru public și permite accesul doar cu parolă (echipă / testeri):
-
-1. În `.env.local` sau Vercel (staging):
-
-```bash
-SITE_PREVIEW_MODE=true
-SITE_PREVIEW_PASSWORD=parola-ta-de-staging
-```
-
-2. Vizitatorii văd pagina `/under-development` și introduc parola.
-
-3. După parola corectă, cookie-ul permite navigarea normală (30 zile).
-
-4. La lansare: `SITE_PREVIEW_MODE=false` — site-ul devine public.
+SEO și indexare Google: vezi [docs/SEO-SETUP.md](docs/SEO-SETUP.md). Canonical: `https://www.sigur.ai`.
 
 ## Structura principala
 

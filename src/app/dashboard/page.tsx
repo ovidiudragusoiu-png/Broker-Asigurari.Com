@@ -7,9 +7,13 @@ import { btn } from "@/lib/ui/tokens";
 import PolicyCard from "@/components/portal/PolicyCard";
 import LogoutButton from "@/components/portal/LogoutButton";
 
-export const metadata = {
-  title: "Polițele mele | Sigur.Ai",
-};
+import { createPrivatePageMetadata } from "@/lib/seo/metadata";
+
+export const metadata = createPrivatePageMetadata(
+  "Polițele mele | Sigur.Ai",
+  "/dashboard",
+  "Portal clienți Sigur.Ai — polițele tale."
+);
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();

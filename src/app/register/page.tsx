@@ -1,9 +1,12 @@
 import { UserPlus } from "lucide-react";
 import RegisterForm from "@/components/portal/RegisterForm";
+import { createPrivatePageMetadata } from "@/lib/seo/metadata";
 
-export const metadata = {
-  title: "Creează cont | Sigur.Ai",
-};
+export const metadata = createPrivatePageMetadata(
+  "Creează cont | Sigur.Ai",
+  "/register",
+  "Înregistrare cont Sigur.Ai."
+);
 
 export default function RegisterPage() {
   return (
@@ -15,13 +18,10 @@ export default function RegisterPage() {
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Creează cont</h1>
           <p className="mt-2 text-sm text-gray-500">
-            Înregistrează-te pentru a-ți gestiona polițele de asigurare
+            Înregistrează-te pentru a-ți gestiona polițele online
           </p>
         </div>
-
-        <div className="rounded-2xl border border-gray-100 bg-white p-8 shadow-sm">
-          <RegisterForm />
-        </div>
+        <RegisterForm />
       </div>
     </div>
   );

@@ -4,6 +4,14 @@ import Features from "@/components/home/Features";
 import Reviews from "@/components/home/Reviews";
 import FAQ from "@/components/home/FAQ";
 import FinalCTA from "@/components/home/FinalCTA";
+import { createPageMetadata } from "@/lib/seo/metadata";
+
+export const metadata = createPageMetadata({
+  title: "Sigur.Ai — Compară asigurări online în România",
+  description:
+    "Compară și cumpără asigurări online: RCA, călătorie, locuință, CASCO, malpraxis, garanții. Cele mai bune oferte de la asigurătorii din România.",
+  path: "/",
+});
 
 const faqJsonLd = {
   "@context": "https://schema.org",

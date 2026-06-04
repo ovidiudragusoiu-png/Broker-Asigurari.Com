@@ -108,11 +108,76 @@ const MORAL_SUBLIMIT_CODES = new Set([
   "SUBLIMIT_MORAL_DAMAGE_PER_INSURANCE_PERIOD",
 ]);
 
-/** ABC comparator requires these as non-null "DA"/"NU" strings (maps to registeredCompensationClaimsObj server-side). */
+/** ABC utils (`vendorSpecificDetails`) boolean claim fields from comparator/utils. */
+export const ABC_VENDOR_BOOLEAN_CLAIM_CODES = {
+  knowledge: "KNOWLEDGE_COMPENSATION_CLAIMS",
+  registered: "REGISTERED_COMPENSATION_CLAIMS",
+} as const;
+
+/** ABC comparator/v3 wire codes (bodies); required as DA/NU — maps to registeredCompensationClaimsObj. */
 export const ABC_REQUIRED_CIVIL_LIABILITY_CODES = [
   "PRIOR_CIVIL_LIABILITY_DAMAGES",
   "PREVIOUS_CIVIL_LIABILITY",
 ] as const;
+
+export interface MalpraxisVendorSpecificDetailMeta {
+  code: string;
+  name?: string;
+  description?: string;
+}
+
+export interface MalpraxisVendorSpecificGroupMeta {
+  productCode: string;
+  details: MalpraxisVendorSpecificDetailMeta[];
+}
+
+/** Label from GET /online/offers/malpraxis/comparator/utils → vendorSpecificDetails. */
+export function getMalpraxisVendorBooleanLabel(
+  vendorGroups: MalpraxisVendorSpecificGroupMeta[],
+  productCode: string,
+  detailCode: string,
+  fallback: string
+): string {
+  const group = vendorGroups.find((entry) => entry.productCode === productCode);
+  const detail = group?.details.find((entry) => entry.code === detailCode);
+  const label = detail?.name?.trim() || detail?.description?.trim();
+  return label || fallback;
+}
+
+export function formatMalpraxisVendorBooleanQuestion(label: string): string {
+  const trimmed = label.trim();
+  if (!trimmed) {
+    return trimmed;
+  }
+  return trimmed.endsWith("?") ? trimmed : `${trimmed}?`;
+}
+
+/** Utils booleans (true/false strings) + comparator DA/NU for ABC claim declarations. */
+export function buildAbcClaimSpecificDetails(input: {
+  knowledgeCompensationClaims: boolean;
+  registeredCompensationClaims: boolean;
+}): MalpraxisSpecificDetail[] {
+  const knowledge = input.knowledgeCompensationClaims;
+  const registered = input.registeredCompensationClaims;
+  return [
+    {
+      code: ABC_VENDOR_BOOLEAN_CLAIM_CODES.knowledge,
+      value: knowledge ? "true" : "false",
+    },
+    {
+      code: ABC_VENDOR_BOOLEAN_CLAIM_CODES.registered,
+      value: registered ? "true" : "false",
+    },
+    {
+      code: "PREVIOUS_CIVIL_LIABILITY",
+      value: knowledge ? "DA" : "NU",
+    },
+    {
+      code: "PRIOR_CIVIL_LIABILITY_DAMAGES",
+      value: registered ? "DA" : "NU",
+    },
+  ];
+}
 
 const ABC_REQUIRED_CIVIL_LIABILITY_CODE_SET = new Set<string>(
   ABC_REQUIRED_CIVIL_LIABILITY_CODES
@@ -330,11 +395,14 @@ export function inferMalpraxisProductCodeByProductId(
 export function resolveMalpraxisProductCode(
   body: Record<string, unknown>
 ): string {
-  const fromBody = toOptionalString(body.productCode);
-  if (fromBody) {
-    return fromBody;
+  // Prefer canonical mapping by productId — bodies/v3 often returns vendor-specific
+  // productCode strings that skip ABC-specific comparator wiring (NPE on
+  // registeredCompensationClaimsObj when PRIOR/PREVIOUS are omitted).
+  const fromProductId = inferMalpraxisProductCodeByProductId(toNumber(body.productId));
+  if (fromProductId) {
+    return fromProductId;
   }
-  return inferMalpraxisProductCodeByProductId(toNumber(body.productId)) ?? "";
+  return toOptionalString(body.productCode);
 }
 
 export function buildMalpraxisOfferDetailsForProduct(
@@ -536,19 +604,39 @@ function coerceAbcCivilLiabilityValue(value: unknown): string | null {
   return null;
 }
 
-/**
- * ABC_INSURANCE comparator maps PREVIOUS_CIVIL_LIABILITY / PRIOR_CIVIL_LIABILITY_DAMAGES
- * to registeredCompensationClaimsObj; bodies/v3 often returns booleans only. March 6
- * success sent both codes as "NU" strings (malpraxis-wire-shape.md).
- */
-export function buildAbcComparatorSpecificDetails(
+function coerceAbcBooleanClaimValue(value: unknown): boolean {
+  if (value === true) {
+    return true;
+  }
+  if (value === false) {
+    return false;
+  }
+  const normalized = String(value ?? "")
+    .trim()
+    .toLowerCase();
+  return normalized === "true" || normalized === "da" || normalized === "1";
+}
+
+export function isAbcMalpraxisProduct(productCode: string, productId?: number): boolean {
+  if (productCode.trim().toUpperCase() === "ABC_MALPRAXIS") {
+    return true;
+  }
+  if (productId != null && inferMalpraxisProductCodeByProductId(productId) === "ABC_MALPRAXIS") {
+    return true;
+  }
+  return false;
+}
+
+/** Resolve ABC claim flags from bodies/v3 + client (utils booleans and DA/NU wire codes). */
+export function resolveAbcClaimFlags(
   bodySpecificDetails: unknown,
   clientSpecificDetails: MalpraxisSpecificDetail[] = []
-): MalpraxisSpecificDetail[] {
+): { knowledgeCompensationClaims: boolean; registeredCompensationClaims: boolean } {
   const clientByCode = new Map(
     clientSpecificDetails.map((detail) => [detail.code, detail.value])
   );
-  const fromBodies = new Map<string, string>();
+  const fromBodiesCivil = new Map<string, string>();
+  const fromBodiesBool = new Map<string, boolean>();
 
   if (Array.isArray(bodySpecificDetails)) {
     for (const entry of bodySpecificDetails) {
@@ -556,24 +644,53 @@ export function buildAbcComparatorSpecificDetails(
         continue;
       }
       const code = toOptionalString(entry.code);
-      if (!ABC_REQUIRED_CIVIL_LIABILITY_CODE_SET.has(code)) {
-        continue;
+      if (ABC_REQUIRED_CIVIL_LIABILITY_CODE_SET.has(code)) {
+        const coerced = coerceAbcCivilLiabilityValue(entry.value);
+        if (coerced) {
+          fromBodiesCivil.set(code, coerced);
+        }
       }
-      const coerced = coerceAbcCivilLiabilityValue(entry.value);
-      if (coerced) {
-        fromBodies.set(code, coerced);
+      if (
+        code === ABC_VENDOR_BOOLEAN_CLAIM_CODES.knowledge ||
+        code === ABC_VENDOR_BOOLEAN_CLAIM_CODES.registered
+      ) {
+        fromBodiesBool.set(code, coerceAbcBooleanClaimValue(entry.value));
       }
     }
   }
 
-  return ABC_REQUIRED_CIVIL_LIABILITY_CODES.map((code) => {
-    const clientValue = clientByCode.get(code);
-    const clientCoerced = clientValue != null ? coerceAbcCivilLiabilityValue(clientValue) : null;
-    return {
-      code,
-      value: fromBodies.get(code) ?? clientCoerced ?? "NU",
-    };
-  });
+  const previousClient = coerceAbcCivilLiabilityValue(
+    clientByCode.get("PREVIOUS_CIVIL_LIABILITY")
+  );
+  const priorClient = coerceAbcCivilLiabilityValue(
+    clientByCode.get("PRIOR_CIVIL_LIABILITY_DAMAGES")
+  );
+
+  const knowledge = clientByCode.has(ABC_VENDOR_BOOLEAN_CLAIM_CODES.knowledge)
+    ? coerceAbcBooleanClaimValue(clientByCode.get(ABC_VENDOR_BOOLEAN_CLAIM_CODES.knowledge))
+    : previousClient != null
+      ? previousClient === "DA"
+      : (fromBodiesBool.get(ABC_VENDOR_BOOLEAN_CLAIM_CODES.knowledge) ??
+        fromBodiesCivil.get("PREVIOUS_CIVIL_LIABILITY") === "DA");
+
+  const registered = clientByCode.has(ABC_VENDOR_BOOLEAN_CLAIM_CODES.registered)
+    ? coerceAbcBooleanClaimValue(clientByCode.get(ABC_VENDOR_BOOLEAN_CLAIM_CODES.registered))
+    : priorClient != null
+      ? priorClient === "DA"
+      : (fromBodiesBool.get(ABC_VENDOR_BOOLEAN_CLAIM_CODES.registered) ??
+        fromBodiesCivil.get("PRIOR_CIVIL_LIABILITY_DAMAGES") === "DA");
+
+  return { knowledgeCompensationClaims: knowledge, registeredCompensationClaims: registered };
+}
+
+/** ABC comparator: utils booleans and DA/NU wire codes for registeredCompensationClaimsObj. */
+export function buildAbcComparatorSpecificDetails(
+  bodySpecificDetails: unknown,
+  clientSpecificDetails: MalpraxisSpecificDetail[] = []
+): MalpraxisSpecificDetail[] {
+  return buildAbcClaimSpecificDetails(
+    resolveAbcClaimFlags(bodySpecificDetails, clientSpecificDetails)
+  );
 }
 
 /**
@@ -595,8 +712,7 @@ function prepareBodiesSpecificDetailsForWire(
   moralSelection: MalpraxisMoralDamagesSelection,
   clientSpecificDetails: MalpraxisSpecificDetail[] = []
 ): MalpraxisSpecificDetail[] {
-  const normalizedProductCode = productCode.trim().toUpperCase();
-  if (normalizedProductCode === "ABC_MALPRAXIS") {
+  if (isAbcMalpraxisProduct(productCode)) {
     return buildAbcComparatorSpecificDetails(bodySpecificDetails, clientSpecificDetails);
   }
 

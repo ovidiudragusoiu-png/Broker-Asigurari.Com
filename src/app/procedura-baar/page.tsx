@@ -1,11 +1,12 @@
-import type { Metadata } from "next";
 import Link from "next/link";
+import { createPageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
-  title: "Procedura BAAR – Asigurați cu risc ridicat | Sigur.Ai",
+export const metadata = createPageMetadata({
+  title: "Procedura BAAR — Asigurați cu risc ridicat | Sigur.Ai",
   description:
     "Informații despre procedura BAAR pentru asigurații RCA cu risc ridicat: condiții de eligibilitate, documente necesare și pașii de urmat.",
-};
+  path: "/procedura-baar",
+});
 
 export default function ProceduraBaarPage() {
   return (

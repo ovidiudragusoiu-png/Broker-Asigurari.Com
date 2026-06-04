@@ -1,19 +1,5 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
-
-/** Tailwind `md` breakpoint — hero stacks above wizard below this width. */
-const MOBILE_MEDIA_QUERY = "(max-width: 767px)";
-
-function scrollOnStepChange(target: HTMLElement | null) {
-  if (typeof window === "undefined") return;
-
-  const isMobile = window.matchMedia(MOBILE_MEDIA_QUERY).matches;
-  if (isMobile && target) {
-    target.scrollIntoView({ block: "start" });
-    return;
-  }
-
-  window.scrollTo(0, 0);
-}
+import { scrollToWizardAnchor } from "@/lib/hooks/scrollToWizardAnchor";
 
 /**
  * Resets scroll on wizard step changes. Step navigation often uses
@@ -39,7 +25,7 @@ export function useWizardStepScroll(currentStep: number) {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const run = () => scrollOnStepChange(rootRef.current);
+    const run = () => scrollToWizardAnchor(rootRef.current);
     run();
     requestAnimationFrame(() => {
       run();

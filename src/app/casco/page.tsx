@@ -1,18 +1,28 @@
-import type { Metadata } from "next";
 import CascoPageContent from "./CascoPageContent";
+import JsonLd from "@/components/seo/JsonLd";
+import { createPageMetadata } from "@/lib/seo/metadata";
+import { insuranceServiceJsonLd } from "@/lib/seo/structuredData";
 
-export const metadata: Metadata = {
-  title: "Asigurare CASCO Online - Oferta Personalizata | Sigur.Ai",
-  description:
-    "Solicită ofertă asigurare CASCO online. Acoperire completă pentru vehiculul tău: daune proprii, furt, calamități naturale.",
-  openGraph: {
-    title: "Asigurare CASCO Online - Oferta Personalizata | Sigur.Ai",
-    description:
-      "Solicită ofertă asigurare CASCO online. Acoperire completă pentru vehiculul tău.",
-    type: "website",
-  },
-};
+const DESCRIPTION =
+  "Solicită ofertă asigurare CASCO online. Acoperire completă pentru vehiculul tău: daune proprii, furt, calamități naturale.";
+
+export const metadata = createPageMetadata({
+  title: "Asigurare CASCO online — Ofertă personalizată | Sigur.Ai",
+  description: DESCRIPTION,
+  path: "/casco",
+});
 
 export default function CascoPage() {
-  return <CascoPageContent />;
+  return (
+    <>
+      <JsonLd
+        data={insuranceServiceJsonLd({
+          name: "Asigurare CASCO online",
+          description: DESCRIPTION,
+          path: "/casco",
+        })}
+      />
+      <CascoPageContent />
+    </>
+  );
 }

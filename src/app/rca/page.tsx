@@ -1,18 +1,29 @@
-import type { Metadata } from "next";
 import RcaPageContent from "./RcaPageContent";
+import JsonLd from "@/components/seo/JsonLd";
+import { createPageMetadata } from "@/lib/seo/metadata";
+import { insuranceServiceJsonLd } from "@/lib/seo/structuredData";
 
-export const metadata: Metadata = {
-  title: "Asigurare RCA Online - Compara Oferte | Sigur.Ai",
-  description:
-    "Calculează și compară oferte RCA online de la cei mai importanți asiguratori din România. Preț corect, emitere rapidă, plată online.",
-  openGraph: {
-    title: "Asigurare RCA Online - Compara Oferte | Sigur.Ai",
-    description:
-      "Calculează și compară oferte RCA online de la cei mai importanți asiguratori din România.",
-    type: "website",
-  },
-};
+const TITLE = "Asigurare RCA online — Compară oferte | Sigur.Ai";
+const DESCRIPTION =
+  "Calculează și compară oferte RCA online de la cei mai importanți asigurători din România. Preț corect, emitere rapidă, plată online.";
+
+export const metadata = createPageMetadata({
+  title: TITLE,
+  description: DESCRIPTION,
+  path: "/rca",
+});
 
 export default function RcaPage() {
-  return <RcaPageContent />;
+  return (
+    <>
+      <JsonLd
+        data={insuranceServiceJsonLd({
+          name: "Asigurare RCA online",
+          description: DESCRIPTION,
+          path: "/rca",
+        })}
+      />
+      <RcaPageContent />
+    </>
+  );
 }

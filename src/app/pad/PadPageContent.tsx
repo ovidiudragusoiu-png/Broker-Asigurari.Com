@@ -6,6 +6,7 @@ import PersonForm, { emptyPersonPF } from "@/components/shared/PersonForm";
 import AddressForm, { emptyAddress } from "@/components/shared/AddressForm";
 import PaymentFlow from "@/components/shared/PaymentFlow";
 import DntChoice from "@/components/rca/DntChoice";
+import PadAgreementsForm from "@/components/pad/PadAgreementsForm";
 import { api } from "@/lib/api/client";
 import type { PersonRequest, AddressRequest, PadCesionar } from "@/types/insuretech";
 import { formatPrice } from "@/lib/utils/formatters";
@@ -13,7 +14,6 @@ import { isAddressValid, isPersonValid } from "@/lib/utils/formGuards";
 import { getArray } from "@/lib/utils/dto";
 import { btn } from "@/lib/ui/tokens";
 import { dateOfBirthFromCNP } from "@/lib/utils/validation";
-import { autoSignConsent } from "@/lib/flows/consent";
 import DateInput from "@/components/shared/DateInput";
 
 /* Local types for API responses not in shared types */
@@ -121,6 +121,7 @@ export default function PadPage() {
   const [insured, setInsured] = useState<PersonRequest>(emptyPersonPF());
   const [sameAsContractor, setSameAsContractor] = useState(true);
   const [showDnt, setShowDnt] = useState(false);
+  const [showConsent, setShowConsent] = useState(false);
 
   /* ---- Order & Offer ---- */
   const [orderId, setOrderId] = useState<number | null>(null);
@@ -134,6 +135,15 @@ export default function PadPage() {
   const [showErrors, setShowErrors] = useState(false);
   const offersStepIndex = 2; // 0-indexed: Property, People, Offer, Payment
   const isOffersStep = currentStep === offersStepIndex;
+  const hideMarketingSidebar = isOffersStep || showDnt || showConsent;
+  const peopleStepIndex = 1;
+
+  useEffect(() => {
+    if (currentStep !== peopleStepIndex) {
+      setShowDnt(false);
+      setShowConsent(false);
+    }
+  }, [currentStep]);
 
   /* ---- Clear stale offer/order when navigating back to earlier steps ---- */
   useEffect(() => {
@@ -296,9 +306,6 @@ export default function PadPage() {
       const endDate = new Date(startDate);
       endDate.setFullYear(endDate.getFullYear() + 1);
       endDate.setDate(endDate.getDate() - 1); // T+1year-1day per PAD docs
-
-      // Sign consent (required by v3 order API) — must succeed before order creation
-      await autoSignConsent(contractor, "PAD");
 
       // Normalize persons: add dateOfBirth (PF) + streetTypeId
       const normalizeAddress = (addr: typeof propertyAddress) => ({
@@ -864,10 +871,33 @@ export default function PadPage() {
     /* ---------- Step 2: Date Persoane ---------- */
     {
       title: "Date Persoane",
-      content: showDnt ? (
+      content: showConsent ? (
+        <PadAgreementsForm
+          personData={{
+            ...contractor,
+            address: { ...contractor.address, streetTypeId: contractor.address.streetTypeId ?? 1 },
+            ...(contractor.legalType === "PF" && contractor.cif
+              ? { dateOfBirth: dateOfBirthFromCNP(String(contractor.cif)) }
+              : {}),
+          }}
+          onComplete={() => {
+            setShowConsent(false);
+            next();
+          }}
+          onError={(msg) => setError(msg)}
+          onBack={() => {
+            setShowConsent(false);
+            setShowDnt(true);
+          }}
+          backLabel="Inapoi la alegerea modului de continuare"
+        />
+      ) : showDnt ? (
         <DntChoice
           productLabel="PAD"
-          onContinueDirect={() => { setShowDnt(false); next(); }}
+          onContinueDirect={() => {
+            setShowDnt(false);
+            setShowConsent(true);
+          }}
           onBack={() => setShowDnt(false)}
           backLabel="Inapoi la date persoane"
         />
@@ -1143,9 +1173,9 @@ export default function PadPage() {
   ];
 
   return (
-    <div className={`mx-auto px-4 pt-20 pb-24 sm:pt-24 sm:px-6 lg:px-8 ${isOffersStep ? "max-w-7xl" : "max-w-6xl"}`}>
-      <div className={isOffersStep ? "space-y-8" : "grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start"}>
-        {!isOffersStep && (
+    <div className={`mx-auto px-4 pt-20 pb-24 sm:pt-24 sm:px-6 lg:px-8 ${hideMarketingSidebar ? "max-w-4xl" : "max-w-6xl"}`}>
+      <div className={hideMarketingSidebar ? "space-y-8" : "grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start"}>
+        {!hideMarketingSidebar && (
         <aside className="space-y-5 lg:sticky lg:top-24">
           <div className="rounded-3xl bg-gradient-to-br from-blue-600 to-blue-800 p-6 text-white shadow-xl shadow-blue-900/20">
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15">
@@ -1168,7 +1198,7 @@ export default function PadPage() {
           </div>
         </aside>
         )}
-        <main className={`space-y-5 ${isOffersStep ? "w-full" : ""}`}>
+        <main className={`space-y-5 ${hideMarketingSidebar ? "w-full" : ""}`}>
           <div className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
             <WizardStepper
               steps={steps}

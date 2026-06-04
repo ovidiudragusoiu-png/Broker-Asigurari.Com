@@ -1,11 +1,14 @@
-import type { Metadata, Viewport } from "next";
+import type { Viewport } from "next";
 import Link from "next/link";
 import { Inter } from "next/font/google";
 import { ShieldCheck, Phone, Mail, Clock, Facebook, Instagram } from "lucide-react";
 import Image from "next/image";
 import CinematicHeader from "@/components/layout/CinematicHeader";
 import ChatWidget from "@/components/shared/ChatWidget";
+import JsonLd from "@/components/seo/JsonLd";
 import { AuthProvider } from "@/components/portal/AuthProvider";
+import { rootLayoutMetadata } from "@/lib/seo/metadata";
+import { organizationJsonLd, websiteJsonLd } from "@/lib/seo/structuredData";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
@@ -15,11 +18,7 @@ const inter = Inter({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: "Sigur.Ai - Fii sigur. Fii asigurat.",
-  description:
-    "Compara si cumpara asigurari online: RCA, Travel, Locuinta, CASCO, Malpraxis, Garantii. Cele mai bune oferte de la asiguratorii din Romania.",
-};
+export const metadata = rootLayoutMetadata();
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -35,32 +34,8 @@ export default function RootLayout({
   return (
     <html lang="ro" className={inter.variable}>
       <head>
-        {/* JSON-LD: Organization */}
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "InsuranceAgency",
-              name: "Sigur.Ai",
-              legalName: "FLETHO LLC SRL",
-              url: "https://sigur.ai",
-              logo: "https://sigur.ai/images/logo.png",
-              telephone: "+40720385551",
-              email: ["office@sigur.ai", "bucuresti@broker-asigurari.com"],
-              address: {
-                "@type": "PostalAddress",
-                addressCountry: "RO",
-                addressLocality: "București",
-              },
-              openingHours: "Mo-Fr 09:00-18:00",
-              sameAs: [
-                "https://www.facebook.com/brokerasigurariAi",
-                "https://instagram.com/brokerasigurari",
-              ],
-            }),
-          }}
-        />
+        <JsonLd data={organizationJsonLd()} />
+        <JsonLd data={websiteJsonLd()} />
         {/* Google Analytics (GA4) */}
         <script async src="https://www.googletagmanager.com/gtag/js?id=G-3V7KLWL34F" />
         <script dangerouslySetInnerHTML={{ __html: `

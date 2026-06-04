@@ -1,44 +1,54 @@
 import type { MetadataRoute } from "next";
 import { ARTICLES } from "@/lib/data/articles";
+import { parseArticleDisplayDate } from "@/lib/seo/articleDates";
+import { SITE_URL } from "@/lib/seo/site";
 
-const BASE_URL = "https://sigur.ai";
+const BUILD_DATE = new Date();
+
+type SitemapEntry = {
+  path: string;
+  changeFrequency: MetadataRoute.Sitemap[number]["changeFrequency"];
+  priority: number;
+  lastModified?: Date;
+};
+
+const STATIC_PAGES: SitemapEntry[] = [
+  { path: "", changeFrequency: "weekly", priority: 1 },
+  { path: "/rca", changeFrequency: "weekly", priority: 0.9 },
+  { path: "/travel", changeFrequency: "weekly", priority: 0.8 },
+  { path: "/house", changeFrequency: "weekly", priority: 0.8 },
+  { path: "/pad", changeFrequency: "weekly", priority: 0.8 },
+  { path: "/malpraxis", changeFrequency: "weekly", priority: 0.8 },
+  { path: "/casco", changeFrequency: "weekly", priority: 0.7 },
+  { path: "/garantii", changeFrequency: "weekly", priority: 0.7 },
+  { path: "/raspundere-profesionala", changeFrequency: "weekly", priority: 0.7 },
+  { path: "/blog", changeFrequency: "weekly", priority: 0.6 },
+  { path: "/despre-noi", changeFrequency: "monthly", priority: 0.5 },
+  { path: "/contact", changeFrequency: "monthly", priority: 0.5 },
+  { path: "/termeni", changeFrequency: "yearly", priority: 0.3 },
+  { path: "/confidentialitate", changeFrequency: "yearly", priority: 0.3 },
+  { path: "/procedura-baar", changeFrequency: "yearly", priority: 0.3 },
+];
+
+function toSitemapUrl(entry: SitemapEntry): MetadataRoute.Sitemap[number] {
+  const url = entry.path ? `${SITE_URL}${entry.path}` : SITE_URL;
+  return {
+    url,
+    changeFrequency: entry.changeFrequency,
+    priority: entry.priority,
+    lastModified: entry.lastModified ?? BUILD_DATE,
+  };
+}
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const staticPages: MetadataRoute.Sitemap = [
-    { url: BASE_URL, changeFrequency: "weekly", priority: 1 },
-    { url: `${BASE_URL}/rca`, changeFrequency: "weekly", priority: 0.9 },
-    { url: `${BASE_URL}/travel`, changeFrequency: "weekly", priority: 0.8 },
-    { url: `${BASE_URL}/house`, changeFrequency: "weekly", priority: 0.8 },
-    { url: `${BASE_URL}/pad`, changeFrequency: "weekly", priority: 0.8 },
-    { url: `${BASE_URL}/malpraxis`, changeFrequency: "weekly", priority: 0.8 },
-    { url: `${BASE_URL}/casco`, changeFrequency: "weekly", priority: 0.7 },
-    { url: `${BASE_URL}/garantii`, changeFrequency: "weekly", priority: 0.7 },
-    {
-      url: `${BASE_URL}/raspundere-profesionala`,
-      changeFrequency: "weekly",
-      priority: 0.7,
-    },
-    { url: `${BASE_URL}/blog`, changeFrequency: "weekly", priority: 0.6 },
-    { url: `${BASE_URL}/despre-noi`, changeFrequency: "monthly", priority: 0.5 },
-    { url: `${BASE_URL}/contact`, changeFrequency: "monthly", priority: 0.5 },
-    { url: `${BASE_URL}/termeni`, changeFrequency: "yearly", priority: 0.3 },
-    {
-      url: `${BASE_URL}/confidentialitate`,
-      changeFrequency: "yearly",
-      priority: 0.3,
-    },
-    {
-      url: `${BASE_URL}/procedura-baar`,
-      changeFrequency: "yearly",
-      priority: 0.3,
-    },
-  ];
+  const staticUrls = STATIC_PAGES.map(toSitemapUrl);
 
-  const blogPages: MetadataRoute.Sitemap = ARTICLES.map((article) => ({
-    url: `${BASE_URL}/blog/${article.slug}`,
-    changeFrequency: "monthly" as const,
+  const blogUrls: MetadataRoute.Sitemap = ARTICLES.map((article) => ({
+    url: `${SITE_URL}/blog/${article.slug}`,
+    changeFrequency: "monthly",
     priority: 0.6,
+    lastModified: parseArticleDisplayDate(article.date) ?? BUILD_DATE,
   }));
 
-  return [...staticPages, ...blogPages];
+  return [...staticUrls, ...blogUrls];
 }

@@ -34,13 +34,12 @@ const BENEFITS = [
   },
   {
     icon: HeadphonesIcon,
-    title: "Consultanță gratuită",
-    description:
-      "Echipa noastră de brokeri autorizați te ghidează la fiecare pas — de la alegerea poliței până la gestionarea daunelor.",
+    title: "Consultanță profesionistă",
+    description: "Echipa noastră de experți vă oferă :",
     features: [
       "Suport dedicat prin email și telefon",
       "Asistență completă la dosare de daună",
-      "Recomandări obiective, fără interese comerciale",
+      "Recomandări obiective în funcție de nevoia dumneavoastră de asigurare",
     ],
   },
   {
@@ -69,7 +68,7 @@ const FAQS = [
   {
     question: "Cine este Sigur.Ai?",
     answer:
-      "Sigur.Ai este o platformă digitală de brokeraj de asigurări, autorizată de Autoritatea de Supraveghere Financiară (ASF). Conectăm clienții cu cei mai buni asiguratori din România pentru cele mai competitive prețuri.",
+      "Sigur.Ai este o platformă digitală unde poți compara oferte de la toți asigurătorii, alege varianta potrivită și finaliza totul online, în mai puțin de 3 minute. Fără presiune comercială, fără costuri ascunse.",
   },
   {
     question: "Sunteți autorizați de ASF?",

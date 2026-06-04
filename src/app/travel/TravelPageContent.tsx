@@ -6,12 +6,12 @@ import PersonForm, { emptyPersonPF } from "@/components/shared/PersonForm";
 import OfferCard from "@/components/shared/OfferCard";
 import PaymentFlow from "@/components/shared/PaymentFlow";
 import DntChoice from "@/components/rca/DntChoice";
+import TravelAgreementsForm from "@/components/travel/TravelAgreementsForm";
 import { api } from "@/lib/api/client";
 import type { PersonRequest } from "@/types/insuretech";
 import { isPersonValid } from "@/lib/utils/formGuards";
 import { createOrderAndOffers } from "@/lib/flows/offerFlow";
 import { buildOrderPayload } from "@/lib/flows/payloadBuilders";
-import { autoSignConsent } from "@/lib/flows/consent";
 import { getArray } from "@/lib/utils/dto";
 import DateInput from "@/components/shared/DateInput";
 import { birthDateFromCnp } from "@/lib/utils/formatters";
@@ -148,6 +148,7 @@ export default function TravelPage() {
   const [error, setError] = useState<string | null>(null);
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showDntSubstep, setShowDntSubstep] = useState(false);
+  const [showConsent, setShowConsent] = useState(false);
   const [downloadingOfferId, setDownloadingOfferId] = useState<number | null>(null);
   const [downloadErrors, setDownloadErrors] = useState<Record<string, string>>({});
 
@@ -212,6 +213,16 @@ export default function TravelPage() {
   // Clear stale offers/order when navigating back to trip or travelers steps
   const offersStepIndex = 2; // 0-indexed: Trip, Travelers, Offers, Payment
   const isOffersStep = currentStep === offersStepIndex;
+  const hideMarketingSidebar = isOffersStep || showDntSubstep || showConsent;
+  const travelersStepIndex = 1;
+
+  useEffect(() => {
+    if (currentStep !== travelersStepIndex) {
+      setShowDntSubstep(false);
+      setShowConsent(false);
+    }
+  }, [currentStep]);
+
   useEffect(() => {
     if (currentStep < offersStepIndex) {
       setOffers([]);
@@ -239,10 +250,6 @@ export default function TravelPage() {
         ...t,
         address: { ...t.address, streetTypeId: t.address.streetTypeId ?? 1 },
       }));
-
-      // Sign consent (required by v3 order API) — must succeed before order creation
-      const firstTraveler = normalizedTravelers[0];
-      await autoSignConsent(firstTraveler, "TRAVEL");
 
       // Add dateOfBirth to travelers (yyyy-MM-dd format per API docs)
       const travelersWithDob = normalizedTravelers.map((t) => {
@@ -526,7 +533,30 @@ export default function TravelPage() {
       title: "Date Calatori",
       content: (
         <div className="mx-auto max-w-3xl space-y-5">
-          {!showDntSubstep ? (
+          {showConsent ? (
+            <TravelAgreementsForm
+              personData={{
+                ...travelers[0],
+                address: {
+                  ...travelers[0].address,
+                  streetTypeId: travelers[0].address.streetTypeId ?? 1,
+                },
+                ...(travelers[0].legalType === "PF" && travelers[0].cif
+                  ? { dateOfBirth: birthDateFromCnp(travelers[0].cif) ?? undefined }
+                  : {}),
+              }}
+              onComplete={() => {
+                setShowConsent(false);
+                next();
+              }}
+              onError={(msg) => setError(msg)}
+              onBack={() => {
+                setShowConsent(false);
+                setShowDntSubstep(true);
+              }}
+              backLabel="Inapoi la alegerea modului de continuare"
+            />
+          ) : !showDntSubstep ? (
             <>
               <div className="rounded-2xl border border-blue-100 bg-blue-50/50 p-4">
                 <p className="text-sm font-semibold text-blue-800">Date calatori</p>
@@ -633,7 +663,15 @@ export default function TravelPage() {
               </div>
             </>
           ) : (
-            <DntChoice productLabel="Travel" onContinueDirect={() => { setShowDntSubstep(false); next(); }} onBack={() => setShowDntSubstep(false)} />
+            <DntChoice
+              productLabel="Travel"
+              onContinueDirect={() => {
+                setShowDntSubstep(false);
+                setShowConsent(true);
+              }}
+              onBack={() => setShowDntSubstep(false)}
+              backLabel="Inapoi la date calatori"
+            />
           )}
         </div>
       ),
@@ -786,9 +824,9 @@ export default function TravelPage() {
 
   return (
     <>
-      <div className={`mx-auto px-4 pt-20 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] sm:pt-24 sm:pb-24 sm:px-6 lg:px-8 ${isOffersStep ? "max-w-7xl" : "max-w-6xl"}`}>
-        <div className={isOffersStep ? "space-y-8" : "grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start"}>
-          {!isOffersStep && (
+      <div className={`mx-auto px-4 pt-20 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] sm:pt-24 sm:pb-24 sm:px-6 lg:px-8 ${hideMarketingSidebar ? (isOffersStep ? "max-w-7xl" : "max-w-4xl") : "max-w-6xl"}`}>
+        <div className={hideMarketingSidebar ? "space-y-8" : "grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start"}>
+          {!hideMarketingSidebar && (
           <aside className="space-y-5 lg:sticky lg:top-24">
             <div className="rounded-3xl bg-gradient-to-br from-blue-600 to-blue-800 p-6 text-white shadow-xl shadow-blue-900/20">
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15">
@@ -832,7 +870,7 @@ export default function TravelPage() {
           </aside>
           )}
 
-          <main className={`space-y-5 ${isOffersStep ? "w-full" : ""}`}>
+          <main className={`space-y-5 ${hideMarketingSidebar ? "w-full" : ""}`}>
             <div className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
               <div className="mb-5 text-center">
                 <p className="text-sm font-semibold text-blue-600">Cerere oferta Travel</p>

@@ -1,10 +1,11 @@
-import type { Metadata } from "next";
+import { createPageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
-  title: "Termeni și Condiții | Sigur.Ai",
+export const metadata = createPageMetadata({
+  title: "Termeni și condiții | Sigur.Ai",
   description:
     "Termenii și condițiile de utilizare a platformei Sigur.Ai. Informații despre drepturile și obligațiile utilizatorilor.",
-};
+  path: "/termeni",
+});
 
 export default function TermeniPage() {
   return (

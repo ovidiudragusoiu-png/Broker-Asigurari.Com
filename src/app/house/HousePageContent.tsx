@@ -7,12 +7,12 @@ import AddressForm, { emptyAddress } from "@/components/shared/AddressForm";
 
 import PaymentFlow from "@/components/shared/PaymentFlow";
 import DntChoice from "@/components/rca/DntChoice";
+import HouseAgreementsForm from "@/components/house/HouseAgreementsForm";
 import { api } from "@/lib/api/client";
 import type { PersonRequest, AddressRequest, PadCesionar } from "@/types/insuretech";
 import { isAddressValid, isPersonValid } from "@/lib/utils/formGuards";
 import { createOrderAndOffers } from "@/lib/flows/offerFlow";
 import { buildOrderPayload } from "@/lib/flows/payloadBuilders";
-import { autoSignConsent } from "@/lib/flows/consent";
 import DateInput from "@/components/shared/DateInput";
 import { getArray } from "@/lib/utils/dto";
 import { formatDateTime } from "@/lib/utils/formatters";
@@ -173,6 +173,7 @@ export default function HousePage() {
   const [loadingOffers, setLoadingOffers] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showDntSubstep, setShowDntSubstep] = useState(false);
+  const [showConsent, setShowConsent] = useState(false);
   const [showGdprModal, setShowGdprModal] = useState(false);
   const [downloadingOfferId, setDownloadingOfferId] = useState<number | null>(null);
   const [downloadErrors, setDownloadErrors] = useState<Record<string, string>>({});
@@ -181,6 +182,15 @@ export default function HousePage() {
   const { currentStep, next, prev, goTo } = useWizard(4);
   const offersStepIndex = 2; // 0-indexed: House details, Insured, Offers, Payment
   const isOffersStep = currentStep === offersStepIndex;
+  const hideMarketingSidebar = isOffersStep || showDntSubstep || showConsent;
+  const insuredStepIndex = 1;
+
+  useEffect(() => {
+    if (currentStep !== insuredStepIndex) {
+      setShowDntSubstep(false);
+      setShowConsent(false);
+    }
+  }, [currentStep]);
   const [showErrors, setShowErrors] = useState(false);
 
   // Auto-generate offers when user reaches step 3
@@ -331,11 +341,7 @@ export default function HousePage() {
     setLoadingOffers(true);
 
     try {
-      // Sign consent (required by v3 order API) — must succeed before order creation
-      await autoSignConsent(contractor, "HOUSE");
-
       const startDateFormatted = formatDateTime(new Date(policyStartDate));
-
 
       // Build goodDetails for order creation (matches InsureTech API schema)
       // constructionType (string name) is required by PAD computation alongside constructionTypeId
@@ -1101,7 +1107,27 @@ export default function HousePage() {
     },
     {
       title: "Date Asigurat",
-      content: !showDntSubstep ? (
+      content: showConsent ? (
+        <HouseAgreementsForm
+          personData={{
+            ...contractor,
+            address: { ...contractor.address, streetTypeId: contractor.address.streetTypeId ?? 1 },
+            ...(contractor.legalType === "PF" && contractor.cif
+              ? { dateOfBirth: dateOfBirthFromCNP(String(contractor.cif)) }
+              : {}),
+          }}
+          onComplete={() => {
+            setShowConsent(false);
+            next();
+          }}
+          onError={(msg) => setError(msg)}
+          onBack={() => {
+            setShowConsent(false);
+            setShowDntSubstep(true);
+          }}
+          backLabel="Inapoi la alegerea modului de continuare"
+        />
+      ) : !showDntSubstep ? (
         <div className="space-y-6" ref={step2FormRef}>
           <PersonForm
             value={contractor}
@@ -1134,8 +1160,12 @@ export default function HousePage() {
       ) : (
         <DntChoice
           productLabel="Locuință"
-          onContinueDirect={() => { setShowDntSubstep(false); next(); }}
+          onContinueDirect={() => {
+            setShowDntSubstep(false);
+            setShowConsent(true);
+          }}
           onBack={() => setShowDntSubstep(false)}
+          backLabel="Inapoi la date asigurat"
         />
       ),
     },
@@ -1543,9 +1573,9 @@ export default function HousePage() {
 
   return (
     <>
-      <div className={`mx-auto px-4 pt-20 pb-24 sm:pt-24 sm:px-6 lg:px-8 ${isOffersStep ? "max-w-7xl" : "max-w-6xl"}`}>
-        <div className={isOffersStep ? "space-y-8" : "grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start"}>
-          {!isOffersStep && (
+      <div className={`mx-auto px-4 pt-20 pb-24 sm:pt-24 sm:px-6 lg:px-8 ${hideMarketingSidebar ? (isOffersStep ? "max-w-7xl" : "max-w-4xl") : "max-w-6xl"}`}>
+        <div className={hideMarketingSidebar ? "space-y-8" : "grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start"}>
+          {!hideMarketingSidebar && (
           <aside className="space-y-5 lg:sticky lg:top-24">
             <div className="rounded-3xl bg-gradient-to-br from-blue-600 to-blue-800 p-6 text-white shadow-xl shadow-blue-900/20">
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15">
@@ -1584,7 +1614,7 @@ export default function HousePage() {
           </aside>
           )}
 
-          <main className={`space-y-5 ${isOffersStep ? "w-full" : ""}`}>
+          <main className={`space-y-5 ${hideMarketingSidebar ? "w-full" : ""}`}>
             <div className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
               {error && (
                 <div className="mb-4 rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-700">

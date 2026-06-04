@@ -1,4 +1,5 @@
 import { api } from "@/lib/api/client";
+import { isExcludedConsentQuestion } from "@/lib/flows/consentDisplay";
 
 interface ConsentAnswer {
   id: string;
@@ -8,6 +9,7 @@ interface ConsentAnswer {
 
 interface ConsentQuestion {
   id: string;
+  label?: string;
   type?: string;
   answers: ConsentAnswer[];
 }
@@ -57,6 +59,8 @@ export async function autoSignConsent(
   const formInputData: Record<string, boolean | string> = {};
   for (const section of consentData.sections) {
     for (const question of section.questions) {
+      if (isExcludedConsentQuestion(question)) continue;
+
       if (question.type === "text") {
         formInputData[question.id] = "";
         continue;
@@ -85,8 +89,6 @@ export async function autoSignConsent(
     }
   }
 
-  // Submit with full person object as personBaseRequest
-  // If this succeeds (no error thrown), consent is signed — skip redundant verify call
   await api.post("/online/client/documents/submit-answers", {
     personBaseRequest: person,
     communicationChannelEmail: true,
@@ -99,6 +101,18 @@ export async function autoSignConsent(
         ? window.location.origin
         : "https://www.sigur.ai",
   });
+
+  try {
+    const status = await api.get<ConsentStatus>(
+      `/online/client/documents/status?legalType=${legalType}&cif=${cif}&vendorProductType=${vendorProductType}`
+    );
+    if (!status.signedDocuments) {
+      throw new Error("Consent documents were not marked as signed after auto-submit.");
+    }
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("not marked")) throw err;
+    // Status check unavailable — treat successful POST as signed (legacy behaviour)
+  }
 }
 
 

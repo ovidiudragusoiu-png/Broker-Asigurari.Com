@@ -3,6 +3,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { api, ApiError } from "@/lib/api/client";
 import { btn } from "@/lib/ui/tokens";
+import {
+  formatConsentDisplayText,
+  isExcludedConsentQuestion,
+} from "@/lib/flows/consentDisplay";
 import type {
   LegalType,
   VendorProductType,
@@ -16,6 +20,9 @@ interface ConsentFlowProps {
   personData: PersonRequest;
   onComplete: () => void;
   onError?: (error: string) => void;
+  onBack?: () => void;
+  backLabel?: string;
+  title?: string;
 }
 
 interface Section {
@@ -63,6 +70,22 @@ function sanitizeHtml(input: string): string {
     .replace(/<\/?(iframe|object|embed|form|input|textarea|button|select|meta|link|base)[^>]*>/gi, "");
 }
 
+function buildDefaultAnswers(loadedSections: Section[]): Record<string, string[]> {
+  const defaults: Record<string, string[]> = {};
+  for (const section of loadedSections) {
+    for (const question of section.questions) {
+      if (isExcludedConsentQuestion(question)) continue;
+      const defaultSelected = question.answers
+        .filter((a) => a.defaultValue === "true")
+        .map((a) => a.id);
+      if (defaultSelected.length > 0) {
+        defaults[question.id] = defaultSelected;
+      }
+    }
+  }
+  return defaults;
+}
+
 export default function ConsentFlow({
   legalType,
   cif,
@@ -70,6 +93,9 @@ export default function ConsentFlow({
   personData,
   onComplete,
   onError,
+  onBack,
+  backLabel = "Inapoi",
+  title = "Acorduri necesare",
 }: ConsentFlowProps) {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -119,20 +145,7 @@ export default function ConsentFlow({
       const loadedSections = data.sections || [];
       setSections(loadedSections);
       setChannels(data.communicationChannels || []);
-
-      // Pre-select answers that have defaultValue "true"
-      const defaults: Record<string, string[]> = {};
-      for (const section of loadedSections) {
-        for (const question of section.questions) {
-          const defaultSelected = question.answers
-            .filter((a) => a.defaultValue === "true")
-            .map((a) => a.id);
-          if (defaultSelected.length > 0) {
-            defaults[question.id] = defaultSelected;
-          }
-        }
-      }
-      setSelectedAnswers(defaults);
+      setSelectedAnswers(buildDefaultAnswers(loadedSections));
     } catch (err) {
       onError?.(err instanceof Error ? err.message : "Failed to load consent");
     } finally {
@@ -186,7 +199,7 @@ export default function ConsentFlow({
       const formInputData: Record<string, boolean | string> = {};
       for (const section of sections) {
         for (const question of section.questions) {
-          if (isQuestionHidden(question)) continue;
+          if (isExcludedConsentQuestion(question) || isQuestionHidden(question)) continue;
 
           if (question.type === "text") {
             formInputData[question.id] =
@@ -252,14 +265,17 @@ export default function ConsentFlow({
     );
   }
 
+  const resetAnswers = () => {
+    setSelectedAnswers(buildDefaultAnswers(sections));
+    setTextAnswers({});
+    setExtraFieldValues({});
+    setSubmitError(null);
+    setSubmitErrorStatus(null);
+  };
+
   return (
-    <div className="space-y-6">
-      <h3 className="text-lg font-semibold text-gray-900">
-        Consimtamant si Prelucrare Date
-      </h3>
-      <p className="text-sm text-gray-600">
-        Inainte de a continua, va rugam sa completati urmatoarele:
-      </p>
+    <div className="mx-auto max-w-2xl space-y-6">
+      <h3 className="text-xl font-bold text-gray-900">{title}</h3>
 
       {sections.map((section, sectionIndex) => (
         <div
@@ -267,7 +283,9 @@ export default function ConsentFlow({
           className="rounded-md border border-gray-200 p-4"
         >
           {section.title ? (
-            <h4 className="mb-3 font-medium text-gray-900">{section.title}</h4>
+            <h4 className="mb-3 font-medium text-gray-900">
+              {formatConsentDisplayText(section.title)}
+            </h4>
           ) : null}
 
           {section.questions.length === 0 ? (
@@ -277,18 +295,18 @@ export default function ConsentFlow({
           ) : (
             <div className="space-y-4">
               {section.questions.map((question) => {
-                if (isQuestionHidden(question)) return null;
+                if (isExcludedConsentQuestion(question) || isQuestionHidden(question)) return null;
 
                 return (
-                  <div key={question.id}>
-                    <p className="mb-1 text-sm font-medium text-gray-700">
-                      {question.label}
+                  <div key={question.id} className="rounded-md border border-gray-100 bg-gray-50/50 p-3">
+                    <p className="mb-1 text-sm font-medium text-gray-800">
+                      {formatConsentDisplayText(question.label)}
                     </p>
                     {question.description && (
                       <p
                         className="mb-2 text-xs text-gray-500"
                         dangerouslySetInnerHTML={{
-                          __html: sanitizeHtml(question.description),
+                          __html: sanitizeHtml(formatConsentDisplayText(question.description)),
                         }}
                       />
                     )}
@@ -332,7 +350,7 @@ export default function ConsentFlow({
                                   className="mt-0.5"
                                 />
                                 <span className="text-gray-700">
-                                  {answer.label}
+                                  {formatConsentDisplayText(answer.label)}
                                   {answer.mandatory && (
                                     <span className="text-red-500"> *</span>
                                   )}
@@ -460,15 +478,39 @@ export default function ConsentFlow({
         </div>
       )}
 
-      {!submitError && (
+      <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
         <button
           type="button"
-          onClick={handleSubmit}
-          disabled={submitting}
-          className={`${btn.primary} disabled:opacity-50`}
+          onClick={resetAnswers}
+          className="text-sm font-semibold text-gray-500 transition-colors hover:text-gray-700"
         >
-          {submitting ? "Se trimite..." : "Confirm consimtamantul"}
+          Resetează răspunsurile
         </button>
+        {!submitError && (
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={submitting}
+            className={`${btn.primary} disabled:opacity-50 sm:min-w-[12rem]`}
+          >
+            {submitting ? "Se trimite..." : "Confirmă acordurile"}
+          </button>
+        )}
+      </div>
+
+      {onBack && (
+        <div className="text-center">
+          <button
+            type="button"
+            onClick={onBack}
+            className="inline-flex items-center gap-2 text-sm font-semibold text-gray-500 transition-colors hover:text-gray-700"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+            </svg>
+            {backLabel}
+          </button>
+        </div>
       )}
     </div>
   );

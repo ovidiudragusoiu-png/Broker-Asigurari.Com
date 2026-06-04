@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   adaptMalpraxisMoralDamagesForProduct,
+  buildAbcClaimSpecificDetails,
   buildAbcComparatorSpecificDetails,
   buildComparatorPayloadFromBodiesResponse,
   buildMalpraxisBodiesPayload,
@@ -986,8 +987,10 @@ describe("buildMalpraxisComparatorPayload", () => {
     );
 
     expect(payload.specificDetails).toEqual([
-      { code: "PRIOR_CIVIL_LIABILITY_DAMAGES", value: "NU" },
+      { code: "KNOWLEDGE_COMPENSATION_CLAIMS", value: "false" },
+      { code: "REGISTERED_COMPENSATION_CLAIMS", value: "false" },
       { code: "PREVIOUS_CIVIL_LIABILITY", value: "NU" },
+      { code: "PRIOR_CIVIL_LIABILITY_DAMAGES", value: "NU" },
     ]);
   });
 
@@ -1029,8 +1032,10 @@ describe("buildMalpraxisComparatorPayload", () => {
     );
 
     expect(payload.specificDetails).toEqual([
-      { code: "PRIOR_CIVIL_LIABILITY_DAMAGES", value: "NU" },
+      { code: "KNOWLEDGE_COMPENSATION_CLAIMS", value: "false" },
+      { code: "REGISTERED_COMPENSATION_CLAIMS", value: "false" },
       { code: "PREVIOUS_CIVIL_LIABILITY", value: "NU" },
+      { code: "PRIOR_CIVIL_LIABILITY_DAMAGES", value: "NU" },
     ]);
   });
 
@@ -1072,17 +1077,37 @@ describe("buildMalpraxisComparatorPayload", () => {
     );
 
     expect(payload.specificDetails).toEqual([
-      { code: "PRIOR_CIVIL_LIABILITY_DAMAGES", value: "DA" },
+      { code: "KNOWLEDGE_COMPENSATION_CLAIMS", value: "true" },
+      { code: "REGISTERED_COMPENSATION_CLAIMS", value: "true" },
       { code: "PREVIOUS_CIVIL_LIABILITY", value: "DA" },
+      { code: "PRIOR_CIVIL_LIABILITY_DAMAGES", value: "DA" },
     ]);
   });
 });
 
 describe("buildAbcComparatorSpecificDetails", () => {
-  it("always emits both required ABC civil liability codes", () => {
+  it("always emits utils booleans and DA/NU wire codes", () => {
     expect(buildAbcComparatorSpecificDetails([], [])).toEqual([
-      { code: "PRIOR_CIVIL_LIABILITY_DAMAGES", value: "NU" },
+      { code: "KNOWLEDGE_COMPENSATION_CLAIMS", value: "false" },
+      { code: "REGISTERED_COMPENSATION_CLAIMS", value: "false" },
       { code: "PREVIOUS_CIVIL_LIABILITY", value: "NU" },
+      { code: "PRIOR_CIVIL_LIABILITY_DAMAGES", value: "NU" },
+    ]);
+  });
+});
+
+describe("buildAbcClaimSpecificDetails", () => {
+  it("emits utils booleans and comparator DA/NU pairs", () => {
+    expect(
+      buildAbcClaimSpecificDetails({
+        knowledgeCompensationClaims: true,
+        registeredCompensationClaims: false,
+      })
+    ).toEqual([
+      { code: "KNOWLEDGE_COMPENSATION_CLAIMS", value: "true" },
+      { code: "REGISTERED_COMPENSATION_CLAIMS", value: "false" },
+      { code: "PREVIOUS_CIVIL_LIABILITY", value: "DA" },
+      { code: "PRIOR_CIVIL_LIABILITY_DAMAGES", value: "NU" },
     ]);
   });
 });
