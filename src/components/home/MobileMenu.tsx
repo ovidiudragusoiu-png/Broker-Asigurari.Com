@@ -47,10 +47,13 @@ const PLAIN_LINKS = [
 
 interface MobileMenuProps {
   scrolled?: boolean;
-  isRcaRoute?: boolean;
+  hideRcaCta?: boolean;
 }
 
-export default function MobileMenu({ scrolled = true, isRcaRoute = false }: MobileMenuProps) {
+export default function MobileMenu({
+  scrolled = true,
+  hideRcaCta = false,
+}: MobileMenuProps) {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [insuranceOpen, setInsuranceOpen] = useState(false);
@@ -83,7 +86,7 @@ export default function MobileMenu({ scrolled = true, isRcaRoute = false }: Mobi
                 <Phone className="h-5 w-5" />
                 0720 38 55 51
               </a>
-              {!isRcaRoute && (
+              {!hideRcaCta && (
                 <Link
                   href="/rca"
                   onClick={close}

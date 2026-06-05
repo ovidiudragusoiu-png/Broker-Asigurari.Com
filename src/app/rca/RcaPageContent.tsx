@@ -932,10 +932,10 @@ function RcaPageInner() {
   ];
 
   return (
-    <div className="mx-auto max-w-4xl px-4 pt-20 pb-8 sm:px-6 sm:pt-24 lg:px-8">
-      {/* Page header — compact on step 0 (plate input) to keep it above the fold on iPhone SE */}
+    <div className="mx-auto max-w-4xl px-4 pt-24 pb-8 sm:px-6 sm:pt-28 lg:px-8">
+      {/* Page header */}
       {currentStep === 0 ? (
-        <div className="mb-3 text-center sm:mb-4">
+        <div className="mb-3 mt-1 text-center sm:mb-4 sm:mt-2">
           <h1 className="text-xl font-bold text-gray-900 sm:text-2xl">Asigurare RCA</h1>
         </div>
       ) : (

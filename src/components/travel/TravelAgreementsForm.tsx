@@ -11,6 +11,9 @@ import {
 import { ConsentMappingError } from "@/lib/flows/consentSubmit";
 import { submitTravelAgreements } from "@/lib/flows/travelConsentSubmit";
 import type { PersonRequest } from "@/types/insuretech";
+import AgreementChoiceGroup, {
+  agreementCheckboxClass,
+} from "@/components/shared/AgreementChoiceGroup";
 
 interface TravelAgreementsFormProps {
   personData: PersonRequest;
@@ -19,20 +22,6 @@ interface TravelAgreementsFormProps {
   backLabel?: string;
   onError?: (message: string) => void;
 }
-
-const radioClass =
-  "h-4 w-4 border-gray-300 text-[#2563EB] focus:ring-[#2563EB]";
-const checkboxClass =
-  "h-5 w-5 shrink-0 rounded border-gray-300 accent-[#2563EB] focus:ring-[#2563EB]";
-
-const CHECKBOX_OPTION_KEY: Record<string, keyof TravelAgreementAnswers> = {
-  baggage: "dnt_0_7_baggage",
-  sports: "dnt_0_7_sports",
-  none: "dnt_0_7_none",
-  plane: "dnt_0_8_plane",
-  car: "dnt_0_8_car",
-  other: "dnt_0_8_other",
-};
 
 export default function TravelAgreementsForm({
   personData,
@@ -91,6 +80,42 @@ export default function TravelAgreementsForm({
     }
   };
 
+  const selectTravelCheckboxGroup = (
+    itemId: "dnt_0_7" | "dnt_0_8",
+    selectedValue: string
+  ) => {
+    setAnswers((prev) => {
+      if (itemId === "dnt_0_7") {
+        return {
+          ...prev,
+          dnt_0_7_baggage: selectedValue === "baggage",
+          dnt_0_7_sports: selectedValue === "sports",
+          dnt_0_7_none: selectedValue === "none",
+        };
+      }
+      return {
+        ...prev,
+        dnt_0_8_plane: selectedValue === "plane",
+        dnt_0_8_car: selectedValue === "car",
+        dnt_0_8_other: selectedValue === "other",
+      };
+    });
+  };
+
+  const isTravelCheckboxSelected = (
+    itemId: "dnt_0_7" | "dnt_0_8",
+    optionValue: string
+  ): boolean => {
+    if (itemId === "dnt_0_7") {
+      if (optionValue === "baggage") return answers.dnt_0_7_baggage;
+      if (optionValue === "sports") return answers.dnt_0_7_sports;
+      return answers.dnt_0_7_none;
+    }
+    if (optionValue === "plane") return answers.dnt_0_8_plane;
+    if (optionValue === "car") return answers.dnt_0_8_car;
+    return answers.dnt_0_8_other;
+  };
+
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <h3 className="text-xl font-bold text-gray-900">{TRAVEL_AGREEMENTS_TITLE}</h3>
@@ -120,36 +145,11 @@ export default function TravelAgreementsForm({
                       onChange={(e) =>
                         setAnswers((prev) => ({ ...prev, comm_1_1: e.target.checked }))
                       }
-                      className={checkboxClass}
+                      className={agreementCheckboxClass}
                     />
                     <span className="text-sm text-gray-700">{item.checkboxLabel}</span>
                   </label>
                 ) : item.kind === "checkboxes" ? (
-                  <div className="space-y-2">
-                    {item.options.map((option) => {
-                      const key = CHECKBOX_OPTION_KEY[option.value];
-                      return (
-                        <label
-                          key={option.value}
-                          className="flex cursor-pointer items-start gap-2 text-sm text-gray-700"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={Boolean(answers[key])}
-                            onChange={(e) =>
-                              setAnswers((prev) => ({
-                                ...prev,
-                                [key]: e.target.checked,
-                              }))
-                            }
-                            className={checkboxClass}
-                          />
-                          <span className="leading-snug">{option.label}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                ) : (
                   <div className="space-y-2">
                     {item.options.map((option) => (
                       <label
@@ -157,23 +157,37 @@ export default function TravelAgreementsForm({
                         className="flex cursor-pointer items-start gap-2 text-sm text-gray-700"
                       >
                         <input
-                          type="radio"
-                          name={item.id}
-                          checked={
-                            answers[item.id as keyof TravelAgreementAnswers] === option.value
-                          }
+                          type="checkbox"
+                          checked={isTravelCheckboxSelected(
+                            item.id as "dnt_0_7" | "dnt_0_8",
+                            option.value
+                          )}
                           onChange={() =>
-                            setAnswers((prev) => ({
-                              ...prev,
-                              [item.id]: option.value,
-                            }) as TravelAgreementAnswers)
+                            selectTravelCheckboxGroup(
+                              item.id as "dnt_0_7" | "dnt_0_8",
+                              option.value
+                            )
                           }
-                          className={`${radioClass} mt-0.5`}
+                          className={agreementCheckboxClass}
                         />
                         <span className="leading-snug">{option.label}</span>
                       </label>
                     ))}
                   </div>
+                ) : (
+                  <AgreementChoiceGroup
+                    value={answers[item.id as keyof TravelAgreementAnswers] as string}
+                    options={item.options}
+                    onChange={(value) =>
+                      setAnswers(
+                        (prev) =>
+                          ({
+                            ...prev,
+                            [item.id]: value,
+                          }) as TravelAgreementAnswers
+                      )
+                    }
+                  />
                 )}
               </div>
             ))}

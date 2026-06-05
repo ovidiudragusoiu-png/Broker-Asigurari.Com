@@ -11,6 +11,9 @@ import {
 import { ConsentMappingError } from "@/lib/flows/consentSubmit";
 import { submitHouseAgreements } from "@/lib/flows/houseConsentSubmit";
 import type { PersonRequest } from "@/types/insuretech";
+import AgreementChoiceGroup, {
+  agreementCheckboxClass,
+} from "@/components/shared/AgreementChoiceGroup";
 
 interface HouseAgreementsFormProps {
   personData: PersonRequest;
@@ -19,11 +22,6 @@ interface HouseAgreementsFormProps {
   backLabel?: string;
   onError?: (message: string) => void;
 }
-
-const radioClass =
-  "h-4 w-4 border-gray-300 text-[#2563EB] focus:ring-[#2563EB]";
-const checkboxClass =
-  "h-5 w-5 shrink-0 rounded border-gray-300 accent-[#2563EB] focus:ring-[#2563EB]";
 
 export default function HouseAgreementsForm({
   personData,
@@ -114,35 +112,24 @@ export default function HouseAgreementsForm({
                       onChange={(e) =>
                         setAnswers((prev) => ({ ...prev, comm_1_1: e.target.checked }))
                       }
-                      className={checkboxClass}
+                      className={agreementCheckboxClass}
                     />
                     <span className="text-sm text-gray-700">{item.checkboxLabel}</span>
                   </label>
                 ) : (
-                  <div className="space-y-2">
-                    {item.options.map((option) => (
-                      <label
-                        key={option.value}
-                        className="flex cursor-pointer items-start gap-2 text-sm text-gray-700"
-                      >
-                        <input
-                          type="radio"
-                          name={item.id}
-                          checked={
-                            answers[item.id as keyof HouseAgreementAnswers] === option.value
-                          }
-                          onChange={() =>
-                            setAnswers((prev) => ({
-                              ...prev,
-                              [item.id]: option.value,
-                            }) as HouseAgreementAnswers)
-                          }
-                          className={`${radioClass} mt-0.5`}
-                        />
-                        <span className="leading-snug">{option.label}</span>
-                      </label>
-                    ))}
-                  </div>
+                  <AgreementChoiceGroup
+                    value={answers[item.id as keyof HouseAgreementAnswers] as string}
+                    options={item.options}
+                    onChange={(value) =>
+                      setAnswers(
+                        (prev) =>
+                          ({
+                            ...prev,
+                            [item.id]: value,
+                          }) as HouseAgreementAnswers
+                      )
+                    }
+                  />
                 )}
               </div>
             ))}

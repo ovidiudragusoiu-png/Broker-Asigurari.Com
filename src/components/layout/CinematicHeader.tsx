@@ -12,8 +12,6 @@ import HeaderAuthButton from "@/components/portal/HeaderAuthButton";
 export default function CinematicHeader() {
   const pathname = usePathname();
   const isHome = pathname === "/";
-  // Compact variant on RCA flow: hide PNRR banner / nav / extra CTAs so the
-  // plate input is visible above the fold on small viewports (iPhone SE).
   const isRcaRoute = pathname?.startsWith("/rca") ?? false;
   const [scrolled, setScrolled] = useState(!isHome);
 
@@ -57,13 +55,9 @@ export default function CinematicHeader() {
                 .Ai
               </span>
             </span>
-            {!isRcaRoute && (
-              <span className="hidden sm:inline font-extrabold ml-3"><span className="text-[#2563EB]">Fii Sigur.</span> <span className="text-[#F97316]">Fii Asigurat.</span></span>
-            )}
+            <span className="hidden sm:inline font-extrabold ml-3"><span className="text-[#2563EB]">Fii Sigur.</span> <span className="text-[#F97316]">Fii Asigurat.</span></span>
           </Link>
-          {!isRcaRoute && (
-            <Image src="/images/pnrr/banner-pnrr.jpg" alt="Finanțat de Uniunea Europeană NextGenerationEU — Guvernul României — PNRR" width={400} height={33} className="mt-1 hidden object-contain sm:block" />
-          )}
+          <Image src="/images/pnrr/banner-pnrr.jpg" alt="Finanțat de Uniunea Europeană NextGenerationEU — Guvernul României — PNRR" width={400} height={33} className="mt-1 hidden object-contain sm:block" />
         </div>
 
         <>
@@ -71,9 +65,9 @@ export default function CinematicHeader() {
           <DesktopNav scrolled={scrolled} />
 
           {/* Mobile menu */}
-          <MobileMenu scrolled={scrolled} isRcaRoute={isRcaRoute} />
+          <MobileMenu scrolled={scrolled} hideRcaCta={isRcaRoute} />
 
-          {/* Keep RCA header compact, but do not hide core navigation */}
+          {/* Phone, auth, and RCA CTA — same on all product pages */}
           <div className="hidden items-center gap-6 md:flex">
             <a
               href="tel:+40720385551"
@@ -83,7 +77,7 @@ export default function CinematicHeader() {
               <Phone className="h-4 w-4" />
               0720 38 55 51
             </a>
-            {!isRcaRoute && <HeaderAuthButton />}
+            <HeaderAuthButton />
             {!isRcaRoute && (
               <Link
                 href="/rca"
