@@ -51,6 +51,16 @@ model Policy {
   @@index([email])
 }
 
+model ReminderSettings {
+  id                    String   @id @default("default")
+  reminderDayOffsets    String   @default("30,7,1")
+  remindersEnabled      Boolean  @default(true)
+  emailRemindersEnabled Boolean  @default(true)
+  smsRemindersEnabled   Boolean  @default(true)
+  updatedAt             DateTime @updatedAt
+  updatedByEmail        String?
+}
+
 model PolicyExpiryReminder {
   id           String   @id @default(cuid())
   policyDbId   String

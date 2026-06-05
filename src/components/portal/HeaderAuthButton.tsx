@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/portal/AuthProvider";
 import Link from "next/link";
-import { User, LogOut, LayoutDashboard, ChevronDown } from "lucide-react";
+import { User, LogOut, LayoutDashboard, ChevronDown, Shield } from "lucide-react";
 
 function getDisplayName(user: {
   firstName: string | null;
@@ -90,6 +90,16 @@ export default function HeaderAuthButton() {
               <LayoutDashboard className="h-4 w-4 text-gray-400" />
               Polițele mele
             </Link>
+            {user.isAdmin && (
+              <Link
+                href="/admin"
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <Shield className="h-4 w-4 text-gray-400" />
+                Admin
+              </Link>
+            )}
             <div className="mx-3 my-1 border-t border-gray-100" />
             <button
               type="button"

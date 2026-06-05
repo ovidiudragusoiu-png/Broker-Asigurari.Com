@@ -12,12 +12,15 @@ import {
   sendSms,
 } from "@/lib/sms/twilio";
 import {
+  daysUntilExpiry,
   formatPolicyDateRo,
   matchesReminderWindow,
   parsePolicyEndDate,
-  REMINDER_DAY_OFFSETS,
-  type ReminderDayOffset,
 } from "@/lib/reminders/expiryDates";
+import {
+  getReminderSettings,
+  type ReminderSettingsData,
+} from "@/lib/reminders/reminderSettings";
 import { sendExpiryReminderEmail } from "@/lib/reminders/expiryReminderEmail";
 
 export interface ReminderRunResult {
@@ -78,7 +81,7 @@ async function resolvePhone(policy: PolicyRow): Promise<string | null> {
 
 async function wasReminderSent(
   policyDbId: string,
-  reminderDays: ReminderDayOffset,
+  reminderDays: number,
   channel: "email" | "sms"
 ): Promise<boolean> {
   const existing = await prisma.policyExpiryReminder.findUnique({
@@ -95,7 +98,7 @@ async function wasReminderSent(
 
 async function recordReminder(params: {
   policyDbId: string;
-  reminderDays: ReminderDayOffset;
+  reminderDays: number;
   channel: "email" | "sms";
   recipient: string;
   success: boolean;
@@ -128,9 +131,11 @@ async function recordReminder(params: {
 
 async function processPolicyReminder(
   policy: PolicyRow,
-  reminderDays: ReminderDayOffset,
+  reminderDays: number,
   dryRun: boolean,
-  result: ReminderRunResult
+  result: ReminderRunResult,
+  settings: ReminderSettingsData,
+  options?: { skipDedup?: boolean }
 ) {
   const renewPath = getProductTypeConfig(policy.productType).calculatorHref;
   const renewUrl = runtimeAbsoluteUrl(renewPath);
@@ -138,8 +143,12 @@ async function processPolicyReminder(
   const endFormatted = formatPolicyDateRo(parsePolicyEndDate(policy.endDate));
 
   // Email
-  const emailAlreadySent = await wasReminderSent(policy.id, reminderDays, "email");
-  if (emailAlreadySent) {
+  if (!settings.emailRemindersEnabled) {
+    result.emailSkipped++;
+  } else if (
+    !options?.skipDedup &&
+    (await wasReminderSent(policy.id, reminderDays, "email"))
+  ) {
     result.emailSkipped++;
   } else if (dryRun) {
     result.emailSent++;
@@ -202,9 +211,14 @@ async function processPolicyReminder(
   const phone = await resolvePhone(policy);
   const smsAlreadySent = await wasReminderSent(policy.id, reminderDays, "sms");
 
-  if (!phone) {
+  if (!settings.smsRemindersEnabled) {
     result.smsSkipped++;
-  } else if (smsAlreadySent) {
+  } else if (!phone) {
+    result.smsSkipped++;
+  } else if (
+    !options?.skipDedup &&
+    smsAlreadySent
+  ) {
     result.smsSkipped++;
   } else if (!isSmsConfigured()) {
     result.smsSkipped++;
@@ -267,6 +281,11 @@ export async function processExpiryReminders(options?: {
     errors: [],
   };
 
+  const settings = await getReminderSettings();
+  if (!settings.remindersEnabled) {
+    return result;
+  }
+
   const policies = await prisma.policy.findMany({
     where: {
       endDate: { not: null },
@@ -294,17 +313,100 @@ export async function processExpiryReminders(options?: {
       continue;
     }
 
-    for (const reminderDays of REMINDER_DAY_OFFSETS) {
+    for (const reminderDays of settings.reminderDayOffsets) {
       if (!matchesReminderWindow(policy.endDate, reminderDays, today)) {
         continue;
       }
 
       result.scanned++;
-      await processPolicyReminder(policy, reminderDays, dryRun, result);
+      await processPolicyReminder(policy, reminderDays, dryRun, result, settings);
     }
   }
 
   return result;
+}
+
+const POLICY_SELECT = {
+  id: true,
+  userId: true,
+  email: true,
+  orderHash: true,
+  policyId: true,
+  productType: true,
+  policyNumber: true,
+  vendorName: true,
+  startDate: true,
+  endDate: true,
+} as const;
+
+function resolveManualReminderDays(
+  endDate: string | null,
+  today = new Date()
+): number {
+  const remaining = daysUntilExpiry(endDate, today);
+  if (remaining === null) return 30;
+  if (remaining <= 0) return 1;
+  return remaining;
+}
+
+export async function sendManualPolicyReminder(options: {
+  policyDbId: string;
+  dryRun?: boolean;
+}): Promise<ReminderRunResult & { reminderDays: number }> {
+  const dryRun = options.dryRun ?? false;
+  const settings = await getReminderSettings();
+
+  const policy = await prisma.policy.findUnique({
+    where: { id: options.policyDbId },
+    select: POLICY_SELECT,
+  });
+
+  if (!policy) {
+    throw new Error("Polița nu a fost găsită.");
+  }
+
+  if (!policy.email?.trim()) {
+    throw new Error("Polița nu are adresă de email.");
+  }
+
+  const reminderDays = resolveManualReminderDays(policy.endDate);
+  const result: ReminderRunResult = {
+    scanned: 1,
+    emailSent: 0,
+    emailSkipped: 0,
+    emailFailed: 0,
+    smsSent: 0,
+    smsSkipped: 0,
+    smsFailed: 0,
+    errors: [],
+  };
+
+  await processPolicyReminder(
+    policy,
+    reminderDays,
+    dryRun,
+    result,
+    settings,
+    { skipDedup: true }
+  );
+
+  if (
+    !dryRun &&
+    result.emailSent === 0 &&
+    result.smsSent === 0 &&
+    result.emailFailed === 0 &&
+    result.smsFailed === 0
+  ) {
+    if (!settings.emailRemindersEnabled && !settings.smsRemindersEnabled) {
+      result.errors.push(
+        "Reminder-ele email și SMS sunt dezactivate în setări."
+      );
+    } else if (!settings.emailRemindersEnabled) {
+      result.errors.push("Reminder-ele email sunt dezactivate în setări.");
+    }
+  }
+
+  return { ...result, reminderDays };
 }
 
 export async function getRemindersForPolicies(

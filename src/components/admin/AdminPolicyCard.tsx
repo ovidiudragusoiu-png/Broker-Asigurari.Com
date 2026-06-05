@@ -1,0 +1,240 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  Download,
+  Calendar,
+  Building2,
+  Car,
+  Bell,
+  Mail,
+  User,
+} from "lucide-react";
+import { btn } from "@/lib/ui/tokens";
+import { getProductTypeConfig } from "@/lib/portal/productTypes";
+import { getPolicyStatus } from "@/lib/portal/policyUtils";
+import type { AdminPolicy } from "@/lib/admin/policyData";
+
+function formatDate(dateStr: string | null): string {
+  if (!dateStr) return "—";
+  try {
+    return new Date(dateStr).toLocaleDateString("ro-RO", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  } catch {
+    return dateStr;
+  }
+}
+
+export default function AdminPolicyCard({ policy }: { policy: AdminPolicy }) {
+  const router = useRouter();
+  const [downloading, setDownloading] = useState(false);
+  const [sendingReminder, setSendingReminder] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  const config = getProductTypeConfig(policy.productType);
+  const status = getPolicyStatus(policy.endDate);
+  const Icon = config.icon;
+  const isExpired = status.status === "expired";
+  const reminders = policy.reminders ?? [];
+
+  const handleDownload = async () => {
+    setDownloading(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/policies/${policy.id}/document`);
+      if (!res.ok) {
+        throw new Error("Eroare la descărcarea documentului.");
+      }
+      const data = await res.json();
+      if (data.url) {
+        window.open(data.url, "_blank", "noopener,noreferrer");
+      } else {
+        throw new Error("Link-ul documentului nu este disponibil.");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Eroare la descărcare.");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const handleSendReminder = async () => {
+    if (
+      !window.confirm(
+        `Trimiți reminder de expirare către ${policy.email}?`
+      )
+    ) {
+      return;
+    }
+
+    setSendingReminder(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const res = await fetch(`/api/admin/policies/${policy.id}/reminder`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dryRun: false }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Eroare la trimiterea reminder-ului.");
+      }
+
+      const parts: string[] = [];
+      if (data.emailSent > 0) parts.push("email");
+      if (data.smsSent > 0) parts.push("SMS");
+
+      setSuccess(
+        parts.length > 0
+          ? `Reminder trimis (${parts.join(" + ")}).`
+          : "Reminder procesat."
+      );
+      router.refresh();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Eroare la trimiterea reminder-ului."
+      );
+    } finally {
+      setSendingReminder(false);
+    }
+  };
+
+  return (
+    <div
+      className={`rounded-2xl border border-gray-100 border-l-4 bg-white p-5 shadow-sm transition-shadow hover:shadow-md ${config.accentClass} ${
+        isExpired ? "opacity-80" : ""
+      }`}
+    >
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 items-start gap-3">
+          <div
+            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${config.iconBgClass}`}
+          >
+            <Icon className={`h-5 w-5 ${config.iconClass}`} />
+          </div>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${config.badgeClass}`}
+              >
+                {config.label}
+              </span>
+              <span
+                className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${status.className}`}
+              >
+                {status.label}
+              </span>
+              {!policy.userId && (
+                <span className="inline-block rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
+                  Fără cont
+                </span>
+              )}
+            </div>
+            {policy.policyNumber && (
+              <p className="mt-2 truncate text-base font-semibold text-gray-900">
+                {policy.policyNumber}
+              </p>
+            )}
+          </div>
+        </div>
+        {policy.premium != null && (
+          <div className="shrink-0 text-left sm:text-right">
+            <p className="text-lg font-bold text-gray-900">
+              {policy.premium.toFixed(2)} {policy.currency}
+            </p>
+            <p className="text-xs text-gray-400">primă</p>
+          </div>
+        )}
+      </div>
+
+      <div className="mb-4 space-y-2">
+        <div className="flex items-center gap-2 text-sm text-gray-600">
+          <Mail className="h-4 w-4 shrink-0 text-gray-400" />
+          <span className="truncate">{policy.email}</span>
+        </div>
+        {policy.clientName && (
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <User className="h-4 w-4 shrink-0 text-gray-400" />
+            <span className="truncate">{policy.clientName}</span>
+          </div>
+        )}
+        {policy.vendorName && (
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <Building2 className="h-4 w-4 shrink-0 text-gray-400" />
+            <span className="truncate">{policy.vendorName}</span>
+          </div>
+        )}
+        <div className="flex items-center gap-2 text-sm text-gray-600">
+          <Calendar className="h-4 w-4 shrink-0 text-gray-400" />
+          <span>
+            {formatDate(policy.startDate)} — {formatDate(policy.endDate)}
+          </span>
+        </div>
+        {policy.vehiclePlate && (
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <Car className="h-4 w-4 shrink-0 text-gray-400" />
+            <span className="truncate">{policy.vehiclePlate}</span>
+          </div>
+        )}
+      </div>
+
+      {reminders.length > 0 && (
+        <div className="mb-4 flex flex-wrap gap-2">
+          {reminders.map((reminder) => (
+            <span
+              key={`${reminder.channel}-${reminder.reminderDays}`}
+              className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800"
+              title={`Trimis ${new Date(reminder.sentAt).toLocaleDateString("ro-RO")}`}
+            >
+              <Bell className="h-3 w-3" />
+              {reminder.channel === "sms" ? "SMS" : "Email"} ·{" "}
+              {reminder.reminderDays === 1
+                ? "1 zi"
+                : `${reminder.reminderDays} zile`}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {error && <p className="mb-3 text-xs text-red-600">{error}</p>}
+      {success && <p className="mb-3 text-xs text-emerald-600">{success}</p>}
+
+      <div className="flex flex-col gap-2">
+        <button
+          onClick={handleDownload}
+          disabled={downloading || sendingReminder}
+          className={`${btn.secondary} flex w-full items-center justify-center gap-2`}
+        >
+          {downloading ? (
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#2563EB] border-t-transparent" />
+          ) : (
+            <Download className="h-4 w-4" />
+          )}
+          {downloading ? "Se descarcă..." : "Descarcă polița"}
+        </button>
+
+        <button
+          type="button"
+          onClick={handleSendReminder}
+          disabled={sendingReminder || downloading || !policy.email?.trim()}
+          className={`${btn.primary} flex w-full items-center justify-center gap-2`}
+        >
+          {sendingReminder ? (
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+          ) : (
+            <Bell className="h-4 w-4" />
+          )}
+          {sendingReminder ? "Se trimite..." : "Trimite reminder"}
+        </button>
+      </div>
+    </div>
+  );
+}

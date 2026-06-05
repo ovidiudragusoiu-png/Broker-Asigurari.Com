@@ -53,7 +53,7 @@ export function daysUntilExpiry(endDate: string | null, today = new Date()): num
 
 export function matchesReminderWindow(
   endDate: string | null,
-  reminderDays: ReminderDayOffset,
+  reminderDays: number,
   today = new Date()
 ): boolean {
   const remaining = daysUntilExpiry(endDate, today);

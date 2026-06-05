@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isAdminEmail } from "@/lib/auth/admin";
 import { getCurrentUser } from "@/lib/auth/session";
 
 export async function GET() {
@@ -8,5 +9,7 @@ export async function GET() {
     return NextResponse.json({ error: "Neautorizat" }, { status: 401 });
   }
 
-  return NextResponse.json({ user });
+  return NextResponse.json({
+    user: { ...user, isAdmin: isAdminEmail(user.email) },
+  });
 }

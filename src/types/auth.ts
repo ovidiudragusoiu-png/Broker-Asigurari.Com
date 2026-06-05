@@ -3,6 +3,7 @@ export interface AuthUser {
   email: string;
   firstName: string | null;
   lastName: string | null;
+  isAdmin?: boolean;
 }
 
 export interface AuthResponse {

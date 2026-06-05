@@ -2,7 +2,6 @@ import { Resend } from "resend";
 import { getProductTypeConfig } from "@/lib/portal/productTypes";
 import { runtimeAbsoluteUrl } from "@/lib/seo/site";
 import { formatPolicyDateRo, parsePolicyEndDate } from "@/lib/reminders/expiryDates";
-import type { ReminderDayOffset } from "@/lib/reminders/expiryDates";
 
 const BROKER_CC = ["office@sigur.ai"];
 
@@ -16,7 +15,7 @@ function getProductLabel(productType: string): string {
   return getProductTypeConfig(productType).label;
 }
 
-function urgencyColor(days: ReminderDayOffset): string {
+function urgencyColor(days: number): string {
   if (days <= 1) return "#dc2626";
   if (days <= 7) return "#d97706";
   return "#2563EB";
@@ -29,7 +28,7 @@ function buildExpiryReminderHtml(params: {
   vendorName: string | null;
   startDate: string | null;
   endDate: string | null;
-  reminderDays: ReminderDayOffset;
+  reminderDays: number;
   renewUrl: string;
   hasAttachment: boolean;
 }): string {
@@ -124,7 +123,7 @@ export async function sendExpiryReminderEmail(params: {
   vendorName: string | null;
   startDate: string | null;
   endDate: string | null;
-  reminderDays: ReminderDayOffset;
+  reminderDays: number;
   renewUrl: string;
   attachment?: { filename: string; content: Buffer } | null;
 }) {
