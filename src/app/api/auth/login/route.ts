@@ -74,6 +74,18 @@ export async function POST(request: Request) {
       );
     }
 
+    if (!user.emailVerifiedAt) {
+      return NextResponse.json(
+        {
+          error:
+            "Contul nu este confirmat. Verifică emailul sau retrimite linkul de confirmare.",
+          needsVerification: true,
+          email: user.email,
+        },
+        { status: 403 }
+      );
+    }
+
     const token = await signToken(user.id, user.email);
     await setAuthCookie(token);
 

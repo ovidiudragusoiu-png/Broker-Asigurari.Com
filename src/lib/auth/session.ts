@@ -10,9 +10,21 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
     const payload = await verifyToken(token);
     const user = await prisma.user.findUnique({
       where: { id: payload.sub },
-      select: { id: true, email: true, firstName: true, lastName: true },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        emailVerifiedAt: true,
+      },
     });
-    return user;
+    if (!user?.emailVerifiedAt) return null;
+    return {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+    };
   } catch {
     return null;
   }

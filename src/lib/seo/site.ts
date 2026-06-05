@@ -9,3 +9,19 @@ export function absoluteUrl(path: string): string {
   const normalized = path.startsWith("/") ? path : `/${path}`;
   return `${SITE_URL}${normalized}`;
 }
+
+/** Runtime origin for emails and auth redirects (supports local dev + Vercel previews). */
+export function getRuntimeSiteUrl(): string {
+  const configured = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
+  if (configured) return configured;
+
+  const vercelUrl = process.env.VERCEL_URL?.replace(/\/$/, "");
+  if (vercelUrl) return `https://${vercelUrl}`;
+
+  return SITE_URL;
+}
+
+export function runtimeAbsoluteUrl(path: string): string {
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  return `${getRuntimeSiteUrl()}${normalized}`;
+}

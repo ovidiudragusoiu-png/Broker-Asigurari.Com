@@ -3,13 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useAuth } from "@/components/portal/AuthProvider";
 import { btn, inputClass, inputError as inputErrClass } from "@/lib/ui/tokens";
 import { UserPlus } from "lucide-react";
 
 export default function RegisterForm() {
   const router = useRouter();
-  const { refresh } = useAuth();
   const [form, setForm] = useState({
     email: "",
     password: "",
@@ -60,8 +58,10 @@ export default function RegisterForm() {
         return;
       }
 
-      await refresh();
-      router.push("/dashboard");
+      const email = data.email || form.email;
+      router.push(
+        `/register/check-email?email=${encodeURIComponent(email)}`
+      );
     } catch {
       setError("Eroare de conexiune. Vă rugăm încercați din nou.");
     } finally {

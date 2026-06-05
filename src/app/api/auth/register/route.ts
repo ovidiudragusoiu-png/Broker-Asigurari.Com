@@ -1,13 +1,16 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { hashPassword } from "@/lib/auth/password";
-import { signToken, setAuthCookie } from "@/lib/auth/jwt";
+import {
+  createVerificationToken,
+  getVerificationExpiry,
+} from "@/lib/auth/verification";
+import { sendVerificationEmail } from "@/lib/email/verificationEmail";
 import { validateBody, registerSchema } from "@/lib/validation/schemas";
 
-// In-memory rate limiter
 const registerAttempts = new Map<string, { count: number; resetAt: number }>();
 const MAX_ATTEMPTS = 5;
-const WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+const WINDOW_MS = 15 * 60 * 1000;
 
 function getClientIp(request: Request): string {
   return (
@@ -17,10 +20,30 @@ function getClientIp(request: Request): string {
   );
 }
 
+async function issueVerification(user: {
+  id: string;
+  email: string;
+  firstName: string | null;
+}) {
+  const token = createVerificationToken();
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      emailVerificationToken: token,
+      emailVerificationExpiresAt: getVerificationExpiry(),
+      emailVerifiedAt: null,
+    },
+  });
+  await sendVerificationEmail({
+    email: user.email,
+    firstName: user.firstName,
+    token,
+  });
+}
+
 export async function POST(request: Request) {
   const ip = getClientIp(request);
 
-  // Rate limiting
   const now = Date.now();
   const record = registerAttempts.get(ip);
   if (record) {
@@ -34,7 +57,6 @@ export async function POST(request: Request) {
     }
   }
 
-  // Track attempt
   const entry = registerAttempts.get(ip);
   if (entry) {
     entry.count++;
@@ -53,20 +75,40 @@ export async function POST(request: Request) {
     const { email, password, firstName, lastName, phone } = parsed.data;
 
     const emailLower = email.toLowerCase().trim();
-
-    // Check if email already exists
     const existing = await prisma.user.findUnique({
       where: { email: emailLower },
     });
-    if (existing) {
+
+    if (existing?.emailVerifiedAt) {
       return NextResponse.json(
         { error: "Există deja un cont cu acest email." },
         { status: 409 }
       );
     }
 
-    const passwordHash = await hashPassword(password);
+    if (existing && !existing.emailVerifiedAt) {
+      const passwordHash = await hashPassword(password);
+      const user = await prisma.user.update({
+        where: { id: existing.id },
+        data: {
+          passwordHash,
+          firstName: firstName?.trim() || null,
+          lastName: lastName?.trim() || null,
+          phone: phone?.trim() || null,
+        },
+      });
 
+      await issueVerification(user);
+
+      return NextResponse.json({
+        needsVerification: true,
+        email: user.email,
+        message:
+          "Contul există, dar nu este confirmat. Ți-am retrimis emailul de confirmare.",
+      });
+    }
+
+    const passwordHash = await hashPassword(password);
     const user = await prisma.user.create({
       data: {
         email: emailLower,
@@ -74,25 +116,29 @@ export async function POST(request: Request) {
         firstName: firstName?.trim() || null,
         lastName: lastName?.trim() || null,
         phone: phone?.trim() || null,
+        emailVerificationToken: createVerificationToken(),
+        emailVerificationExpiresAt: getVerificationExpiry(),
       },
     });
 
-    // Link any existing policies with this email
     await prisma.policy.updateMany({
       where: { email: emailLower, userId: null },
       data: { userId: user.id },
     });
 
-    const token = await signToken(user.id, user.email);
-    await setAuthCookie(token);
-
-    return NextResponse.json({
-      user: {
-        id: user.id,
+    if (user.emailVerificationToken) {
+      await sendVerificationEmail({
         email: user.email,
         firstName: user.firstName,
-        lastName: user.lastName,
-      },
+        token: user.emailVerificationToken,
+      });
+    }
+
+    return NextResponse.json({
+      needsVerification: true,
+      email: user.email,
+      message:
+        "Cont creat. Verifică emailul pentru a confirma adresa înainte de autentificare.",
     });
   } catch (error) {
     console.error("Registration error:", error);

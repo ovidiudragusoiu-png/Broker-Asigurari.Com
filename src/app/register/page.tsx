@@ -18,7 +18,8 @@ export default function RegisterPage() {
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Creează cont</h1>
           <p className="mt-2 text-sm text-gray-500">
-            Înregistrează-te pentru a-ți gestiona polițele online
+            Înregistrează-te pentru a-ți gestiona polițele online. Vei primi un
+            email de confirmare înainte de prima autentificare.
           </p>
         </div>
         <RegisterForm />

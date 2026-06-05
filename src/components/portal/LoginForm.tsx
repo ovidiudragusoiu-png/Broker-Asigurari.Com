@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/components/portal/AuthProvider";
+import ResendVerificationForm from "@/components/portal/ResendVerificationForm";
 import { btn, inputClass, inputError as inputErrClass } from "@/lib/ui/tokens";
 import { LogIn } from "lucide-react";
 
@@ -13,11 +14,13 @@ export default function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [needsVerification, setNeedsVerification] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setNeedsVerification(false);
     setLoading(true);
 
     try {
@@ -30,6 +33,9 @@ export default function LoginForm() {
       const data = await res.json();
 
       if (!res.ok) {
+        if (data.needsVerification) {
+          setNeedsVerification(true);
+        }
         setError(data.error || "Eroare la autentificare.");
         return;
       }
@@ -87,6 +93,10 @@ export default function LoginForm() {
         <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">
           {error}
         </div>
+      )}
+
+      {needsVerification && email && (
+        <ResendVerificationForm email={email} />
       )}
 
       <button

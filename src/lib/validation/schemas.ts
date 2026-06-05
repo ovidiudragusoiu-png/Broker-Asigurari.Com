@@ -232,3 +232,7 @@ export const registerSchema = z.object({
   lastName: z.string().max(100).optional(),
   phone: z.string().max(20).optional(),
 });
+
+export const resendVerificationSchema = z.object({
+  email: z.string().min(1).max(254),
+});
