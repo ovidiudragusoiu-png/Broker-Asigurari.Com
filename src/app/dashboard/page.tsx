@@ -47,17 +47,19 @@ export default async function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl px-4 pt-24 pb-12 sm:px-6 sm:pt-28 lg:px-8">
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold text-gray-900 sm:text-2xl">
               Bună, {displayName}!
             </h1>
             <p className="mt-1 text-sm text-gray-500">
               Gestionează și descarcă toate polițele tale de asigurare.
             </p>
           </div>
-          <LogoutButton />
+          <div className="w-full sm:w-auto">
+            <LogoutButton />
+          </div>
         </div>
 
         {policies.length === 0 ? (

@@ -4,7 +4,28 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/portal/AuthProvider";
 import Link from "next/link";
-import { User, LogOut, LayoutDashboard } from "lucide-react";
+import { User, LogOut, LayoutDashboard, ChevronDown } from "lucide-react";
+
+function getDisplayName(user: {
+  firstName: string | null;
+  lastName: string | null;
+  email: string;
+}) {
+  if (user.firstName?.trim()) return user.firstName.trim();
+  return user.email.split("@")[0];
+}
+
+function getInitials(user: {
+  firstName: string | null;
+  lastName: string | null;
+  email: string;
+}) {
+  const first = user.firstName?.trim()?.[0] ?? "";
+  const last = user.lastName?.trim()?.[0] ?? "";
+  if (first && last) return `${first}${last}`.toUpperCase();
+  if (first) return first.toUpperCase();
+  return user.email[0]?.toUpperCase() ?? "U";
+}
 
 export default function HeaderAuthButton() {
   const router = useRouter();
@@ -12,7 +33,6 @@ export default function HeaderAuthButton() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  // Close dropdown on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) {
@@ -26,18 +46,42 @@ export default function HeaderAuthButton() {
   if (loading) return null;
 
   if (user) {
+    const displayName = getDisplayName(user);
+    const initials = getInitials(user);
+
     return (
       <div ref={ref} className="relative">
         <button
+          type="button"
           onClick={() => setOpen(!open)}
-          className="flex items-center gap-2 text-sm font-semibold text-[#1E293B] hover:text-[#2563EB] transition-colors"
+          aria-expanded={open}
+          aria-haspopup="menu"
+          className={`flex items-center gap-2 rounded-full border px-2.5 py-1.5 text-sm font-semibold transition-colors ${
+            open
+              ? "border-[#2563EB]/30 bg-[#2563EB]/5 text-[#2563EB]"
+              : "border-gray-200 bg-white text-[#1E293B] hover:border-[#2563EB]/30 hover:text-[#2563EB]"
+          }`}
         >
-          <User className="h-4 w-4" />
-          Contul meu
+          <span className="relative flex h-7 w-7 items-center justify-center rounded-full bg-[#2563EB] text-xs font-bold text-white">
+            {initials}
+            <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-500" />
+          </span>
+          <span className="max-w-[7rem] truncate">{displayName}</span>
+          <ChevronDown
+            className={`h-4 w-4 shrink-0 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`}
+          />
         </button>
 
         {open && (
-          <div className="absolute right-0 top-full mt-2 w-48 rounded-xl border border-gray-100 bg-white py-2 shadow-lg">
+          <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-xl border border-gray-100 bg-white py-2 shadow-lg">
+            <div className="border-b border-gray-100 px-4 py-3">
+              <p className="truncate text-sm font-semibold text-gray-900">
+                {user.firstName
+                  ? `${user.firstName}${user.lastName ? ` ${user.lastName}` : ""}`
+                  : displayName}
+              </p>
+              <p className="truncate text-xs text-gray-500">{user.email}</p>
+            </div>
             <Link
               href="/dashboard"
               onClick={() => setOpen(false)}
@@ -48,6 +92,7 @@ export default function HeaderAuthButton() {
             </Link>
             <div className="mx-3 my-1 border-t border-gray-100" />
             <button
+              type="button"
               onClick={async () => {
                 setOpen(false);
                 await logout();
@@ -67,9 +112,10 @@ export default function HeaderAuthButton() {
   return (
     <Link
       href="/login"
-      className="text-sm font-semibold text-[#1E293B] hover:text-[#2563EB] transition-colors"
+      className="flex items-center gap-2 text-sm font-semibold text-[#1E293B] hover:text-[#2563EB] transition-colors"
     >
-      Login
+      <User className="h-4 w-4" />
+      Autentificare
     </Link>
   );
 }

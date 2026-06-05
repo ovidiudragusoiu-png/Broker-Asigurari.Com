@@ -10,7 +10,7 @@ export const metadata = createPrivatePageMetadata(
 
 export default function LoginPage() {
   return (
-    <div className="flex min-h-[calc(100vh-80px)] items-center justify-center px-4 py-12">
+    <div className="flex min-h-screen items-center justify-center px-4 pb-12 pt-24 sm:pt-28">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#2563EB]/10">

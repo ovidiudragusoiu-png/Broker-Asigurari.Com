@@ -154,8 +154,26 @@ export default function MobileMenu({ scrolled = true, isRcaRoute = false }: Mobi
                 onClick={close}
                 className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-[#2563EB] transition hover:bg-[#2563EB]/5"
               >
-                {user ? <User className="h-4 w-4" /> : <LogIn className="h-4 w-4" />}
-                {user ? "Contul meu" : "Autentificare"}
+                {user ? (
+                  <>
+                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#2563EB] text-xs font-bold text-white">
+                      {(user.firstName?.[0] ?? user.email[0] ?? "U").toUpperCase()}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate">
+                        {user.firstName?.trim() || user.email.split("@")[0]}
+                      </span>
+                      <span className="block truncate text-xs font-normal text-gray-500">
+                        Polițele mele
+                      </span>
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <LogIn className="h-4 w-4" />
+                    Autentificare
+                  </>
+                )}
               </Link>
             </div>
           </div>

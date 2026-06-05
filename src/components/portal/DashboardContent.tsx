@@ -90,7 +90,7 @@ export default function DashboardContent({ policies }: DashboardContentProps) {
 
   return (
     <>
-      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-8 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {STATUS_FILTERS.map((item) => {
           const value = stats[item.statKey];
           const isActive = statusFilter === item.id;
@@ -103,14 +103,14 @@ export default function DashboardContent({ policies }: DashboardContentProps) {
               onClick={() => handleStatusClick(item.id, value)}
               disabled={isDisabled}
               aria-pressed={isActive}
-              className={`rounded-2xl border bg-white px-5 py-4 text-left shadow-sm transition-all ${
+              className={`rounded-2xl border bg-white px-3 py-3 text-left shadow-sm transition-all sm:px-5 sm:py-4 ${
                 isActive
                   ? "border-[#2563EB] ring-2 ring-[#2563EB]/20"
                   : "border-gray-100 hover:border-gray-200 hover:shadow-md"
               } ${isDisabled ? "cursor-default opacity-60" : "cursor-pointer"}`}
             >
-              <p className="text-sm text-gray-500">{item.label}</p>
-              <p className={`mt-1 text-3xl font-bold ${toneClasses[item.tone]}`}>
+              <p className="text-xs text-gray-500 sm:text-sm">{item.label}</p>
+              <p className={`mt-1 text-2xl font-bold sm:text-3xl ${toneClasses[item.tone]}`}>
                 {value}
               </p>
             </button>

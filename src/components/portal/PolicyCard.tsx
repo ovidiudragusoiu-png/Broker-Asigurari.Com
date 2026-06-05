@@ -61,7 +61,7 @@ export default function PolicyCard({ policy }: { policy: DashboardPolicy }) {
         isExpired ? "opacity-80" : ""
       }`}
     >
-      <div className="mb-4 flex items-start justify-between gap-3">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 items-start gap-3">
           <div
             className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${config.iconBgClass}`}
@@ -89,7 +89,7 @@ export default function PolicyCard({ policy }: { policy: DashboardPolicy }) {
           </div>
         </div>
         {policy.premium != null && (
-          <div className="shrink-0 text-right">
+          <div className="shrink-0 text-left sm:text-right">
             <p className="text-lg font-bold text-gray-900">
               {policy.premium.toFixed(2)} {policy.currency}
             </p>
