@@ -96,7 +96,7 @@ export default function RootLayout({
                   <a href="https://www.facebook.com/brokerasigurariAi" target="_blank" rel="noopener noreferrer" className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 text-slate-400 transition-colors hover:bg-white/10 hover:text-white">
                     <Facebook className="h-4 w-4" />
                   </a>
-                  <a href="https://instagram.com/brokerasigurari" target="_blank" rel="noopener noreferrer" className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 text-slate-400 transition-colors hover:bg-white/10 hover:text-white">
+                  <a href="https://www.instagram.com/sigur.ai/" target="_blank" rel="noopener noreferrer" className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 text-slate-400 transition-colors hover:bg-white/10 hover:text-white">
                     <Instagram className="h-4 w-4" />
                   </a>
                 </div>

@@ -18,7 +18,7 @@ export function organizationJsonLd() {
     openingHours: "Mo-Fr 09:00-18:00",
     sameAs: [
       "https://www.facebook.com/brokerasigurariAi",
-      "https://instagram.com/brokerasigurari",
+      "https://www.instagram.com/sigur.ai/",
     ],
   };
 }

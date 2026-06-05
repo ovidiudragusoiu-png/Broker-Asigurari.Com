@@ -11,6 +11,214 @@ export interface Article {
 
 export const ARTICLES: Article[] = [
   {
+    slug: "reinnoire-rca-ghid-2026",
+    title: "Când și cum reînnoiești RCA-ul: Ghid practic 2026",
+    excerpt:
+      "Nu lăsa polița RCA să expire. Află cu cât timp înainte să reînnoiești, ce documente ai nevoie și cum obții cel mai bun preț online.",
+    category: "RCA",
+    date: "4 Jun 2026",
+    readTime: "5 min",
+    gradient: "from-sky-500 to-sky-700",
+    content: `
+      <p>RCA-ul expiră la fiecare 12 luni (sau la perioada aleasă la emitere). Circulația fără poliță valabilă este sancționată dur, iar în caz de accident riști să plătești personal toate daunele. Reînnoirea la timp este simplă dacă știi pașii corecți.</p>
+
+      <h2>Cu cât timp înainte reînnoiești?</h2>
+      <p>Recomandăm să reînnoiești RCA-ul cu <strong>7–14 zile înainte</strong> de expirare. Astfel ai timp să compari ofertele, eviți perioadele aglomerate de final de lună și nu riști să uiți termenul. Pe Sigur.Ai primești notificări când polița se apropie de expirare, dacă ai cont activ.</p>
+
+      <h2>Ce se întâmplă dacă expiră polița?</h2>
+      <ul>
+        <li><strong>Amendă</strong> — de la 1.000 la 2.000 lei la control rutier</li>
+        <li><strong>Reținerea certificatului</strong> — până la prezentarea unei polițe valabile</li>
+        <li><strong>Risc financiar major</strong> — în accident, plătești tu daunele terților</li>
+        <li><strong>Resetare Bonus-Malus</strong> — o pauză lungă poate afecta clasa ta B/M</li>
+      </ul>
+
+      <h2>Pașii pentru reînnoire online</h2>
+      <ol>
+        <li>Verifică data de expirare pe polița actuală sau în contul tău Sigur.Ai</li>
+        <li>Introdu datele vehiculului și ale proprietarului în comparator</li>
+        <li>Compară ofertele de la toți asigurătorii disponibili</li>
+        <li>Alege polița potrivită și plătește online</li>
+        <li>Primești polița electronică imediat — valabilă în baza de date BAAR</li>
+      </ol>
+
+      <h2>Sfaturi pentru cel mai bun preț</h2>
+      <p>Compară mereu mai mulți asigurători — diferențele pot fi de sute de lei. Menține clasa Bonus-Malus verificând istoricul pe site-ul BAAR. Alege polița pe 12 luni pentru cel mai bun raport cost-beneficiu. Dacă ai schimbat mașina, clasa B/M se transferă pe persoană, nu pe vehicul.</p>
+    `,
+  },
+  {
+    slug: "raspundere-profesionala-ghid",
+    title: "Asigurarea de răspundere profesională: Pentru cine este obligatorie?",
+    excerpt:
+      "Avocați, contabili, arhitecți, consultanți — află când ai nevoie de poliță de răspundere profesională, ce acoperă și cum o obții rapid.",
+    category: "Profesional",
+    date: "15 May 2026",
+    readTime: "6 min",
+    gradient: "from-orange-500 to-orange-700",
+    content: `
+      <p>Asigurarea de răspundere profesională protejează profesioniștii și firmele de servicii împotriva pretențiilor clienților pentru prejudicii cauzate prin erori, omisiuni sau neglijență în exercitarea profesiei. Pentru multe categorii, polița este obligatorie prin lege sau prin contract.</p>
+
+      <h2>Cine are nevoie de această asigurare?</h2>
+      <ul>
+        <li><strong>Avocați și executorii judecătorești</strong> — obligatorie conform Statutului profesiei</li>
+        <li><strong>Contabili autorizați și auditori</strong> — cerință CECCAR și legislație fiscală</li>
+        <li><strong>Arhitecți și ingineri</strong> — pentru proiectare și dirigenție de șantier</li>
+        <li><strong>Consultanți IT, marketing, HR</strong> — adesea cerută de clienți corporativi</li>
+        <li><strong>Brokeri de asigurări</strong> — obligatorie pentru autorizația ASF</li>
+      </ul>
+
+      <h2>Ce acoperă polița?</h2>
+      <p>Asigurarea acoperă despăgubirile datorate terților pentru prejudicii materiale și, în funcție de poliță, și daune morale. Include de regulă și cheltuielile de apărare juridică. Nu acoperă fapte intenționate, amenzi sau sancțiuni penale.</p>
+
+      <h2>Cum alegi limita de despăgubire?</h2>
+      <p>Limita trebuie să fie proporțională cu riscul activității și cu cerințele clienților sau ale autorităților. Pentru contracte publice, limita minimă este adesea specificată în caietul de sarcini. Consultă un broker pentru a evalua expunerea reală a afacerii tale.</p>
+
+      <h2>Obține oferta online</h2>
+      <p>Pe Sigur.Ai poți solicita oferte de răspundere profesională personalizate pentru domeniul tău. Completezi datele firmei, alegi limita de acoperire și primești propuneri de la asigurătorii parteneri, fără birocrație inutilă.</p>
+    `,
+  },
+  {
+    slug: "polita-pad-online-ghid",
+    title: "Polița PAD online: Pași simpli pentru asigurarea obligatorie a locuinței",
+    excerpt:
+      "PAD este obligatorie pentru orice proprietar. Ghid rapid: ce acoperă, cât costă și cum o emiți online în câteva minute.",
+    category: "Locuință",
+    date: "28 Apr 2026",
+    readTime: "4 min",
+    gradient: "from-violet-500 to-violet-700",
+    content: `
+      <p>Polița PAD (Pool-ul de Asigurare împotriva Dezastrelor Naturale) este obligatorie pentru toate locuințele din România. Fără ea, nu poți încheia o asigurare facultativă de locuință și riști amenzi la controalele ANAF sau notariale.</p>
+
+      <h2>Ce acoperă PAD-ul?</h2>
+      <p>PAD acoperă exclusiv trei riscuri naturale, cu sume fixe de despăgubire:</p>
+      <ul>
+        <li><strong>Cutremur</strong> — până la 20.000 EUR</li>
+        <li><strong>Inundații din cauze naturale</strong> — până la 20.000 EUR</li>
+        <li><strong>Alunecări de teren</strong> — până la 20.000 EUR</li>
+      </ul>
+      <p>Prima anuală este fixă: <strong>20 EUR</strong> pentru locuințe tip A (beton, cărămidă) și <strong>10 EUR</strong> pentru locuințe tip B (chirpici, paiantă).</p>
+
+      <h2>Documente necesare</h2>
+      <ul>
+        <li>Act de identitate al proprietarului</li>
+        <li>Adresa completă a imobilului (județ, localitate, stradă, număr)</li>
+        <li>Suprafața utilă și tipul de construcție (A sau B)</li>
+        <li>Anul construcției</li>
+      </ul>
+
+      <h2>Cum emiți PAD online pe Sigur.Ai</h2>
+      <p>Accesezi secțiunea PAD, completezi datele locuinței, verifici informațiile și plătești online. Polița este emisă instant și înregistrată în baza PAID. Păstrează PDF-ul primit pe email — este documentul oficial.</p>
+
+      <h2>PAD nu este suficient singur</h2>
+      <p>PAD acoperă doar dezastre naturale, cu sume limitate. Pentru incendiu, furt, inundații accidentale sau răspundere civilă față de vecini, ai nevoie de o asigurare facultativă de locuință. Cele două polițe se completează reciproc.</p>
+    `,
+  },
+  {
+    slug: "procedura-baar-dosar-dauna",
+    title: "Procedura BAAR: Cum deschizi un dosar de daună RCA corect",
+    excerpt:
+      "Ghid practic pentru deschiderea dosarului de daună prin BAAR — termene, documente, drepturile tale și cum eviți întârzierile.",
+    category: "RCA",
+    date: "10 Apr 2026",
+    readTime: "6 min",
+    gradient: "from-red-500 to-red-700",
+    content: `
+      <p>BAAR (Biroul Asigurătorilor de Autovehicule din România) gestionează baza de date națională RCA și reglementează procedura de despăgubire. Înțelegerea procedurii BAAR te ajută să obții despăgubirea mai rapid și să eviți respingerile nejustificate.</p>
+
+      <h2>Cine deschide dosarul de daună?</h2>
+      <p>Dacă <strong>nu ești vinovat</strong>, deschizi dosarul la asigurătorul RCA al persoanei vinovate — nu la al tău. Dacă ești vinovat, asigurătorul tău RCA despăgubește victima. În caz de dezbatere asupra vinovăției, poliția sau instanța stabilesc răspunderea.</p>
+
+      <h2>Termene legale importante</h2>
+      <ul>
+        <li><strong>48 de ore</strong> — termen recomandat pentru anunțarea accidentului către asigurător</li>
+        <li><strong>30 de zile</strong> — termen de soluționare pentru daune materiale</li>
+        <li><strong>90 de zile</strong> — termen de soluționare pentru vătămări corporale</li>
+        <li><strong>3 ani</strong> — prescripția dreptului la despăgubire de la data accidentului</li>
+      </ul>
+
+      <h2>Documente pentru dosar</h2>
+      <ul>
+        <li>Constatare amiabilă sau proces verbal al Poliției</li>
+        <li>Copie act identitate și permis de conducere</li>
+        <li>Certificat de înmatriculare (talon) al vehiculului avariat</li>
+        <li>Fotografii ale daunelor și ale locului accidentului</li>
+        <li>Deviz de reparație de la service autorizat</li>
+        <li>Polița RCA a persoanei vinovate (sau datele acesteia)</li>
+      </ul>
+
+      <h2>Ce faci dacă asigurătorul întârzie?</h2>
+      <p>Dacă termenul legal este depășit, poți sesiza BAAR sau ASF. Pentru daune materiale sub 25.000 lei, există procedura de soluționare directă (Direct Settlement) — asigurătorul tău RCA poate plăti despăgubirea și recupera suma de la asigurătorul vinovatului, accelerând procesul.</p>
+
+      <h2>Resurse utile</h2>
+      <p>Pe site-ul Sigur.Ai găsești și ghidul nostru despre <a href="/procedura-baar">procedura BAAR</a>, cu pași detaliați și răspunsuri la întrebări frecvente.</p>
+    `,
+  },
+  {
+    slug: "asigurare-vehicule-electrice-rca-casco",
+    title: "RCA și CASCO pentru mașini electrice: Ce trebuie să știi",
+    excerpt:
+      "Tesla, Dacia Spring, Hyundai Ioniq — asigurările pentru vehicule electrice au particularități. Află ce influențează prețul și ce acoperiri extra merită.",
+    category: "CASCO",
+    date: "22 Mar 2026",
+    readTime: "5 min",
+    gradient: "from-teal-500 to-teal-700",
+    content: `
+      <p>Parcul auto electric crește rapid în România. Vehiculele electrice (EV) au caracteristici diferite față de cele termice — baterie de mare valoare, costuri de reparație ridicate, tehnologie avansată — iar asta se reflectă și în asigurări.</p>
+
+      <h2>RCA pentru mașini electrice</h2>
+      <p>RCA rămâne obligatoriu, iar calculul primei urmează aceleași reguli Bonus-Malus ca la orice vehicul. Unii asigurători oferă reduceri pentru EV datorită profilului de risc (șoferi urbani, viteze medii mai mici). Compară ofertele — diferențele pot fi semnificative.</p>
+
+      <h2>CASCO — particularități pentru EV</h2>
+      <ul>
+        <li><strong>Bateria</strong> — componenta cea mai scumpă; verifică dacă polița acoperă degradarea bateriei și înlocuirea integrală</li>
+        <li><strong>Incendiu</strong> — riscul termic al bateriilor litiu-ion necesită acoperire explicită</li>
+        <li><strong>Stații de încărcare</strong> — unele polițe acoperă și wallbox-ul de acasă</li>
+        <li><strong>Asistență rutieră</strong> — tractarea unui EV necesită echipament specializat</li>
+        <li><strong>Geofencing și telematics</strong> — unii asigurători oferă reduceri pentru monitorizare GPS</li>
+      </ul>
+
+      <h2>De ce CASCO este recomandat pentru EV?</h2>
+      <p>Costul unei reparații minore la un EV poate depăși valoarea unei reparații majore la o mașină termică. Furtul bateriei sau vandalismul stației de încărcare sunt riscuri reale. Pentru vehicule în leasing sau credite auto, CASCO este de obicei obligatoriu contractual.</p>
+
+      <h2>Sfat practic</h2>
+      <p>La CASCO, alege o sumă asigurată realistă — valoarea de piață a mașinii, inclusiv bateria. Verifică rețeaua de service autorizat EV a asigurătorului. Pe Sigur.Ai poți solicita ofertă CASCO personalizată pentru vehiculul tău electric.</p>
+    `,
+  },
+  {
+    slug: "cont-digital-polite-sigur-ai",
+    title: "Cont digital Sigur.Ai: Toate polițele tale într-un singur loc",
+    excerpt:
+      "Descoperă cum funcționează contul tău Sigur.Ai — gestionare polițe, descărcare documente, reminder-e de expirare și istoric complet.",
+    category: "Sigur.Ai",
+    date: "5 Mar 2026",
+    readTime: "4 min",
+    gradient: "from-blue-600 to-indigo-800",
+    content: `
+      <p>După ce achiziționezi o asigurare pe Sigur.Ai, toate polițele tale sunt centralizate în contul personal. Nu mai cauți emailuri vechi sau PDF-uri pierdute — totul este accesibil oricând, de pe orice dispozitiv.</p>
+
+      <h2>Ce găsești în dashboard?</h2>
+      <ul>
+        <li><strong>Lista polițelor active</strong> — RCA, CASCO, călătorie, locuință, malpraxis și altele</li>
+        <li><strong>Date de expirare</strong> — vizibile clar, cu indicatori colorați</li>
+        <li><strong>Descărcare documente</strong> — polițe PDF, certificate, chitanțe de plată</li>
+        <li><strong>Istoric achiziții</strong> — toate tranzacțiile anterioare</li>
+        <li><strong>Reminder-e automate</strong> — notificări înainte de expirarea polițelor</li>
+      </ul>
+
+      <h2>Reminder-e de expirare — de ce contează</h2>
+      <p>RCA expirat înseamnă amendă, reținerea certificatului și risc financiar major la accident. Sigur.Ai trimite reminder-e pe email (și opțional SMS) cu câteva zile înainte de expirare, astfel încât să ai timp să reînnoiești fără stres.</p>
+
+      <h2>Cum îți creezi contul?</h2>
+      <p>Contul se creează automat la prima achiziție, folosind adresa de email introdusă la plată. Poți accesa dashboard-ul de pe pagina de autentificare. Dacă ai deja cont, toate polițele noi se adaugă automat la profilul tău.</p>
+
+      <h2>Securitatea datelor</h2>
+      <p>Datele tale sunt protejate conform GDPR. Documentele sunt stocate criptat, iar accesul la cont necesită autentificare securizată. Nu partajăm informațiile tale cu terți fără consimțământul tău explicit.</p>
+
+      <h2>Începe acum</h2>
+      <p>Creează-ți contul achiziționând prima poliță sau autentifică-te dacă ești deja client. Toate polițele viitoare vor fi gestionate centralizat, cu reminder-e care te țin protejat tot anul.</p>
+    `,
+  },
+  {
     slug: "ghid-complet-rca-2025",
     title: "Ghid complet RCA 2025: Tot ce trebuie să știi",
     excerpt:
