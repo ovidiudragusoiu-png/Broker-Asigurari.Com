@@ -4,13 +4,10 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import { FileSearch, ShieldCheck, Plane } from "lucide-react";
 import { btn } from "@/lib/ui/tokens";
-import DashboardStats from "@/components/portal/DashboardStats";
-import DashboardPolicies from "@/components/portal/DashboardPolicies";
+import DashboardContent from "@/components/portal/DashboardContent";
 import LogoutButton from "@/components/portal/LogoutButton";
-import {
-  computeDashboardStats,
-  toDashboardPolicy,
-} from "@/lib/portal/policyUtils";
+import { toDashboardPolicy } from "@/lib/portal/policyUtils";
+import { getRemindersForPolicies } from "@/lib/reminders/processExpiryReminders";
 import { createPrivatePageMetadata } from "@/lib/seo/metadata";
 
 export const metadata = createPrivatePageMetadata(
@@ -41,8 +38,11 @@ export default async function DashboardPage() {
     });
   }
 
-  const dashboardPolicies = policies.map(toDashboardPolicy);
-  const stats = computeDashboardStats(dashboardPolicies);
+  const reminderMap = await getRemindersForPolicies(policies.map((p) => p.id));
+  const dashboardPolicies = policies.map((policy) => ({
+    ...toDashboardPolicy(policy),
+    reminders: reminderMap[policy.id] ?? [],
+  }));
   const displayName = user.firstName || user.email.split("@")[0];
 
   return (
@@ -90,10 +90,7 @@ export default async function DashboardPage() {
             </div>
           </div>
         ) : (
-          <>
-            <DashboardStats stats={stats} />
-            <DashboardPolicies policies={dashboardPolicies} />
-          </>
+          <DashboardContent policies={dashboardPolicies} />
         )}
       </div>
     </div>

@@ -23,9 +23,9 @@ model User {
 }
 
 model Policy {
-  id              String   @id @default(cuid())
+  id              String                 @id @default(cuid())
   userId          String?
-  user            User?    @relation(fields: [userId], references: [id])
+  user            User?                  @relation(fields: [userId], references: [id])
   email           String
   orderId         Int
   orderHash       String
@@ -35,7 +35,7 @@ model Policy {
   policyNumber    String?
   vendorName      String?
   premium         Float?
-  currency        String   @default("RON")
+  currency        String                 @default("RON")
   startDate       String?
   endDate         String?
   vehicleVin      String?
@@ -44,10 +44,27 @@ model Policy {
   ownerCnpHash    String?
   ipAddress       String?
   userAgent       String?
-  createdAt       DateTime @default(now())
+  createdAt       DateTime               @default(now())
+  expiryReminders PolicyExpiryReminder[]
 
   @@index([userId])
   @@index([email])
+}
+
+model PolicyExpiryReminder {
+  id           String   @id @default(cuid())
+  policyDbId   String
+  policy       Policy   @relation(fields: [policyDbId], references: [id], onDelete: Cascade)
+  reminderDays Int
+  channel      String
+  recipient    String
+  success      Boolean  @default(false)
+  errorMessage String?
+  sentAt       DateTime @default(now())
+
+  @@unique([policyDbId, reminderDays, channel])
+  @@index([sentAt])
+  @@index([policyDbId])
 }
 
 model CheckoutSession {

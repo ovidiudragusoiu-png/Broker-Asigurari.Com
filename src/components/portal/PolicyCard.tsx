@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Download, Calendar, Building2, Car } from "lucide-react";
+import { Download, Calendar, Building2, Car, Bell } from "lucide-react";
 import { btn } from "@/lib/ui/tokens";
 import { getProductTypeConfig } from "@/lib/portal/productTypes";
 import {
@@ -31,6 +31,8 @@ export default function PolicyCard({ policy }: { policy: DashboardPolicy }) {
   const status = getPolicyStatus(policy.endDate);
   const Icon = config.icon;
   const isExpired = status.status === "expired";
+  const isExpiring = status.status === "expiring";
+  const reminders = policy.reminders ?? [];
 
   const handleDownload = async () => {
     setDownloading(true);
@@ -117,6 +119,24 @@ export default function PolicyCard({ policy }: { policy: DashboardPolicy }) {
         )}
       </div>
 
+      {reminders.length > 0 && (isExpiring || isExpired) && (
+        <div className="mb-4 flex flex-wrap gap-2">
+          {reminders.map((reminder) => (
+            <span
+              key={`${reminder.channel}-${reminder.reminderDays}`}
+              className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800"
+              title={`Trimis ${new Date(reminder.sentAt).toLocaleDateString("ro-RO")}`}
+            >
+              <Bell className="h-3 w-3" />
+              {reminder.channel === "sms" ? "SMS" : "Email"} ·{" "}
+              {reminder.reminderDays === 1
+                ? "1 zi"
+                : `${reminder.reminderDays} zile`}
+            </span>
+          ))}
+        </div>
+      )}
+
       {error && <p className="mb-3 text-xs text-red-600">{error}</p>}
 
       <div className="flex flex-col gap-2">
@@ -133,12 +153,12 @@ export default function PolicyCard({ policy }: { policy: DashboardPolicy }) {
           {downloading ? "Se descarcă..." : "Descarcă polița"}
         </button>
 
-        {isExpired && (
+        {(isExpired || isExpiring) && (
           <Link
             href={config.calculatorHref}
-            className={`${btn.tertiary} text-center text-sm`}
+            className={`${isExpired ? btn.tertiary : btn.primary} text-center text-sm ${isExpiring ? "flex w-full items-center justify-center gap-2 py-2.5" : ""}`}
           >
-            Reînnoiește
+            Reînnoiește acum
           </Link>
         )}
       </div>

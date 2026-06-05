@@ -1,5 +1,11 @@
 import { getProductTypeConfig, sortProductTypes } from "./productTypes";
 
+export interface PolicyReminderBadge {
+  reminderDays: number;
+  channel: string;
+  sentAt: string;
+}
+
 export interface DashboardPolicy {
   id: string;
   productType: string;
@@ -12,6 +18,7 @@ export interface DashboardPolicy {
   vehiclePlate: string | null;
   vehicleVin: string | null;
   createdAt: string;
+  reminders?: PolicyReminderBadge[];
 }
 
 export type PolicyStatus = "active" | "expiring" | "expired" | "unknown";
@@ -69,6 +76,30 @@ export function getPolicyStatus(endDate: string | null): PolicyStatusInfo {
     label: "Activă",
     className: "bg-emerald-50 text-emerald-700",
   };
+}
+
+export type StatusFilter = "ALL" | "active" | "expiring" | "expired";
+
+export function matchesStatusFilter(
+  endDate: string | null,
+  filter: StatusFilter
+): boolean {
+  if (filter === "ALL") return true;
+  const status = getPolicyStatus(endDate).status;
+  if (filter === "active") {
+    return status === "active" || status === "unknown";
+  }
+  return status === filter;
+}
+
+export function filterPoliciesByStatus(
+  policies: DashboardPolicy[],
+  filter: StatusFilter
+): DashboardPolicy[] {
+  if (filter === "ALL") return policies;
+  return policies.filter((policy) =>
+    matchesStatusFilter(policy.endDate, filter)
+  );
 }
 
 export interface DashboardStats {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   computeDashboardStats,
+  filterPoliciesByStatus,
   getPolicyStatus,
   groupPoliciesByType,
 } from "./policyUtils";
@@ -52,5 +53,11 @@ describe("policyUtils", () => {
   it("marks near-term policies as expiring", () => {
     const status = getPolicyStatus("2026-06-10");
     expect(status.status).toBe("expiring");
+  });
+
+  it("filters policies by status", () => {
+    const activeOnly = filterPoliciesByStatus(samplePolicies, "active");
+    expect(activeOnly).toHaveLength(1);
+    expect(activeOnly[0]?.productType).toBe("TRAVEL");
   });
 });
