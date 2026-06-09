@@ -93,7 +93,7 @@ function extractPolicyInfo(result: PolicyCreateResponse) {
   };
 }
 
-function PaymentCallbackContent() {
+export function PaymentCallbackContent() {
   const params = useSearchParams();
   const status = params.get("status");
   const message = params.get("message");
