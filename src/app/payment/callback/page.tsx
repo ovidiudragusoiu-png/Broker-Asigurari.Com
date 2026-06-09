@@ -305,6 +305,7 @@ export function PaymentCallbackContent() {
       ? `${policyInfo.series} ${policyInfo.number}`
       : policyInfo?.number || null;
   const vendorName = policyInfo?.vendorName || null;
+  const hasBlockingError = isSuccess && !!error && !policyCreated && !creating;
 
   return (
     <div className="relative mx-auto max-w-xl px-4 pt-28 pb-16">
@@ -318,18 +319,34 @@ export function PaymentCallbackContent() {
       {/* ── Success header ── */}
       {isSuccess && (
         <div className="relative text-center">
-          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-[#2563EB] to-blue-500 shadow-lg shadow-blue-500/25">
-            <CheckCircle2 className="h-10 w-10 text-white" strokeWidth={2.5} />
+          <div
+            className={`mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br shadow-lg ${
+              hasBlockingError
+                ? "from-red-500 to-orange-500 shadow-red-500/25"
+                : "from-[#2563EB] to-blue-500 shadow-blue-500/25"
+            }`}
+          >
+            {hasBlockingError ? (
+              <AlertTriangle className="h-10 w-10 text-white" strokeWidth={2.5} />
+            ) : (
+              <CheckCircle2 className="h-10 w-10 text-white" strokeWidth={2.5} />
+            )}
           </div>
           <h1 className="mt-6 text-2xl font-bold text-gray-900 sm:text-3xl">
-            Plata a fost procesata cu succes!
+            {policyCreated
+              ? "Polita a fost emisa cu succes!"
+              : hasBlockingError
+                ? "Nu am putut confirma plata"
+                : "Plata a fost procesata cu succes!"}
           </h1>
           <p className="mt-2 text-gray-500">
             {policyCreated
               ? "Polita dumneavoastra a fost emisa si este gata de descarcare."
               : creating
                 ? "Se emite polita dumneavoastra..."
-                : "Se proceseaza comanda..."}
+                : hasBlockingError
+                  ? "Polita nu a fost emisa automat. Va rugam reincercati confirmarea."
+                  : "Se proceseaza comanda..."}
           </p>
         </div>
       )}

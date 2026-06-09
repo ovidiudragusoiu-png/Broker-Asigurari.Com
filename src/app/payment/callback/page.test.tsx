@@ -58,6 +58,12 @@ describe("PaymentCallbackContent", () => {
     expect(
       await screen.findByText("Nu am putut confirma plata. Polita nu a fost emisa automat.")
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Nu am putut confirma plata" })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Plata a fost procesata cu succes!" })
+    ).not.toBeInTheDocument();
 
     expect(postMock).toHaveBeenCalledTimes(1);
     expect(postMock).toHaveBeenCalledWith(
