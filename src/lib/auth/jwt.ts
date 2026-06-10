@@ -4,9 +4,16 @@ import { cookies } from "next/headers";
 const COOKIE_NAME = "auth-token";
 const EXPIRES_IN = "7d";
 
+const MIN_SECRET_LENGTH = 32;
+
 function getSecret() {
   const secret = process.env.JWT_SECRET;
   if (!secret) throw new Error("JWT_SECRET is not configured");
+  if (secret.length < MIN_SECRET_LENGTH) {
+    throw new Error(
+      `JWT_SECRET is too weak: it must be at least ${MIN_SECRET_LENGTH} characters of high-entropy random data.`
+    );
+  }
   return new TextEncoder().encode(secret);
 }
 

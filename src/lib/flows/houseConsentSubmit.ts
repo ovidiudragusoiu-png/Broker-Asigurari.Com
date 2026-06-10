@@ -1,6 +1,7 @@
 import type { ConsentFieldMapping } from "@/lib/flows/consentApiMapper";
 import type { HouseAgreementAnswers } from "@/lib/flows/houseAgreementsCopy";
-import { submitConsentAnswers } from "@/lib/flows/consentSubmit";
+import { isConsentSigned, submitConsentAnswers } from "@/lib/flows/consentSubmit";
+import { notifyDntSummaryEmail } from "@/lib/flows/dntSummaryNotify";
 import type { PersonRequest } from "@/types/insuretech";
 
 export function houseAnswersToMappings(answers: HouseAgreementAnswers): ConsentFieldMapping[] {
@@ -79,5 +80,10 @@ export async function submitHouseAgreements(
   person: PersonRequest,
   answers: HouseAgreementAnswers
 ): Promise<void> {
+  const { legalType, cif } = person;
+  const alreadySigned = await isConsentSigned(legalType, cif, "HOUSE");
   await submitConsentAnswers(person, "HOUSE", houseAnswersToMappings(answers), answers.comm_1_1);
+  if (!alreadySigned) {
+    notifyDntSummaryEmail("HOUSE", person, answers);
+  }
 }

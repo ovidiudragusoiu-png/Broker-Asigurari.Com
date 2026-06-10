@@ -4,6 +4,7 @@ import { useState } from "react";
 import { api } from "@/lib/api/client";
 import { formatPrice } from "@/lib/utils/formatters";
 import TermsModal from "@/components/rca/TermsModal";
+import PaymentDeclarationBanner from "@/components/shared/PaymentDeclarationBanner";
 
 interface PaymentFlowProps {
   orderId: number;
@@ -195,6 +196,10 @@ export default function PaymentFlow({
           Plata securizata · SSL 256-bit
         </div>
       </div>
+
+      {status === "idle" && (
+        <PaymentDeclarationBanner productType={productType} />
+      )}
 
       {/* Main card */}
       <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">

@@ -5,6 +5,7 @@ import Image from "next/image";
 import type { RcaFlowState } from "@/types/rcaFlow";
 import { getLocalVendorLogo, periodText } from "@/lib/utils/rcaHelpers";
 import TermsModal from "./TermsModal";
+import PaymentDeclarationBanner from "@/components/shared/PaymentDeclarationBanner";
 
 interface PaymentConfirmationProps {
   state: RcaFlowState;
@@ -108,15 +109,7 @@ export default function PaymentConfirmation({
       </div>
 
       {/* Declaration */}
-      <div className="mx-auto max-w-lg rounded-lg bg-gray-50 p-4">
-        <div className="flex items-start gap-3">
-          <span className="mt-0.5 text-blue-600">{"\u27A1\uFE0F"}</span>
-          <p className="text-sm text-gray-700">
-            DAND CLICK pe &quot;PLATESC&quot;, declar ca am peste 18 ani si ca datele
-            furnizate pentru incheierea politei RCA sunt reale.
-          </p>
-        </div>
-      </div>
+      <PaymentDeclarationBanner productType="RCA" className="mx-auto max-w-lg" />
 
       {/* Error */}
       {error && (

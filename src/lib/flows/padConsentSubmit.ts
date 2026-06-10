@@ -1,6 +1,7 @@
 import type { ConsentFieldMapping } from "@/lib/flows/consentApiMapper";
 import type { PadAgreementAnswers } from "@/lib/flows/padAgreementsCopy";
-import { submitConsentAnswers } from "@/lib/flows/consentSubmit";
+import { isConsentSigned, submitConsentAnswers } from "@/lib/flows/consentSubmit";
+import { notifyDntSummaryEmail } from "@/lib/flows/dntSummaryNotify";
 import type { PersonRequest } from "@/types/insuretech";
 
 export function padAnswersToMappings(answers: PadAgreementAnswers): ConsentFieldMapping[] {
@@ -73,5 +74,10 @@ export async function submitPadAgreements(
   person: PersonRequest,
   answers: PadAgreementAnswers
 ): Promise<void> {
+  const { legalType, cif } = person;
+  const alreadySigned = await isConsentSigned(legalType, cif, "PAD");
   await submitConsentAnswers(person, "PAD", padAnswersToMappings(answers), answers.comm_1_1);
+  if (!alreadySigned) {
+    notifyDntSummaryEmail("PAD", person, answers);
+  }
 }

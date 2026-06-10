@@ -3,6 +3,11 @@
 import { useSearchParams } from "next/navigation";
 import { useState, useEffect, useRef, Suspense } from "react";
 import { api, ApiError } from "@/lib/api/client";
+import {
+  fetchOfferDocument,
+  fetchPolicyDocument,
+  openDocumentInNewTab,
+} from "@/lib/api/documentsClient";
 import { MALPRAXIS_TRACE_HEADER } from "@/lib/debug/malpraxisTrace";
 import Link from "next/link";
 import { btn } from "@/lib/ui/tokens";
@@ -425,7 +430,6 @@ function PaymentCallbackContent() {
                 ? `/online/offers/house/${offerId}/details/v3?orderHash=${orderHash}`
                 : `/online/offers/${offerId}/details/v3?orderHash=${orderHash}`;
         offerDetails = await api.get<Record<string, unknown>>(detailsEndpoint, { timeoutMs: 15000 });
-        console.log("[PaymentCallback] offer details:", JSON.stringify(offerDetails));
       } catch (detailsErr) {
         console.warn("[PaymentCallback] Could not fetch offer details:", detailsErr);
       }
@@ -526,7 +530,6 @@ function PaymentCallbackContent() {
           },
           { timeoutMs: 120000 }
         );
-        console.log("[PaymentCallback] policies response:", JSON.stringify(result));
 
         let policyInfo = extractPolicyInfo(result, Number(offerId));
 
@@ -545,10 +548,6 @@ function PaymentCallbackContent() {
                 : {}),
             },
             { timeoutMs: 120000 }
-          );
-          console.log(
-            "[PaymentCallback] policies response (INS-0030 retry):",
-            JSON.stringify(result)
           );
           policyInfo = extractPolicyInfo(result, Number(offerId));
         }
@@ -611,6 +610,7 @@ function PaymentCallbackContent() {
                 vehicleVin: vehicleVin || undefined,
                 vehiclePlate: vehiclePlate || undefined,
                 vehicleCategory: vehicleCategory || undefined,
+                ...(sessionToken ? { sessionToken } : {}),
               }),
             });
           } catch {
@@ -645,7 +645,6 @@ function PaymentCallbackContent() {
               }),
             });
             const emailResult = await emailResp.json().catch(() => ({}));
-            console.log("[PaymentCallback] Email result:", emailResp.status, emailResult);
             if (!emailResp.ok) {
               console.error("[PaymentCallback] Email failed:", emailResult);
               emailSentTo.current = "";
@@ -721,28 +720,20 @@ function PaymentCallbackContent() {
       });
     }
 
-    const docEndpoint =
-      type === "offer"
-        ? `/online/offers/${id}/document/v3?orderHash=${orderHash}`
-        : `/online/policies/${id}/document/v3?orderHash=${orderHash}`;
-
     let lastError: unknown;
+    const offerIdNum = isValidPositiveInt(offerId) ? Number(offerId) : undefined;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        console.log("[Download] Fetching document URL:", docEndpoint, `(attempt ${attempt})`);
-        const docResp = await api.get<{ url?: string } | string>(docEndpoint, {
-          timeoutMs: 30000,
-        });
-        console.log("[Download] Response:", docResp);
-        const docUrl = typeof docResp === "string" ? docResp : docResp?.url;
-        if (docUrl && docUrl.startsWith("http")) {
-          window.open(docUrl, "_blank", "noopener,noreferrer");
-          return;
-        }
-        throw new Error(
-          "Documentul nu este disponibil momentan. Incercati din nou mai tarziu."
-        );
+        const docResp =
+          type === "offer"
+            ? await fetchOfferDocument(id, orderHash, sessionToken)
+            : await fetchPolicyDocument(id, orderHash, {
+                offerId: offerIdNum,
+                sessionToken: sessionToken ?? undefined,
+              });
+        openDocumentInNewTab(docResp);
+        return;
       } catch (err) {
         lastError = err;
         const message = getErrorMessage(err);
@@ -751,7 +742,6 @@ function PaymentCallbackContent() {
           attempt < maxAttempts &&
           isRetryableDocumentFetchError(message);
         if (shouldRetry) {
-          console.warn(`[Download] Retry ${attempt}/${maxAttempts} for ${docEndpoint}:`, message);
           await sleep(2000 * attempt);
           continue;
         }

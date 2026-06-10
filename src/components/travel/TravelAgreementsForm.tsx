@@ -1,13 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { btn } from "@/lib/ui/tokens";
 import {
-  TRAVEL_AGREEMENTS_DEFAULTS,
+  TRAVEL_AGREEMENTS_INITIAL,
   TRAVEL_AGREEMENTS_SECTIONS,
   TRAVEL_AGREEMENTS_TITLE,
   type TravelAgreementAnswers,
 } from "@/lib/flows/travelAgreementsCopy";
+import {
+  agreementItemClass,
+  getTravelMissingIds,
+  getTravelOfferBlockers,
+  STANDARD_OFFER_CONSENT_BLOCKER_MESSAGE,
+} from "@/lib/flows/agreementFormUtils";
 import { ConsentMappingError } from "@/lib/flows/consentSubmit";
 import { submitTravelAgreements } from "@/lib/flows/travelConsentSubmit";
 import type { PersonRequest } from "@/types/insuretech";
@@ -30,34 +36,35 @@ export default function TravelAgreementsForm({
   backLabel = "Inapoi",
   onError,
 }: TravelAgreementsFormProps) {
-  const [answers, setAnswers] = useState<TravelAgreementAnswers>(TRAVEL_AGREEMENTS_DEFAULTS);
+  const [answers, setAnswers] = useState<TravelAgreementAnswers>(TRAVEL_AGREEMENTS_INITIAL);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [showValidation, setShowValidation] = useState(false);
+
+  const missingIds = useMemo(() => new Set(getTravelMissingIds(answers)), [answers]);
+  const blockerIds = useMemo(() => new Set(getTravelOfferBlockers(answers)), [answers]);
+  const errorIds = useMemo(
+    () => new Set([...missingIds, ...blockerIds]),
+    [missingIds, blockerIds]
+  );
 
   const resetAnswers = () => {
-    setAnswers(TRAVEL_AGREEMENTS_DEFAULTS);
+    setAnswers(TRAVEL_AGREEMENTS_INITIAL);
     setSubmitError(null);
     setValidationError(null);
-  };
-
-  const isComplete = (): boolean => {
-    if (!answers.comm_1_1) return false;
-    return (
-      !!answers.dnt_0_1 &&
-      !!answers.dnt_0_2 &&
-      !!answers.dnt_0_4 &&
-      !!answers.dnt_0_5 &&
-      !!answers.dnt_0_6 &&
-      !!answers.broker_1_1 &&
-      !!answers.broker_1_2 &&
-      !!answers.broker_1_3
-    );
+    setShowValidation(false);
   };
 
   const handleSubmit = async () => {
-    if (!isComplete()) {
+    if (missingIds.size > 0) {
+      setShowValidation(true);
       setValidationError("Completați toate câmpurile obligatorii.");
+      return;
+    }
+    if (blockerIds.size > 0) {
+      setShowValidation(true);
+      setValidationError(STANDARD_OFFER_CONSENT_BLOCKER_MESSAGE);
       return;
     }
     setValidationError(null);
@@ -80,24 +87,39 @@ export default function TravelAgreementsForm({
     }
   };
 
-  const selectTravelCheckboxGroup = (
+  const fieldHasError = (itemId: string) => showValidation && errorIds.has(itemId);
+
+  const toggleTravelCheckbox = (
     itemId: "dnt_0_7" | "dnt_0_8",
-    selectedValue: string
+    optionValue: string,
+    checked: boolean
   ) => {
+    setShowValidation(false);
     setAnswers((prev) => {
       if (itemId === "dnt_0_7") {
+        if (optionValue === "none") {
+          return {
+            ...prev,
+            dnt_0_7_baggage: false,
+            dnt_0_7_sports: false,
+            dnt_0_7_none: checked,
+          };
+        }
         return {
           ...prev,
-          dnt_0_7_baggage: selectedValue === "baggage",
-          dnt_0_7_sports: selectedValue === "sports",
-          dnt_0_7_none: selectedValue === "none",
+          dnt_0_7_none: false,
+          dnt_0_7_baggage:
+            optionValue === "baggage" ? checked : prev.dnt_0_7_baggage,
+          dnt_0_7_sports:
+            optionValue === "sports" ? checked : prev.dnt_0_7_sports,
         };
       }
+
       return {
         ...prev,
-        dnt_0_8_plane: selectedValue === "plane",
-        dnt_0_8_car: selectedValue === "car",
-        dnt_0_8_other: selectedValue === "other",
+        dnt_0_8_plane: optionValue === "plane" ? checked : prev.dnt_0_8_plane,
+        dnt_0_8_car: optionValue === "car" ? checked : prev.dnt_0_8_car,
+        dnt_0_8_other: optionValue === "other" ? checked : prev.dnt_0_8_other,
       };
     });
   };
@@ -127,7 +149,7 @@ export default function TravelAgreementsForm({
             {section.items.map((item) => (
               <div
                 key={item.id}
-                className="rounded-md border border-gray-100 bg-gray-50/60 p-3"
+                className={agreementItemClass(fieldHasError(item.id))}
               >
                 <p className="mb-1 text-sm leading-relaxed text-gray-800">
                   {item.label}
@@ -142,9 +164,10 @@ export default function TravelAgreementsForm({
                     <input
                       type="checkbox"
                       checked={answers.comm_1_1}
-                      onChange={(e) =>
-                        setAnswers((prev) => ({ ...prev, comm_1_1: e.target.checked }))
-                      }
+                      onChange={(e) => {
+                        setShowValidation(false);
+                        setAnswers((prev) => ({ ...prev, comm_1_1: e.target.checked }));
+                      }}
                       className={agreementCheckboxClass}
                     />
                     <span className="text-sm text-gray-700">{item.checkboxLabel}</span>
@@ -162,10 +185,11 @@ export default function TravelAgreementsForm({
                             item.id as "dnt_0_7" | "dnt_0_8",
                             option.value
                           )}
-                          onChange={() =>
-                            selectTravelCheckboxGroup(
+                          onChange={(e) =>
+                            toggleTravelCheckbox(
                               item.id as "dnt_0_7" | "dnt_0_8",
-                              option.value
+                              option.value,
+                              e.target.checked
                             )
                           }
                           className={agreementCheckboxClass}
@@ -178,15 +202,16 @@ export default function TravelAgreementsForm({
                   <AgreementChoiceGroup
                     value={answers[item.id as keyof TravelAgreementAnswers] as string}
                     options={item.options}
-                    onChange={(value) =>
+                    onChange={(value) => {
+                      setShowValidation(false);
                       setAnswers(
                         (prev) =>
                           ({
                             ...prev,
                             [item.id]: value,
                           }) as TravelAgreementAnswers
-                      )
-                    }
+                      );
+                    }}
                   />
                 )}
               </div>

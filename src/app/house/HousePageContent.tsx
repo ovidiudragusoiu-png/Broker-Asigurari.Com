@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, type ReactNode } from "react";
-import WizardStepper, { useWizard } from "@/components/shared/WizardStepper";
+import WizardStepper, { useWizardUrlSync } from "@/components/shared/WizardStepper";
 import PersonForm, { emptyPersonPF } from "@/components/shared/PersonForm";
 import AddressForm, { emptyAddress } from "@/components/shared/AddressForm";
 
@@ -9,11 +9,17 @@ import PaymentFlow from "@/components/shared/PaymentFlow";
 import DntChoice from "@/components/rca/DntChoice";
 import HouseAgreementsForm from "@/components/house/HouseAgreementsForm";
 import { api } from "@/lib/api/client";
+import {
+  fetchOfferDocument,
+  openDocumentInNewTab,
+} from "@/lib/api/documentsClient";
 import type { PersonRequest, AddressRequest, PadCesionar } from "@/types/insuretech";
-import { isAddressValid, isPersonValid } from "@/lib/utils/formGuards";
+import { isAddressValid, isPersonValid, houseAddressRequiresFloor } from "@/lib/utils/formGuards";
 import { createOrderAndOffers } from "@/lib/flows/offerFlow";
 import { buildOrderPayload } from "@/lib/flows/payloadBuilders";
 import DateInput from "@/components/shared/DateInput";
+import RuralAddressHint from "@/components/shared/RuralAddressHint";
+import { isRuralEnvironment } from "@/lib/utils/ruralAddress";
 import { getArray } from "@/lib/utils/dto";
 import { formatDateTime } from "@/lib/utils/formatters";
 import { dateOfBirthFromCNP } from "@/lib/utils/validation";
@@ -172,25 +178,21 @@ export default function HousePage() {
   const [selectedOffer, setSelectedOffer] = useState<HouseOffer | null>(null);
   const [loadingOffers, setLoadingOffers] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showDntSubstep, setShowDntSubstep] = useState(false);
-  const [showConsent, setShowConsent] = useState(false);
   const [showGdprModal, setShowGdprModal] = useState(false);
   const [downloadingOfferId, setDownloadingOfferId] = useState<number | null>(null);
   const [downloadErrors, setDownloadErrors] = useState<Record<string, string>>({});
   const [showUnavailableOffers, setShowUnavailableOffers] = useState(false);
 
-  const { currentStep, next, prev, goTo } = useWizard(4);
+  const { currentStep, substep, next, prev, goTo, setSubstep, clearSubstep } =
+    useWizardUrlSync(4);
   const offersStepIndex = 2; // 0-indexed: House details, Insured, Offers, Payment
+  const insuredStepIndex = 1;
+  const showDntSubstep =
+    currentStep === insuredStepIndex && substep === "dnt";
+  const showConsent =
+    currentStep === insuredStepIndex && substep === "consent";
   const isOffersStep = currentStep === offersStepIndex;
   const hideMarketingSidebar = isOffersStep || showDntSubstep || showConsent;
-  const insuredStepIndex = 1;
-
-  useEffect(() => {
-    if (currentStep !== insuredStepIndex) {
-      setShowDntSubstep(false);
-      setShowConsent(false);
-    }
-  }, [currentStep]);
   const [showErrors, setShowErrors] = useState(false);
 
   // Auto-generate offers when user reaches step 3
@@ -200,7 +202,11 @@ export default function HousePage() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStep]);
-  const isBloc = constructionTypeCode === "Bloc";
+  const floorRequired = houseAddressRequiresFloor(
+    constructionTypeCode,
+    padConstructionTypeId,
+    padConstructionTypes
+  );
   const isHouseDetailsValid =
     !!constructionTypeCode &&
     !!constructionYear &&
@@ -209,7 +215,7 @@ export default function HousePage() {
     !!finishTypeCode &&
     !!environmentTypeCode &&
     isAddressValid(houseAddress) &&
-    (!isBloc || !!houseAddress.floorId) && // floor required for apartments
+    (!floorRequired || !!houseAddress.floorId) &&
     buildingSum > 0 &&
     !!policyStartDate &&
     !!padPropertyType &&
@@ -231,7 +237,7 @@ export default function HousePage() {
     buildingStructure: !buildingStructureTypeId,
     padConstructionType: !padConstructionTypeId,
     address: !isAddressValid(houseAddress),
-    floor: isBloc && !houseAddress.floorId,
+    floor: floorRequired && !houseAddress.floorId,
     buildingSum: buildingSum <= 0,
   };
 
@@ -282,7 +288,7 @@ export default function HousePage() {
   const handleContractorStepContinue = () => {
     if (isContractorValid) {
       setShowErrors(false);
-      setShowDntSubstep(true);
+      setSubstep("dnt");
       return;
     }
     setShowErrors(true);
@@ -337,6 +343,13 @@ export default function HousePage() {
   };
 
   const handleCreateOrderAndOffers = async () => {
+    if (!isHouseDetailsValid) {
+      setShowErrors(true);
+      goTo(0);
+      requestAnimationFrame(() => focusFirstHouseStep1Error());
+      return;
+    }
+
     setError(null);
     setLoadingOffers(true);
 
@@ -608,17 +621,9 @@ export default function HousePage() {
   };
 
   const downloadSingleOfferDoc = async (offerId: number): Promise<boolean> => {
-    const data = await api.get<{ url: string }>(
-      `/online/offers/${offerId}/document/v3?orderHash=${orderHash}`,
-      { timeoutMs: 60000 }
-    );
-    if (data.url) {
-      const safeUrl = new URL(data.url, window.location.origin);
-      if (!["http:", "https:"].includes(safeUrl.protocol)) throw new Error("Link invalid");
-      window.open(safeUrl.toString(), "_blank", "noopener,noreferrer");
-      return true;
-    }
-    throw new Error("Documentul nu este disponibil");
+    const data = await fetchOfferDocument(offerId, orderHash!);
+    openDocumentInNewTab(data);
+    return true;
   };
 
   const handleDownloadOfferDoc = async (offerId: number, key: string) => {
@@ -823,15 +828,22 @@ export default function HousePage() {
               Adresa locuinta
               {requiredMark}
             </h4>
+            {isRuralEnvironment(environmentTypeCode, environmentTypes) && (
+              <RuralAddressHint />
+            )}
             <AddressForm
               value={houseAddress}
               onChange={setHouseAddress}
               showErrors={showErrors}
-              floorRequired={isBloc}
+              floorRequired={floorRequired}
             />
             <FieldError
               show={showStep1FieldError("address")}
               message="Completati adresa locuintei (judet, localitate, strada, numar, cod postal)"
+            />
+            <FieldError
+              show={showStep1FieldError("floor")}
+              message="Selectati etajul (obligatoriu pentru apartament)"
             />
           </div>
 
@@ -1117,13 +1129,11 @@ export default function HousePage() {
               : {}),
           }}
           onComplete={() => {
-            setShowConsent(false);
             next();
           }}
           onError={(msg) => setError(msg)}
           onBack={() => {
-            setShowConsent(false);
-            setShowDntSubstep(true);
+            setSubstep("dnt");
           }}
           backLabel="Inapoi la alegerea modului de continuare"
         />
@@ -1161,10 +1171,9 @@ export default function HousePage() {
         <DntChoice
           productLabel="Locuință"
           onContinueDirect={() => {
-            setShowDntSubstep(false);
-            setShowConsent(true);
+            setSubstep("consent");
           }}
-          onBack={() => setShowDntSubstep(false)}
+          onBack={clearSubstep}
           backLabel="Inapoi la date asigurat"
         />
       ),
@@ -1564,6 +1573,7 @@ export default function HousePage() {
           additionalOfferIds={padOffer && padOffer.id > 0 ? [padOffer.id] : undefined}
           padPremium={withPad && padOffer && padOffer.id > 0 ? padOffer.premium : undefined}
           padCurrency={withPad && padOffer && padOffer.id > 0 ? padOffer.currency : undefined}
+          onBack={() => goTo(offersStepIndex)}
         />
       ) : (
         <p className="text-gray-500">Selectati mai intai o oferta.</p>

@@ -239,8 +239,7 @@ export async function POST(request: NextRequest) {
     });
 
     console.log(
-      "[DocumentEmail] Sent to",
-      data.email,
+      "[DocumentEmail] Sent",
       "attachments:",
       attachments.length
     );

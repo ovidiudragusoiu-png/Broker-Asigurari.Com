@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { validateBody, raspundereSchema, type RaspundereData } from "@/lib/validation/schemas";
+import { escapeHtml } from "@/lib/email/escapeHtml";
 
 const TO_EMAILS = ["bucuresti@broker-asigurari.com", "office@sigur.ai"];
 
@@ -12,7 +13,7 @@ function getResend() {
 
 function row(label: string, value: string | undefined): string {
   if (!value) return "";
-  return `<tr><td style="padding:6px 12px;font-weight:600;color:#374151;white-space:nowrap">${label}</td><td style="padding:6px 12px;color:#4b5563">${value}</td></tr>`;
+  return `<tr><td style="padding:6px 12px;font-weight:600;color:#374151;white-space:nowrap">${escapeHtml(label)}</td><td style="padding:6px 12px;color:#4b5563">${escapeHtml(value)}</td></tr>`;
 }
 
 function buildEmailHtml(data: RaspundereData): string {

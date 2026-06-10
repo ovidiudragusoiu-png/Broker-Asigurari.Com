@@ -1,4 +1,5 @@
 import MalpraxisPageContent from "./MalpraxisPageContent";
+import { WizardSuspense } from "@/components/shared/WizardSuspense";
 import JsonLd from "@/components/seo/JsonLd";
 import { createPageMetadata } from "@/lib/seo/metadata";
 import { insuranceServiceJsonLd } from "@/lib/seo/structuredData";
@@ -22,7 +23,9 @@ export default function MalpraxisPage() {
           path: "/malpraxis",
         })}
       />
-      <MalpraxisPageContent debugEnabled={process.env.MALPRAXIS_DEBUG === "1"} />
+      <WizardSuspense>
+        <MalpraxisPageContent debugEnabled={process.env.MALPRAXIS_DEBUG === "1"} />
+      </WizardSuspense>
     </>
   );
 }

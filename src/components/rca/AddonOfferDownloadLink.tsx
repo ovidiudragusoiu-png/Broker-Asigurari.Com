@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 import { Download } from "lucide-react";
-import { api } from "@/lib/api/client";
+import {
+  fetchOfferDocument,
+  fetchPolicyDocument,
+  openDocumentInNewTab,
+} from "@/lib/api/documentsClient";
 
 interface AddonOfferDownloadLinkProps {
   offerId: number;
@@ -27,19 +31,10 @@ export default function AddonOfferDownloadLink({
     setDownloading(true);
     try {
       const usePolicyDoc = typeof policyId === "number" && policyId > 0;
-      const endpoint = usePolicyDoc
-        ? `/online/policies/${policyId}/document/v3?orderHash=${encodeURIComponent(orderHash)}`
-        : `/online/offers/${offerId}/document/v3?orderHash=${encodeURIComponent(orderHash)}`;
-      const data = await api.get<{ url?: string }>(endpoint, { timeoutMs: 60_000 });
-      if (data.url) {
-        const safeUrl = new URL(data.url, window.location.origin);
-        if (!["http:", "https:"].includes(safeUrl.protocol)) {
-          throw new Error("Invalid document URL");
-        }
-        window.open(safeUrl.toString(), "_blank", "noopener,noreferrer");
-      } else {
-        setHidden(true);
-      }
+      const data = usePolicyDoc
+        ? await fetchPolicyDocument(policyId, orderHash, { offerId })
+        : await fetchOfferDocument(offerId, orderHash);
+      openDocumentInNewTab(data);
     } catch {
       setHidden(true);
     } finally {

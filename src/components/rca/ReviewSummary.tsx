@@ -10,10 +10,14 @@ import type {
 } from "@/types/rcaFlow";
 import { getLocalVendorLogo, periodText, getGreenCardExclusions } from "@/lib/utils/rcaHelpers";
 import { formatAddonRoPrice } from "@/lib/utils/rcaAddons";
-import { api } from "@/lib/api/client";
+import {
+  fetchOfferDocument,
+  openDocumentInNewTab,
+} from "@/lib/api/documentsClient";
 import AddonOfferDownloadLink from "@/components/rca/AddonOfferDownloadLink";
 import OfferLegalInfo from "@/components/rca/OfferLegalInfo";
 import TermsModal from "./TermsModal";
+import PaymentDeclarationBanner from "@/components/shared/PaymentDeclarationBanner";
 import { btn } from "@/lib/ui/tokens";
 
 /** Mask a CNP/CUI: show first 2 and last 3 chars, rest as stars */
@@ -77,20 +81,8 @@ export default function ReviewSummary({
     setDownloadingOffer(true);
     setDownloadError(null);
     try {
-      const data = await api.get<{ url?: string }>(
-        `/online/offers/${offer.offer.id}/document/v3?orderHash=${encodeURIComponent(orderHash)}`,
-        { timeoutMs: 60000 }
-      );
-      if (data.url) {
-        const safeUrl = new URL(data.url, window.location.origin);
-        if (!["http:", "https:"].includes(safeUrl.protocol)) {
-          throw new Error("Linkul documentului este invalid");
-        }
-        window.open(safeUrl.toString(), "_blank", "noopener,noreferrer");
-      } else {
-        setDownloadUnavailable(true);
-        setDownloadError("Documentul ofertei nu este disponibil pentru acest asigurator.");
-      }
+      const data = await fetchOfferDocument(offer.offer.id, orderHash);
+      openDocumentInNewTab(data);
     } catch {
       setDownloadUnavailable(true);
       setDownloadError("Documentul ofertei nu poate fi descărcat momentan.");
@@ -300,15 +292,7 @@ export default function ReviewSummary({
       </div>
 
       {/* Declaration */}
-      <div className="mx-auto flex max-w-lg items-start gap-3 rounded-xl bg-blue-50/60 p-4">
-        <svg className="mt-0.5 h-5 w-5 shrink-0 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
-        </svg>
-        <p className="text-sm text-gray-600">
-          Prin apăsarea butonului de plată, declar că am peste 18 ani și că datele
-          furnizate pentru încheierea poliței RCA sunt corecte și reale.
-        </p>
-      </div>
+      <PaymentDeclarationBanner productType="RCA" className="mx-auto max-w-lg" />
 
       {error && (
         <div className="mx-auto max-w-lg rounded-xl bg-red-50 p-4 text-sm text-red-700">

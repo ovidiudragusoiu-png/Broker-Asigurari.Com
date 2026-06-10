@@ -15,6 +15,7 @@ const USERNAME = insureTechEnv.username;
 const PASSWORD = insureTechEnv.password;
 const API_KEY = insureTechEnv.apiKey;
 
+// Explicit allowlist — document PDF endpoints are served via /api/documents/* instead.
 const ALLOWED_PATHS: RegExp[] = [
   /^online\/vehicles($|\?)/,
   /^online\/vehicles\/categories(\/|$)/,
@@ -27,7 +28,7 @@ const ALLOWED_PATHS: RegExp[] = [
   /^online\/products\/rca($|\?)/,
   /^online\/products\/rca\/additionals($|\?)/,
   /^online\/products\/travel($|\?)/,
-  /^online\/products\/house\//,
+  /^online\/products\/house\/facultative($|\?)/,
   /^online\/products\/malpraxis($|\?)/,
   /^online\/offers\/rca\/order(\/v3($|\?)|\/v3\/\d+)/,
   /^online\/offers\/rca\/v3($|\?)/,
@@ -42,20 +43,65 @@ const ALLOWED_PATHS: RegExp[] = [
   /^online\/offers\/payment\/loan\/v3($|\?)/,
   /^online\/offers\/payment\/loan($|\?)/,
   /^online\/offers\/paid\/pad(\/v3)?($|\?)/,
-  /^online\/offers\/\d+\/document\/v3($|\?)/,
   /^online\/offers\/travel\//,
   /^online\/offers\/house\//,
   /^online\/offers\/malpraxis\//,
+  /^online\/offers\/\d+\/details\/v3($|\?)/,
   /^online\/client\/documents\//,
-  /^online\/policies($|\/)/,
+  /^online\/policies\/v3($|\?)/,
+  /^online\/policies\/rca\/v3($|\?)/,
   /^online\/idtypes($|\?)/,
   /^online\/companytypes($|\?)/,
   /^online\/caencodes($|\?)/,
-  /^online\/utils\//,
+  /^online\/utils\/buildingStructures(\/\d+)?($|\?)/,
+  /^online\/utils\/constructionTypes(\/\d+)?($|\?)/,
+  /^online\/utils\/constructionType($|\?)/,
+  /^online\/utils\/seismicRiskTypes($|\?)/,
+  /^online\/utils\/insuredSumTypes($|\?)/,
   /^online\/paid\/pad\//,
 ];
 
 const MAX_BODY_SIZE = 1_048_576;
+
+// ── Best-effort per-IP rate limiting ──
+// Throttles anonymous abuse of the upstream (quote/order/payment cost & DoS).
+// Limits are generous so legitimate multi-call flows (form lookups, parallel
+// RCA quotes) are never affected. Note: in-memory and per-instance on
+// serverless, so this is a mitigation, not a hard global guarantee.
+const RATE_WINDOW_MS = 60_000;
+const RATE_LIMIT_GENERAL = 600; // any proxied call, per IP per minute
+const RATE_LIMIT_MUTATING = 40; // order/payment/policy writes, per IP per minute
+
+const MUTATING_RATE_PATHS: RegExp[] = [
+  /^online\/offers\/order(\/v3)?($|\?|\/)/,
+  /^online\/offers\/rca\/order\/v3/,
+  /^online\/offers\/payment(\/loan)?(\/v3)?($|\?)/,
+  /^online\/policies(\/|$)/,
+];
+
+type RateBucket = { count: number; resetAt: number };
+const generalRateBuckets = new Map<string, RateBucket>();
+const mutatingRateBuckets = new Map<string, RateBucket>();
+
+function takeRateToken(
+  buckets: Map<string, RateBucket>,
+  key: string,
+  limit: number,
+  now: number
+): boolean {
+  const bucket = buckets.get(key);
+  if (!bucket || now > bucket.resetAt) {
+    buckets.set(key, { count: 1, resetAt: now + RATE_WINDOW_MS });
+    return true;
+  }
+  if (bucket.count >= limit) return false;
+  bucket.count++;
+  return true;
+}
+
+function isMutatingRatePath(path: string): boolean {
+  return MUTATING_RATE_PATHS.some((re) => re.test(path));
+}
 
 const AUDIT_PATHS: { pattern: RegExp; action: string }[] = [
   { pattern: /^online\/offers\/rca\/order\/v3/, action: "ORDER_CREATED" },
@@ -183,6 +229,19 @@ async function proxyRequest(req: NextRequest, method: string) {
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
 
+  // Rate limiting (per-IP, best-effort). Applied after the allowlist check so
+  // it never affects legitimate, in-flow requests beyond the generous limits.
+  const { ipAddress: rateKey } = getClientInfo(req);
+  const rateNow = Date.now();
+  if (!takeRateToken(generalRateBuckets, rateKey, RATE_LIMIT_GENERAL, rateNow)) {
+    return NextResponse.json({ message: "Too many requests" }, { status: 429 });
+  }
+  if (method !== "GET" && isMutatingRatePath(pathSegments)) {
+    if (!takeRateToken(mutatingRateBuckets, rateKey, RATE_LIMIT_MUTATING, rateNow)) {
+      return NextResponse.json({ message: "Too many requests" }, { status: 429 });
+    }
+  }
+
   const targetUrl = `${API_URL}/${pathSegments}${url.search}`;
   const acceptHeader = ACCEPT_TEXT_PLAIN.some((re) => re.test(pathSegments))
     ? "text/plain"
@@ -294,9 +353,9 @@ async function proxyRequest(req: NextRequest, method: string) {
             );
           }
         } else {
+          // Log status only — the upstream response body may contain PII.
           console.error(
-            `[InsureTech API] ${method} ${pathSegments} -> ${response.status}`,
-            responseBody
+            `[InsureTech API] ${method} ${pathSegments} -> ${response.status}`
           );
         }
       }

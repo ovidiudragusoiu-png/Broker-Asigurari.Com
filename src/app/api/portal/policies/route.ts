@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getClientInfo } from "@/lib/audit/logger";
+import {
+  completeCheckoutSession,
+  findCheckoutSession,
+  isCheckoutSessionUsable,
+} from "@/lib/portal/checkoutSession";
+import { fetchOfferPortalFields } from "@/lib/portal/fetchOfferPortalFields";
+import { isOrderPaid } from "@/lib/portal/paymentCheck";
 import { validateBody, portalPolicySchema } from "@/lib/validation/schemas";
 
 // POST: Save a policy record (called from payment callback)
@@ -25,13 +32,47 @@ export async function POST(request: NextRequest) {
       vehicleVin,
       vehiclePlate,
       vehicleCategory,
+      sessionToken,
     } = parsed.data;
 
-    // Check if user is logged in
     const user = await getCurrentUser();
+
+    if (!user) {
+      if (!sessionToken) {
+        return NextResponse.json({ error: "Neautorizat" }, { status: 401 });
+      }
+      const session = await findCheckoutSession(sessionToken);
+      if (!session || !isCheckoutSessionUsable(session, orderHash, offerId)) {
+        return NextResponse.json(
+          { error: "Sesiune de plată invalidă." },
+          { status: 401 }
+        );
+      }
+    }
+
+    const paid = await isOrderPaid(offerId, orderHash);
+    if (!paid) {
+      return NextResponse.json(
+        { error: "Plata nu a fost confirmată pentru această comandă." },
+        { status: 402 }
+      );
+    }
+
+    const upstream = await fetchOfferPortalFields(
+      productType,
+      offerId,
+      orderHash
+    );
+
+    const resolvedOrderId = upstream?.orderId ?? orderId;
+    const resolvedVendorName = upstream?.vendorName ?? vendorName ?? null;
+    const resolvedPremium = upstream?.premium ?? premium ?? null;
+    const resolvedCurrency = upstream?.currency ?? currency;
+    const resolvedStartDate = upstream?.startDate ?? startDate ?? null;
+    const resolvedEndDate = upstream?.endDate ?? endDate ?? null;
+
     const emailLower = (email || "").toLowerCase().trim();
 
-    // Try to find user by email if not authenticated
     let userId = user?.id || null;
     if (!userId && emailLower) {
       const userByEmail = await prisma.user.findUnique({
@@ -40,24 +81,23 @@ export async function POST(request: NextRequest) {
       if (userByEmail) userId = userByEmail.id;
     }
 
-    // Capture IP + user-agent server-side for anti-fraud
     const { ipAddress, userAgent } = getClientInfo(request);
 
     const policy = await prisma.policy.create({
       data: {
         userId,
         email: emailLower || user?.email || "unknown",
-        orderId,
+        orderId: resolvedOrderId,
         orderHash,
         offerId,
         policyId,
         productType: productType.toUpperCase(),
         policyNumber,
-        vendorName,
-        premium,
-        currency,
-        startDate,
-        endDate,
+        vendorName: resolvedVendorName,
+        premium: resolvedPremium,
+        currency: resolvedCurrency,
+        startDate: resolvedStartDate,
+        endDate: resolvedEndDate,
         vehicleVin: vehicleVin || null,
         vehiclePlate: vehiclePlate || null,
         vehicleCategory: vehicleCategory || null,
@@ -65,6 +105,10 @@ export async function POST(request: NextRequest) {
         userAgent,
       },
     });
+
+    if (sessionToken) {
+      await completeCheckoutSession(sessionToken);
+    }
 
     return NextResponse.json({ policy });
   } catch (error) {

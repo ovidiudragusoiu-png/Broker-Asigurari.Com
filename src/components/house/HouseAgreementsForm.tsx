@@ -1,13 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { btn } from "@/lib/ui/tokens";
 import {
-  HOUSE_AGREEMENTS_DEFAULTS,
+  HOUSE_AGREEMENTS_INITIAL,
   HOUSE_AGREEMENTS_SECTIONS,
   HOUSE_AGREEMENTS_TITLE,
   type HouseAgreementAnswers,
 } from "@/lib/flows/houseAgreementsCopy";
+import {
+  agreementItemClass,
+  getHouseMissingIds,
+  getHouseOfferBlockers,
+  STANDARD_OFFER_CONSENT_BLOCKER_MESSAGE,
+} from "@/lib/flows/agreementFormUtils";
 import { ConsentMappingError } from "@/lib/flows/consentSubmit";
 import { submitHouseAgreements } from "@/lib/flows/houseConsentSubmit";
 import type { PersonRequest } from "@/types/insuretech";
@@ -30,37 +36,35 @@ export default function HouseAgreementsForm({
   backLabel = "Inapoi",
   onError,
 }: HouseAgreementsFormProps) {
-  const [answers, setAnswers] = useState<HouseAgreementAnswers>(HOUSE_AGREEMENTS_DEFAULTS);
+  const [answers, setAnswers] = useState<HouseAgreementAnswers>(HOUSE_AGREEMENTS_INITIAL);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [showValidation, setShowValidation] = useState(false);
+
+  const missingIds = useMemo(() => new Set(getHouseMissingIds(answers)), [answers]);
+  const blockerIds = useMemo(() => new Set(getHouseOfferBlockers(answers)), [answers]);
+  const errorIds = useMemo(
+    () => new Set([...missingIds, ...blockerIds]),
+    [missingIds, blockerIds]
+  );
 
   const resetAnswers = () => {
-    setAnswers(HOUSE_AGREEMENTS_DEFAULTS);
+    setAnswers(HOUSE_AGREEMENTS_INITIAL);
     setSubmitError(null);
     setValidationError(null);
-  };
-
-  const isComplete = (): boolean => {
-    if (!answers.comm_1_1) return false;
-    return (
-      !!answers.dnt_0_1 &&
-      !!answers.dnt_0_2 &&
-      !!answers.dnt_0_4 &&
-      !!answers.dnt_0_5 &&
-      !!answers.dnt_0_6 &&
-      !!answers.dnt_0_7 &&
-      !!answers.dnt_0_8 &&
-      !!answers.dnt_0_9 &&
-      !!answers.broker_1_1 &&
-      !!answers.broker_1_2 &&
-      !!answers.broker_1_3
-    );
+    setShowValidation(false);
   };
 
   const handleSubmit = async () => {
-    if (!isComplete()) {
+    if (missingIds.size > 0) {
+      setShowValidation(true);
       setValidationError("Completați toate câmpurile obligatorii.");
+      return;
+    }
+    if (blockerIds.size > 0) {
+      setShowValidation(true);
+      setValidationError(STANDARD_OFFER_CONSENT_BLOCKER_MESSAGE);
       return;
     }
     setValidationError(null);
@@ -83,6 +87,8 @@ export default function HouseAgreementsForm({
     }
   };
 
+  const fieldHasError = (itemId: string) => showValidation && errorIds.has(itemId);
+
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <h3 className="text-xl font-bold text-gray-900">{HOUSE_AGREEMENTS_TITLE}</h3>
@@ -94,13 +100,13 @@ export default function HouseAgreementsForm({
             {section.items.map((item) => (
               <div
                 key={item.id}
-                className="rounded-md border border-gray-100 bg-gray-50/60 p-3"
+                className={agreementItemClass(fieldHasError(item.id))}
               >
                 <p className="mb-1 text-sm leading-relaxed text-gray-800">
                   {item.label}
                   {item.required ? <span className="text-red-500"> *</span> : null}
                 </p>
-                {"hint" in item && item.hint ? (
+                {"hint" in item && typeof item.hint === "string" ? (
                   <p className="mb-3 text-xs leading-relaxed text-gray-500">{item.hint}</p>
                 ) : null}
 
@@ -109,9 +115,10 @@ export default function HouseAgreementsForm({
                     <input
                       type="checkbox"
                       checked={answers.comm_1_1}
-                      onChange={(e) =>
-                        setAnswers((prev) => ({ ...prev, comm_1_1: e.target.checked }))
-                      }
+                      onChange={(e) => {
+                        setShowValidation(false);
+                        setAnswers((prev) => ({ ...prev, comm_1_1: e.target.checked }));
+                      }}
                       className={agreementCheckboxClass}
                     />
                     <span className="text-sm text-gray-700">{item.checkboxLabel}</span>
@@ -120,15 +127,16 @@ export default function HouseAgreementsForm({
                   <AgreementChoiceGroup
                     value={answers[item.id as keyof HouseAgreementAnswers] as string}
                     options={item.options}
-                    onChange={(value) =>
+                    onChange={(value) => {
+                      setShowValidation(false);
                       setAnswers(
                         (prev) =>
                           ({
                             ...prev,
                             [item.id]: value,
                           }) as HouseAgreementAnswers
-                      )
-                    }
+                      );
+                    }}
                   />
                 )}
               </div>

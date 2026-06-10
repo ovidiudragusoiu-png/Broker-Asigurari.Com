@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import WizardStepper, { useWizard } from "@/components/shared/WizardStepper";
+import WizardStepper, { useWizardUrlSync } from "@/components/shared/WizardStepper";
 import { api } from "@/lib/api/client";
 import { readString, readNumber } from "@/lib/utils/rcaHelpers";
 import { validateVIN, validateCNP } from "@/lib/utils/validation";
@@ -213,7 +213,7 @@ const BUCHAREST_SENTINEL = "-999"; // virtual countyId for the single "Bucuresti
 // ── Component ───────────────────────────────────────────────────────
 
 export default function CascoPage() {
-  const { currentStep, next, prev, goTo } = useWizard(4);
+  const { currentStep, next, prev, goTo } = useWizardUrlSync(4);
   const dntStepIndex = 1;
   const hideMarketingSidebar = currentStep === dntStepIndex;
   const [form, setForm] = useState<CascoForm>(EMPTY_FORM);

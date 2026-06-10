@@ -1,13 +1,17 @@
 "use client";
 
 import { useState, useEffect, useRef, type ReactNode } from "react";
-import WizardStepper, { useWizard } from "@/components/shared/WizardStepper";
+import WizardStepper, { useWizardUrlSync } from "@/components/shared/WizardStepper";
 import PersonForm, { emptyPersonPF } from "@/components/shared/PersonForm";
 import AddressForm, { emptyAddress } from "@/components/shared/AddressForm";
 import PaymentFlow from "@/components/shared/PaymentFlow";
 import DntChoice from "@/components/rca/DntChoice";
 import PadAgreementsForm from "@/components/pad/PadAgreementsForm";
 import { api } from "@/lib/api/client";
+import {
+  fetchOfferDocument,
+  openDocumentInNewTab,
+} from "@/lib/api/documentsClient";
 import type { PersonRequest, AddressRequest, PadCesionar } from "@/types/insuretech";
 import { formatPrice } from "@/lib/utils/formatters";
 import { isAddressValid, isPersonValid } from "@/lib/utils/formGuards";
@@ -15,6 +19,8 @@ import { getArray } from "@/lib/utils/dto";
 import { btn } from "@/lib/ui/tokens";
 import { dateOfBirthFromCNP } from "@/lib/utils/validation";
 import DateInput from "@/components/shared/DateInput";
+import RuralAddressHint from "@/components/shared/RuralAddressHint";
+import { isRuralEnvironment } from "@/lib/utils/ruralAddress";
 
 /* Local types for API responses not in shared types */
 interface BuildingStructureOption {
@@ -120,9 +126,6 @@ export default function PadPage() {
   const [contractor, setContractor] = useState<PersonRequest>(emptyPersonPF());
   const [insured, setInsured] = useState<PersonRequest>(emptyPersonPF());
   const [sameAsContractor, setSameAsContractor] = useState(true);
-  const [showDnt, setShowDnt] = useState(false);
-  const [showConsent, setShowConsent] = useState(false);
-
   /* ---- Order & Offer ---- */
   const [orderId, setOrderId] = useState<number | null>(null);
   const [orderHash, setOrderHash] = useState<string | null>(null);
@@ -131,19 +134,15 @@ export default function PadPage() {
   const [downloadingOffer, setDownloadingOffer] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { currentStep, next, prev, goTo } = useWizard(4);
+  const { currentStep, substep, next, prev, goTo, setSubstep, clearSubstep } =
+    useWizardUrlSync(4);
   const [showErrors, setShowErrors] = useState(false);
   const offersStepIndex = 2; // 0-indexed: Property, People, Offer, Payment
+  const peopleStepIndex = 1;
+  const showDnt = currentStep === peopleStepIndex && substep === "dnt";
+  const showConsent = currentStep === peopleStepIndex && substep === "consent";
   const isOffersStep = currentStep === offersStepIndex;
   const hideMarketingSidebar = isOffersStep || showDnt || showConsent;
-  const peopleStepIndex = 1;
-
-  useEffect(() => {
-    if (currentStep !== peopleStepIndex) {
-      setShowDnt(false);
-      setShowConsent(false);
-    }
-  }, [currentStep]);
 
   /* ---- Clear stale offer/order when navigating back to earlier steps ---- */
   useEffect(() => {
@@ -246,7 +245,7 @@ export default function PadPage() {
   const handlePadStep2Continue = () => {
     if (isPeopleStepValid) {
       setShowErrors(false);
-      setShowDnt(true);
+      setSubstep("dnt");
       return;
     }
     setShowErrors(true);
@@ -418,19 +417,8 @@ export default function PadPage() {
     if (!offer || !orderHash) return;
     setDownloadingOffer(true);
     try {
-      const data = await api.get<{ url: string }>(
-        `/online/offers/${offer.id}/document/v3?orderHash=${orderHash}`,
-        { timeoutMs: 60000 }
-      );
-      if (data.url) {
-        const safeUrl = new URL(data.url, window.location.origin);
-        if (!["http:", "https:"].includes(safeUrl.protocol)) {
-          throw new Error("Linkul documentului este invalid");
-        }
-        window.open(safeUrl.toString(), "_blank", "noopener,noreferrer");
-      } else {
-        throw new Error("Link-ul documentului nu este disponibil");
-      }
+      const data = await fetchOfferDocument(offer.id, orderHash);
+      openDocumentInNewTab(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Eroare la descarcare");
     } finally {
@@ -710,6 +698,7 @@ export default function PadPage() {
                   {requiredMark}
                 </span>
               </div>
+              {isRuralEnvironment(environmentType) && <RuralAddressHint />}
               <AddressForm value={propertyAddress} onChange={setPropertyAddress} showErrors={showErrors} />
               <FieldError
                 show={showStep1FieldError("address")}
@@ -881,13 +870,11 @@ export default function PadPage() {
               : {}),
           }}
           onComplete={() => {
-            setShowConsent(false);
             next();
           }}
           onError={(msg) => setError(msg)}
           onBack={() => {
-            setShowConsent(false);
-            setShowDnt(true);
+            setSubstep("dnt");
           }}
           backLabel="Inapoi la alegerea modului de continuare"
         />
@@ -895,10 +882,9 @@ export default function PadPage() {
         <DntChoice
           productLabel="PAD"
           onContinueDirect={() => {
-            setShowDnt(false);
-            setShowConsent(true);
+            setSubstep("consent");
           }}
-          onBack={() => setShowDnt(false)}
+          onBack={clearSubstep}
           backLabel="Inapoi la date persoane"
         />
       ) : (

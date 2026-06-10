@@ -52,11 +52,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Session not found" }, { status: 404 });
     }
 
-    if (session.status !== "pending") {
-      return NextResponse.json(
-        { error: "Session already used", status: session.status },
-        { status: 410 }
-      );
+    if (session.status === "expired") {
+      return NextResponse.json({ error: "Session expired" }, { status: 410 });
     }
 
     if (new Date() > session.expiresAt) {
@@ -66,12 +63,6 @@ export async function GET(request: NextRequest) {
       });
       return NextResponse.json({ error: "Session expired" }, { status: 410 });
     }
-
-    // Mark as completed (one-time use)
-    await prisma.checkoutSession.update({
-      where: { token },
-      data: { status: "completed" },
-    });
 
     return NextResponse.json({
       orderId: session.orderId,

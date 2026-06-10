@@ -1,13 +1,17 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
-import WizardStepper, { useWizard } from "@/components/shared/WizardStepper";
+import WizardStepper, { useWizardUrlSync } from "@/components/shared/WizardStepper";
 import PersonForm, { emptyPersonPF } from "@/components/shared/PersonForm";
 import OfferCard from "@/components/shared/OfferCard";
 import PaymentFlow from "@/components/shared/PaymentFlow";
 import DntChoice from "@/components/rca/DntChoice";
 import MalpraxisAgreementsForm from "@/components/malpraxis/MalpraxisAgreementsForm";
 import { api } from "@/lib/api/client";
+import {
+  fetchOfferDocument,
+  openDocumentInNewTab,
+} from "@/lib/api/documentsClient";
 import type { PersonRequest } from "@/types/insuretech";
 import { calculatePolicyEndDate } from "@/lib/utils/formatters";
 import { isPersonValid } from "@/lib/utils/formGuards";
@@ -213,9 +217,6 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
 
   // GDPR & DNT
   const [showGdprModal, setShowGdprModal] = useState(false);
-  const [showDntSubstep, setShowDntSubstep] = useState(false);
-  const [showConsent, setShowConsent] = useState(false);
-
   // Download state (per-card)
   const [downloadingOfferId, setDownloadingOfferId] = useState<number | null>(null);
   const [downloadErrors, setDownloadErrors] = useState<Record<string, string>>({});
@@ -224,10 +225,16 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
   const generatingRef = useRef(false);
   const activeRunIdRef = useRef(0);
 
-  const { currentStep, next, prev, goTo } = useWizard(4);
+  const { currentStep, substep, next, prev, goTo, setSubstep, clearSubstep } =
+    useWizardUrlSync(4);
   const [showErrors, setShowErrors] = useState(false);
   const [showDetailsErrors, setShowDetailsErrors] = useState(false);
   const offersStepIndex = 2; // 0-indexed: Details, Insured, Offers, Payment
+  const insuredStepIndex = 1;
+  const showDntSubstep =
+    currentStep === insuredStepIndex && substep === "dnt";
+  const showConsent =
+    currentStep === insuredStepIndex && substep === "consent";
   const isOffersStep = currentStep === offersStepIndex;
   const hideMarketingSidebar = isOffersStep || showDntSubstep || showConsent;
 
@@ -341,8 +348,6 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
       setOrderHash(null);
       setDebugTraceId(null);
       setSelectedOffer(null);
-      setShowDntSubstep(false);
-      setShowConsent(false);
     }
   }, [currentStep]);
 
@@ -811,14 +816,8 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
     setDownloadingOfferId(offerId);
     setDownloadErrors((prev) => { const copy = { ...prev }; delete copy[cardKey]; return copy; });
     try {
-      const res = await api.get<{ url?: string }>(
-        `/online/offers/${offerId}/document/v3?orderHash=${orderHash}`
-      );
-      if (res.url) {
-        window.open(res.url, "_blank");
-      } else {
-        setDownloadErrors((prev) => ({ ...prev, [cardKey]: "Documentul nu este disponibil momentan." }));
-      }
+      const res = await fetchOfferDocument(offerId, orderHash);
+      openDocumentInNewTab(res);
     } catch {
       setDownloadErrors((prev) => ({ ...prev, [cardKey]: "Eroare la descarcarea documentului." }));
     } finally {
@@ -1266,13 +1265,11 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
                   : {}),
               }}
               onComplete={() => {
-                setShowConsent(false);
                 next();
               }}
               onError={(msg) => setError(msg)}
               onBack={() => {
-                setShowConsent(false);
-                setShowDntSubstep(true);
+                setSubstep("dnt");
               }}
               backLabel="Inapoi la alegerea modului de continuare"
             />
@@ -1355,7 +1352,7 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
                 </button>
                 <button
                   type="button"
-                  onClick={() => { if (isInsuredStepValid) { setShowErrors(false); setShowDntSubstep(true); } else { setShowErrors(true); } }}
+                  onClick={() => { if (isInsuredStepValid) { setShowErrors(false); setSubstep("dnt"); } else { setShowErrors(true); } }}
                   disabled={false}
                   className={`${btn.primary} px-8`}
                 >
@@ -1372,10 +1369,9 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
             <DntChoice
               productLabel="Malpraxis"
               onContinueDirect={() => {
-                setShowDntSubstep(false);
-                setShowConsent(true);
+                setSubstep("consent");
               }}
-              onBack={() => setShowDntSubstep(false)}
+              onBack={clearSubstep}
               backLabel="Inapoi la date asigurat"
             />
           )}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import WizardStepper, { useWizard } from "@/components/shared/WizardStepper";
+import WizardStepper, { useWizardUrlSync } from "@/components/shared/WizardStepper";
 import { api } from "@/lib/api/client";
 import { btn } from "@/lib/ui/tokens";
 import DntChoice from "@/components/rca/DntChoice";
@@ -85,7 +85,7 @@ const REMAINING_BY_STEP = ["~2 min ramase", "~90 sec ramase", "Ultimul pas"];
 // ── Component ───────────────────────────────────────────────────────
 
 export default function GarantiiPage() {
-  const { currentStep, next, prev, goTo } = useWizard(3);
+  const { currentStep, next, prev, goTo } = useWizardUrlSync(3);
   const dntStepIndex = 1;
   const hideMarketingSidebar = currentStep === dntStepIndex;
   const [form, setForm] = useState<GarantiiForm>(EMPTY_FORM);

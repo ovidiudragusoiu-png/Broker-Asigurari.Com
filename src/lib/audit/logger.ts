@@ -1,5 +1,6 @@
 import { createHash } from "crypto";
 import { prisma } from "@/lib/db/prisma";
+import { maskMalpraxisTracePayload } from "@/lib/debug/malpraxisTrace";
 
 export function getClientInfo(req: Request): {
   ipAddress: string;
@@ -46,7 +47,11 @@ export async function logAudit(data: AuditData): Promise<void> {
         userAgent: data.userAgent
           ? data.userAgent.substring(0, 500)
           : null,
-        payload: data.payload ? JSON.stringify(data.payload) : null,
+        // Redact PII (names, addresses, CNP/CUI, email, phone, health data, etc.)
+        // before persisting; keep only the masked structure for anti-fraud audit.
+        payload: data.payload
+          ? JSON.stringify(maskMalpraxisTracePayload(data.payload))
+          : null,
         pdfHash: data.pdfHash || null,
       },
     });

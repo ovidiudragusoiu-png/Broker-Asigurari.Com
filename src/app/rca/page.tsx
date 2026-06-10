@@ -1,4 +1,5 @@
 import RcaPageContent from "./RcaPageContent";
+import { WizardSuspense } from "@/components/shared/WizardSuspense";
 import JsonLd from "@/components/seo/JsonLd";
 import { createPageMetadata } from "@/lib/seo/metadata";
 import { insuranceServiceJsonLd } from "@/lib/seo/structuredData";
@@ -23,7 +24,9 @@ export default function RcaPage() {
           path: "/rca",
         })}
       />
-      <RcaPageContent />
+      <WizardSuspense>
+        <RcaPageContent />
+      </WizardSuspense>
     </>
   );
 }

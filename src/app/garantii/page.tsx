@@ -1,4 +1,5 @@
 import GarantiiPageContent from "./GarantiiPageContent";
+import { WizardSuspense } from "@/components/shared/WizardSuspense";
 import JsonLd from "@/components/seo/JsonLd";
 import { createPageMetadata } from "@/lib/seo/metadata";
 import { insuranceServiceJsonLd } from "@/lib/seo/structuredData";
@@ -22,7 +23,9 @@ export default function GarantiiPage() {
           path: "/garantii",
         })}
       />
-      <GarantiiPageContent />
+      <WizardSuspense>
+        <GarantiiPageContent />
+      </WizardSuspense>
     </>
   );
 }

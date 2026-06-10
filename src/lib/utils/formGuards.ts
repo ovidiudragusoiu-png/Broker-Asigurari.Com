@@ -25,6 +25,30 @@ type VehicleLike = {
   registrationTypeId: number | null;
 };
 
+type PadConstructionTypeOption = {
+  id: number;
+  name: string;
+  description?: string;
+};
+
+/** Floor is required for bloc / apartment-type dwellings (InsureTech API validation). */
+export function houseAddressRequiresFloor(
+  constructionTypeCode: string,
+  padConstructionTypeId: string,
+  padConstructionTypes: PadConstructionTypeOption[]
+): boolean {
+  if (constructionTypeCode === "Bloc") return true;
+  if (!padConstructionTypeId) return false;
+
+  const selected = padConstructionTypes.find(
+    (ct) => ct.id === Number(padConstructionTypeId)
+  );
+  if (!selected) return false;
+
+  const label = `${selected.name} ${selected.description ?? ""}`.toLowerCase();
+  return label.includes("apartament");
+}
+
 export function isAddressValid(address: AddressRequest): boolean {
   if (!address.countryId) return false;
   if (!address.streetName?.trim() || !address.streetNumber?.trim()) return false;

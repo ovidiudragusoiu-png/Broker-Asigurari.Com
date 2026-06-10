@@ -19,6 +19,34 @@ const PARTIAL_SENSITIVE_KEY_PATTERNS = [
   /phone/i,
 ];
 
+/**
+ * Non-PII technical/structural keys whose string values are safe to log in
+ * cleartext. Everything else is masked by default (deny-by-default), so newly
+ * added PII fields (names, addresses, health categories, etc.) never leak even
+ * if they are not in the sensitive-key list.
+ */
+const SAFE_STRING_KEYS = new Set([
+  "method",
+  "phase",
+  "path",
+  "contenttype",
+  "status",
+  "durationms",
+  "timestamp",
+  "traceid",
+  "currency",
+  "productcode",
+  "vendorproductcode",
+  "code",
+  "policystartdate",
+  "policyenddate",
+  "startdate",
+  "enddate",
+  "duedate",
+  "createdat",
+  "updatedat",
+]);
+
 export const MALPRAXIS_TRACE_HEADER = "X-Debug-Trace-Id";
 
 function normalizeKey(key: string): string {
@@ -32,6 +60,10 @@ function isSensitiveKey(key: string): boolean {
     EXACT_SENSITIVE_KEYS.has(normalizedKey) ||
     PARTIAL_SENSITIVE_KEY_PATTERNS.some((pattern) => pattern.test(key))
   );
+}
+
+function isSafeStringKey(key: string): boolean {
+  return SAFE_STRING_KEYS.has(normalizeKey(key));
 }
 
 function maskPrimitive(value: string): string {
@@ -65,6 +97,11 @@ function maskValue(value: unknown, seen = new WeakSet<object>()): unknown {
         } else {
           result[key] = "[REDACTED]";
         }
+      } else if (typeof nestedValue === "string") {
+        // Deny-by-default: only known-safe technical keys are shown in clear.
+        result[key] = isSafeStringKey(key)
+          ? nestedValue
+          : maskPrimitive(nestedValue);
       } else {
         result[key] = maskValue(nestedValue, seen);
       }
@@ -82,6 +119,10 @@ export function maskMalpraxisTracePayload(payload: unknown): unknown {
 export function isMalpraxisDebugEnabled(enabledOverride?: boolean): boolean {
   if (typeof enabledOverride === "boolean") {
     return enabledOverride;
+  }
+  // Never emit verbose PII traces in production, regardless of env flag.
+  if (process.env.NODE_ENV === "production") {
+    return false;
   }
   return process.env.MALPRAXIS_DEBUG === "1";
 }

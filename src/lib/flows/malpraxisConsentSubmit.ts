@@ -1,6 +1,7 @@
 import type { ConsentFieldMapping } from "@/lib/flows/consentApiMapper";
 import type { MalpraxisAgreementAnswers } from "@/lib/flows/malpraxisAgreementsCopy";
-import { submitConsentAnswers } from "@/lib/flows/consentSubmit";
+import { isConsentSigned, submitConsentAnswers } from "@/lib/flows/consentSubmit";
+import { notifyDntSummaryEmail } from "@/lib/flows/dntSummaryNotify";
 import type { PersonRequest } from "@/types/insuretech";
 
 export function malpraxisAnswersToMappings(
@@ -86,10 +87,15 @@ export async function submitMalpraxisAgreements(
   person: PersonRequest,
   answers: MalpraxisAgreementAnswers
 ): Promise<void> {
+  const { legalType, cif } = person;
+  const alreadySigned = await isConsentSigned(legalType, cif, "MALPRAXIS");
   await submitConsentAnswers(
     person,
     "MALPRAXIS",
     malpraxisAnswersToMappings(answers),
     answers.comm_1_1
   );
+  if (!alreadySigned) {
+    notifyDntSummaryEmail("MALPRAXIS", person, answers);
+  }
 }

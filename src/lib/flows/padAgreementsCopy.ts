@@ -132,16 +132,30 @@ export const PAD_AGREEMENTS_SECTIONS = [
 
 export type PadAgreementAnswers = {
   comm_1_1: boolean;
-  dnt_0_1: "DA" | "NU";
-  dnt_0_2: "renew_same" | "single" | "multi";
-  dnt_0_4: "proprietar" | "chirias";
-  dnt_0_5: "apartament" | "casa";
-  dnt_0_6: "tip_a" | "tip_b";
-  broker_1_1: "da" | "nu";
-  broker_1_2: "da" | "nu";
-  broker_1_3: "da" | "nu";
+  dnt_0_1: "DA" | "NU" | "";
+  dnt_0_2: "renew_same" | "single" | "multi" | "";
+  dnt_0_4: "proprietar" | "chirias" | "";
+  dnt_0_5: "apartament" | "casa" | "";
+  dnt_0_6: "tip_a" | "tip_b" | "";
+  broker_1_1: "da" | "nu" | "";
+  broker_1_2: "da" | "nu" | "";
+  broker_1_3: "da" | "nu" | "";
 };
 
+/** Form load state — only email channel may be pre-checked (legal requirement). */
+export const PAD_AGREEMENTS_INITIAL: PadAgreementAnswers = {
+  comm_1_1: true,
+  dnt_0_1: "",
+  dnt_0_2: "",
+  dnt_0_4: "",
+  dnt_0_5: "",
+  dnt_0_6: "",
+  broker_1_1: "",
+  broker_1_2: "",
+  broker_1_3: "",
+};
+
+/** Filled sample for tests and API mapping fixtures. */
 export const PAD_AGREEMENTS_DEFAULTS: PadAgreementAnswers = {
   comm_1_1: true,
   dnt_0_1: "DA",

@@ -1,13 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { btn } from "@/lib/ui/tokens";
 import {
-  PAD_AGREEMENTS_DEFAULTS,
+  PAD_AGREEMENTS_INITIAL,
   PAD_AGREEMENTS_SECTIONS,
   PAD_AGREEMENTS_TITLE,
   type PadAgreementAnswers,
 } from "@/lib/flows/padAgreementsCopy";
+import {
+  agreementItemClass,
+  getPadMissingIds,
+  getPadOfferBlockers,
+  STANDARD_OFFER_CONSENT_BLOCKER_MESSAGE,
+} from "@/lib/flows/agreementFormUtils";
 import { ConsentMappingError } from "@/lib/flows/consentSubmit";
 import { submitPadAgreements } from "@/lib/flows/padConsentSubmit";
 import type { PersonRequest } from "@/types/insuretech";
@@ -30,34 +36,35 @@ export default function PadAgreementsForm({
   backLabel = "Inapoi",
   onError,
 }: PadAgreementsFormProps) {
-  const [answers, setAnswers] = useState<PadAgreementAnswers>(PAD_AGREEMENTS_DEFAULTS);
+  const [answers, setAnswers] = useState<PadAgreementAnswers>(PAD_AGREEMENTS_INITIAL);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [showValidation, setShowValidation] = useState(false);
+
+  const missingIds = useMemo(() => new Set(getPadMissingIds(answers)), [answers]);
+  const blockerIds = useMemo(() => new Set(getPadOfferBlockers(answers)), [answers]);
+  const errorIds = useMemo(
+    () => new Set([...missingIds, ...blockerIds]),
+    [missingIds, blockerIds]
+  );
 
   const resetAnswers = () => {
-    setAnswers(PAD_AGREEMENTS_DEFAULTS);
+    setAnswers(PAD_AGREEMENTS_INITIAL);
     setSubmitError(null);
     setValidationError(null);
-  };
-
-  const isComplete = (): boolean => {
-    if (!answers.comm_1_1) return false;
-    return (
-      !!answers.dnt_0_1 &&
-      !!answers.dnt_0_2 &&
-      !!answers.dnt_0_4 &&
-      !!answers.dnt_0_5 &&
-      !!answers.dnt_0_6 &&
-      !!answers.broker_1_1 &&
-      !!answers.broker_1_2 &&
-      !!answers.broker_1_3
-    );
+    setShowValidation(false);
   };
 
   const handleSubmit = async () => {
-    if (!isComplete()) {
+    if (missingIds.size > 0) {
+      setShowValidation(true);
       setValidationError("Completați toate câmpurile obligatorii.");
+      return;
+    }
+    if (blockerIds.size > 0) {
+      setShowValidation(true);
+      setValidationError(STANDARD_OFFER_CONSENT_BLOCKER_MESSAGE);
       return;
     }
     setValidationError(null);
@@ -80,6 +87,8 @@ export default function PadAgreementsForm({
     }
   };
 
+  const fieldHasError = (itemId: string) => showValidation && errorIds.has(itemId);
+
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <h3 className="text-xl font-bold text-gray-900">{PAD_AGREEMENTS_TITLE}</h3>
@@ -91,7 +100,7 @@ export default function PadAgreementsForm({
             {section.items.map((item) => (
               <div
                 key={item.id}
-                className="rounded-md border border-gray-100 bg-gray-50/60 p-3"
+                className={agreementItemClass(fieldHasError(item.id))}
               >
                 <p className="mb-3 text-sm leading-relaxed text-gray-800">
                   {item.label}
@@ -103,9 +112,10 @@ export default function PadAgreementsForm({
                     <input
                       type="checkbox"
                       checked={answers.comm_1_1}
-                      onChange={(e) =>
-                        setAnswers((prev) => ({ ...prev, comm_1_1: e.target.checked }))
-                      }
+                      onChange={(e) => {
+                        setShowValidation(false);
+                        setAnswers((prev) => ({ ...prev, comm_1_1: e.target.checked }));
+                      }}
                       className={agreementCheckboxClass}
                     />
                     <span className="text-sm text-gray-700">{item.checkboxLabel}</span>
@@ -114,15 +124,16 @@ export default function PadAgreementsForm({
                   <AgreementChoiceGroup
                     value={answers[item.id as keyof PadAgreementAnswers] as string}
                     options={item.options}
-                    onChange={(value) =>
+                    onChange={(value) => {
+                      setShowValidation(false);
                       setAnswers(
                         (prev) =>
                           ({
                             ...prev,
                             [item.id]: value,
                           }) as PadAgreementAnswers
-                      )
-                    }
+                      );
+                    }}
                   />
                 )}
               </div>

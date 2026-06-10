@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { validateBody, contactSchema, type ContactData } from "@/lib/validation/schemas";
+import { escapeHtml } from "@/lib/email/escapeHtml";
 
 const TO_EMAILS = ["bucuresti@broker-asigurari.com", "office@sigur.ai"];
 
@@ -12,7 +13,7 @@ function getResend() {
 
 function row(label: string, value: string | undefined): string {
   if (!value) return "";
-  return `<tr><td style="padding:6px 12px;font-weight:600;color:#374151;white-space:nowrap">${label}</td><td style="padding:6px 12px;color:#4b5563">${value}</td></tr>`;
+  return `<tr><td style="padding:6px 12px;font-weight:600;color:#374151;white-space:nowrap">${escapeHtml(label)}</td><td style="padding:6px 12px;color:#4b5563">${escapeHtml(value)}</td></tr>`;
 }
 
 function buildEmailHtml(data: ContactData): string {
@@ -32,7 +33,7 @@ function buildEmailHtml(data: ContactData): string {
       <table style="width:100%;border-collapse:collapse">${rows}</table>
 
       <h3 style="color:#111827;border-bottom:2px solid #d1fae5;padding-bottom:6px;margin-top:24px">Mesaj</h3>
-      <p style="padding:12px;color:#4b5563;background:#f9fafb;border-radius:8px;white-space:pre-wrap">${data.message}</p>
+      <p style="padding:12px;color:#4b5563;background:#f9fafb;border-radius:8px;white-space:pre-wrap">${escapeHtml(data.message)}</p>
     </div>
   `;
 }

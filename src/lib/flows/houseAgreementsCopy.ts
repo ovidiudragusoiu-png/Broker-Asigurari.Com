@@ -102,7 +102,6 @@ export const HOUSE_AGREEMENTS_SECTIONS = [
         id: "dnt_0_9",
         kind: "radio" as const,
         label: "0.9 Doriti si riscuri suplimentare?",
-        hint: "Dacă alegeți DA, detaliați în chestionarul specific.",
         options: [
           { value: "DA", label: "DA" },
           { value: "NU", label: "NU" },
@@ -155,17 +154,32 @@ export const HOUSE_AGREEMENTS_SECTIONS = [
 
 export type HouseAgreementAnswers = {
   comm_1_1: boolean;
-  dnt_0_1: "DA" | "NU";
-  dnt_0_2: "renew_same" | "single" | "multi";
-  dnt_0_4: "proprietar" | "chirias";
-  dnt_0_5: "apartament" | "casa";
-  dnt_0_6: "DA" | "NU";
-  dnt_0_7: "DA" | "NU";
-  dnt_0_8: "DA" | "NU";
-  dnt_0_9: "DA" | "NU";
-  broker_1_1: "da" | "nu";
-  broker_1_2: "da" | "nu";
-  broker_1_3: "da" | "nu";
+  dnt_0_1: "DA" | "NU" | "";
+  dnt_0_2: "renew_same" | "single" | "multi" | "";
+  dnt_0_4: "proprietar" | "chirias" | "";
+  dnt_0_5: "apartament" | "casa" | "";
+  dnt_0_6: "DA" | "NU" | "";
+  dnt_0_7: "DA" | "NU" | "";
+  dnt_0_8: "DA" | "NU" | "";
+  dnt_0_9: "DA" | "NU" | "";
+  broker_1_1: "da" | "nu" | "";
+  broker_1_2: "da" | "nu" | "";
+  broker_1_3: "da" | "nu" | "";
+};
+
+export const HOUSE_AGREEMENTS_INITIAL: HouseAgreementAnswers = {
+  comm_1_1: true,
+  dnt_0_1: "",
+  dnt_0_2: "",
+  dnt_0_4: "",
+  dnt_0_5: "",
+  dnt_0_6: "",
+  dnt_0_7: "",
+  dnt_0_8: "",
+  dnt_0_9: "",
+  broker_1_1: "",
+  broker_1_2: "",
+  broker_1_3: "",
 };
 
 export const HOUSE_AGREEMENTS_DEFAULTS: HouseAgreementAnswers = {

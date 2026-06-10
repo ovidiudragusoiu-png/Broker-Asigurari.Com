@@ -1,4 +1,5 @@
 import RaspunderePageContent from "./RaspunderePageContent";
+import { WizardSuspense } from "@/components/shared/WizardSuspense";
 import JsonLd from "@/components/seo/JsonLd";
 import { createPageMetadata } from "@/lib/seo/metadata";
 import { insuranceServiceJsonLd } from "@/lib/seo/structuredData";
@@ -22,7 +23,9 @@ export default function RaspundereProfesionalaPage() {
           path: "/raspundere-profesionala",
         })}
       />
-      <RaspunderePageContent />
+      <WizardSuspense>
+        <RaspunderePageContent />
+      </WizardSuspense>
     </>
   );
 }

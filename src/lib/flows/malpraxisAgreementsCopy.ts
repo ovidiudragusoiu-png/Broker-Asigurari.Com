@@ -96,11 +96,20 @@ export const MALPRAXIS_AGREEMENTS_SECTIONS = [
 
 export type MalpraxisAgreementAnswers = {
   comm_1_1: boolean;
-  general_stats: "da" | "nu";
-  broker_gdpr: "da" | "nu";
-  dnt_marketing: "da" | "nu";
-  dnt_minors: "da" | "nu" | "na";
-  dnt_offer: "renew_same" | "single" | "multi";
+  general_stats: "da" | "nu" | "";
+  broker_gdpr: "da" | "nu" | "";
+  dnt_marketing: "da" | "nu" | "";
+  dnt_minors: "da" | "nu" | "na" | "";
+  dnt_offer: "renew_same" | "single" | "multi" | "";
+};
+
+export const MALPRAXIS_AGREEMENTS_INITIAL: MalpraxisAgreementAnswers = {
+  comm_1_1: true,
+  general_stats: "",
+  broker_gdpr: "",
+  dnt_marketing: "",
+  dnt_minors: "",
+  dnt_offer: "",
 };
 
 export const MALPRAXIS_AGREEMENTS_DEFAULTS: MalpraxisAgreementAnswers = {

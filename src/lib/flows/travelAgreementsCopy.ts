@@ -149,20 +149,38 @@ export const TRAVEL_AGREEMENTS_SECTIONS = [
 
 export type TravelAgreementAnswers = {
   comm_1_1: boolean;
-  dnt_0_1: "DA" | "NU";
-  dnt_0_2: "renew_same" | "single" | "multi";
-  dnt_0_4: "asigurat" | "contractant";
-  dnt_0_5: "europe" | "excl_usa" | "usa" | "romania";
-  dnt_0_6: "DA" | "NU";
+  dnt_0_1: "DA" | "NU" | "";
+  dnt_0_2: "renew_same" | "single" | "multi" | "";
+  dnt_0_4: "asigurat" | "contractant" | "";
+  dnt_0_5: "europe" | "excl_usa" | "usa" | "romania" | "";
+  dnt_0_6: "DA" | "NU" | "";
   dnt_0_7_baggage: boolean;
   dnt_0_7_sports: boolean;
   dnt_0_7_none: boolean;
   dnt_0_8_plane: boolean;
   dnt_0_8_car: boolean;
   dnt_0_8_other: boolean;
-  broker_1_1: "da" | "nu";
-  broker_1_2: "da" | "nu";
-  broker_1_3: "da" | "nu";
+  broker_1_1: "da" | "nu" | "";
+  broker_1_2: "da" | "nu" | "";
+  broker_1_3: "da" | "nu" | "";
+};
+
+export const TRAVEL_AGREEMENTS_INITIAL: TravelAgreementAnswers = {
+  comm_1_1: true,
+  dnt_0_1: "",
+  dnt_0_2: "",
+  dnt_0_4: "",
+  dnt_0_5: "",
+  dnt_0_6: "",
+  dnt_0_7_baggage: false,
+  dnt_0_7_sports: false,
+  dnt_0_7_none: false,
+  dnt_0_8_plane: false,
+  dnt_0_8_car: false,
+  dnt_0_8_other: false,
+  broker_1_1: "",
+  broker_1_2: "",
+  broker_1_3: "",
 };
 
 export const TRAVEL_AGREEMENTS_DEFAULTS: TravelAgreementAnswers = {

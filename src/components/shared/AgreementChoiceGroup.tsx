@@ -4,7 +4,7 @@ const defaultCheckboxClass =
   "mt-0.5 h-5 w-5 shrink-0 rounded border-gray-300 accent-[#2563EB] focus:ring-[#2563EB]";
 
 interface AgreementChoiceGroupProps<T extends string> {
-  value: T;
+  value: T | "";
   options: readonly { value: T; label: string }[];
   onChange: (value: T) => void;
   checkboxClass?: string;
@@ -26,7 +26,7 @@ export default function AgreementChoiceGroup<T extends string>({
         >
           <input
             type="checkbox"
-            checked={value === option.value}
+            checked={value !== "" && value === option.value}
             onChange={() => onChange(option.value)}
             className={checkboxClass}
           />

@@ -130,44 +130,68 @@ export function useWizard(totalSteps: number) {
   return { currentStep, next, prev, goTo, isFirst: currentStep === 0, isLast: currentStep === totalSteps - 1 };
 }
 
+export type WizardSubstep = "dnt" | "consent";
+
+export function parseWizardStep(raw: string | null, totalSteps: number): number {
+  const parsed = parseInt(raw ?? "0", 10);
+  if (!Number.isFinite(parsed) || parsed < 0) return 0;
+  if (parsed >= totalSteps) return totalSteps - 1;
+  return parsed;
+}
+
+export function parseWizardSubstep(raw: string | null): WizardSubstep | null {
+  return raw === "dnt" || raw === "consent" ? raw : null;
+}
+
 /**
- * Hook to manage wizard state using the URL search params so the back button works.
- * Needs to be used inside a component that is wrapped in Suspense.
+ * Wizard state synced to URL (?step=&sub=) so the browser back/forward buttons work.
+ * Must be used inside a Suspense boundary (useSearchParams).
  */
 export function useWizardUrlSync(totalSteps: number) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
 
-  const currentStep = parseInt(searchParams.get("step") || "0", 10);
+  const currentStep = parseWizardStep(searchParams.get("step"), totalSteps);
+  const substep = parseWizardSubstep(searchParams.get("sub"));
 
-  const setStepInUrl = (stepIndex: number) => {
-    const params = new URLSearchParams(searchParams);
-    params.set("step", stepIndex.toString());
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  const pushUrl = (step: number, sub: WizardSubstep | null) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("step", String(step));
+    if (sub) params.set("sub", sub);
+    else params.delete("sub");
+    const qs = params.toString();
+    router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   };
 
   const next = () => {
-    const nextStep = Math.min(currentStep + 1, totalSteps - 1);
-    setStepInUrl(nextStep);
+    pushUrl(Math.min(currentStep + 1, totalSteps - 1), null);
   };
 
   const prev = () => {
-    const prevStep = Math.max(currentStep - 1, 0);
-    setStepInUrl(prevStep);
+    pushUrl(Math.max(currentStep - 1, 0), null);
   };
 
   const goTo = (step: number) => {
-    if (step >= 0 && step < totalSteps) {
-      setStepInUrl(step);
-    }
+    if (step >= 0 && step < totalSteps) pushUrl(step, null);
+  };
+
+  const setSubstep = (sub: WizardSubstep) => {
+    pushUrl(currentStep, sub);
+  };
+
+  const clearSubstep = () => {
+    if (substep) pushUrl(currentStep, null);
   };
 
   return {
     currentStep,
+    substep,
     next,
     prev,
     goTo,
+    setSubstep,
+    clearSubstep,
     isFirst: currentStep === 0,
     isLast: currentStep === totalSteps - 1,
   };

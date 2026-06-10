@@ -34,8 +34,10 @@ debug_*.json
 products_*.json
 tmp_*.json
 .codex-dev*
+.codex-logs/
 
 # env files
+.env
 .env*.local
 
 # vercel

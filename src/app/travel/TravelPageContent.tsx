@@ -1,13 +1,17 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import WizardStepper, { useWizard } from "@/components/shared/WizardStepper";
+import WizardStepper, { useWizardUrlSync } from "@/components/shared/WizardStepper";
 import PersonForm, { emptyPersonPF } from "@/components/shared/PersonForm";
 import OfferCard from "@/components/shared/OfferCard";
 import PaymentFlow from "@/components/shared/PaymentFlow";
 import DntChoice from "@/components/rca/DntChoice";
 import TravelAgreementsForm from "@/components/travel/TravelAgreementsForm";
 import { api } from "@/lib/api/client";
+import {
+  fetchOfferDocument,
+  openDocumentInNewTab,
+} from "@/lib/api/documentsClient";
 import type { PersonRequest } from "@/types/insuretech";
 import { isPersonValid } from "@/lib/utils/formGuards";
 import { createOrderAndOffers } from "@/lib/flows/offerFlow";
@@ -147,8 +151,6 @@ export default function TravelPage() {
   const [loadingOffers, setLoadingOffers] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPrivacy, setShowPrivacy] = useState(false);
-  const [showDntSubstep, setShowDntSubstep] = useState(false);
-  const [showConsent, setShowConsent] = useState(false);
   const [downloadingOfferId, setDownloadingOfferId] = useState<number | null>(null);
   const [downloadErrors, setDownloadErrors] = useState<Record<string, string>>({});
 
@@ -161,7 +163,8 @@ export default function TravelPage() {
     return countries.filter((c) => allowed.has(c.code));
   }, [travelZone, countries, zones]);
 
-  const { currentStep, next, prev, goTo } = useWizard(4);
+  const { currentStep, substep, next, prev, goTo, setSubstep, clearSubstep } =
+    useWizardUrlSync(4);
   const [showErrors, setShowErrors] = useState(false);
   const isTripStepValid =
     !!travelZone &&
@@ -212,16 +215,13 @@ export default function TravelPage() {
 
   // Clear stale offers/order when navigating back to trip or travelers steps
   const offersStepIndex = 2; // 0-indexed: Trip, Travelers, Offers, Payment
+  const travelersStepIndex = 1;
+  const showDntSubstep =
+    currentStep === travelersStepIndex && substep === "dnt";
+  const showConsent =
+    currentStep === travelersStepIndex && substep === "consent";
   const isOffersStep = currentStep === offersStepIndex;
   const hideMarketingSidebar = isOffersStep || showDntSubstep || showConsent;
-  const travelersStepIndex = 1;
-
-  useEffect(() => {
-    if (currentStep !== travelersStepIndex) {
-      setShowDntSubstep(false);
-      setShowConsent(false);
-    }
-  }, [currentStep]);
 
   useEffect(() => {
     if (currentStep < offersStepIndex) {
@@ -365,16 +365,8 @@ export default function TravelPage() {
     setDownloadingOfferId(offerId);
     setDownloadErrors((prev) => { const copy = { ...prev }; delete copy[cardKey]; return copy; });
     try {
-      const res = await api.get<{ url?: string }>(
-        `/online/offers/${offerId}/document/v3?orderHash=${orderHash}`
-      );
-      if (res.url) {
-        const safeUrl = new URL(res.url, window.location.origin);
-        if (!["http:", "https:"].includes(safeUrl.protocol)) throw new Error("Link invalid");
-        window.open(safeUrl.toString(), "_blank", "noopener,noreferrer");
-      } else {
-        setDownloadErrors((prev) => ({ ...prev, [cardKey]: "Documentul nu este disponibil momentan." }));
-      }
+      const res = await fetchOfferDocument(offerId, orderHash!);
+      openDocumentInNewTab(res);
     } catch {
       setDownloadErrors((prev) => ({ ...prev, [cardKey]: "Eroare la descarcarea documentului." }));
     } finally {
@@ -546,13 +538,11 @@ export default function TravelPage() {
                   : {}),
               }}
               onComplete={() => {
-                setShowConsent(false);
                 next();
               }}
               onError={(msg) => setError(msg)}
               onBack={() => {
-                setShowConsent(false);
-                setShowDntSubstep(true);
+                setSubstep("dnt");
               }}
               backLabel="Inapoi la alegerea modului de continuare"
             />
@@ -654,7 +644,7 @@ export default function TravelPage() {
                     Inapoi
                   </span>
                 </button>
-                <button type="button" onClick={() => { if (isTravelersStepValid) { setShowErrors(false); setShowDntSubstep(true); } else { setShowErrors(true); } }} className={`${btn.primary} px-8`}>
+                <button type="button" onClick={() => { if (isTravelersStepValid) { setShowErrors(false); setSubstep("dnt"); } else { setShowErrors(true); } }} className={`${btn.primary} px-8`}>
                   <span className="flex items-center gap-2">
                     Continua
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>
@@ -666,10 +656,9 @@ export default function TravelPage() {
             <DntChoice
               productLabel="Travel"
               onContinueDirect={() => {
-                setShowDntSubstep(false);
-                setShowConsent(true);
+                setSubstep("consent");
               }}
-              onBack={() => setShowDntSubstep(false)}
+              onBack={clearSubstep}
               backLabel="Inapoi la date calatori"
             />
           )}

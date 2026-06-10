@@ -171,6 +171,21 @@ export const emailDocumentsSchema = z.object({
 });
 export type EmailDocumentsData = z.infer<typeof emailDocumentsSchema>;
 
+// ── DNT summary email ──
+
+export const dntSummaryRowSchema = z.object({
+  question: z.string().min(1).max(2000),
+  answer: z.string().min(1).max(500),
+});
+
+export const dntSummarySchema = z.object({
+  productType: z.enum(["PAD", "HOUSE", "TRAVEL", "MALPRAXIS"]),
+  email,
+  firstName: z.string().max(100).optional(),
+  rows: z.array(dntSummaryRowSchema).min(1).max(30),
+});
+export type DntSummaryEmailData = z.infer<typeof dntSummarySchema>;
+
 // ── AI Chat ──
 
 const chatMessage = z.object({
@@ -200,8 +215,25 @@ export const portalPolicySchema = z.object({
   vehicleVin: z.string().max(50).optional(),
   vehiclePlate: z.string().max(20).optional(),
   vehicleCategory: z.string().max(20).optional(),
+  // Server-side checkout-session token authorizing a guest (unauthenticated) save.
+  sessionToken: z.string().min(1).max(64).optional(),
 });
 export type PortalPolicyData = z.infer<typeof portalPolicySchema>;
+
+// ── Secured document fetch (no open proxy) ──
+
+export const documentOfferQuerySchema = z.object({
+  offerId: z.coerce.number().int().positive(),
+  orderHash: z.string().min(1).max(200),
+  sessionToken: z.string().min(1).max(64).optional(),
+});
+
+export const documentPolicyQuerySchema = z.object({
+  policyId: z.coerce.number().int().positive(),
+  orderHash: z.string().min(1).max(200),
+  offerId: z.coerce.number().int().positive().optional(),
+  sessionToken: z.string().min(1).max(64).optional(),
+});
 
 // ── Checkout session ──
 

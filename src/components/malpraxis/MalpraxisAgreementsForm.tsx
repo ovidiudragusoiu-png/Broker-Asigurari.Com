@@ -1,13 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { btn } from "@/lib/ui/tokens";
 import {
-  MALPRAXIS_AGREEMENTS_DEFAULTS,
+  MALPRAXIS_AGREEMENTS_INITIAL,
   MALPRAXIS_AGREEMENTS_SECTIONS,
   MALPRAXIS_AGREEMENTS_TITLE,
   type MalpraxisAgreementAnswers,
 } from "@/lib/flows/malpraxisAgreementsCopy";
+import {
+  agreementItemClass,
+  getMalpraxisMissingIds,
+  getMalpraxisOfferBlockers,
+  MALPRAXIS_OFFER_CONSENT_BLOCKER_MESSAGE,
+} from "@/lib/flows/agreementFormUtils";
 import { ConsentMappingError } from "@/lib/flows/consentSubmit";
 import { submitMalpraxisAgreements } from "@/lib/flows/malpraxisConsentSubmit";
 import type { PersonRequest } from "@/types/insuretech";
@@ -31,32 +37,36 @@ export default function MalpraxisAgreementsForm({
   onError,
 }: MalpraxisAgreementsFormProps) {
   const [answers, setAnswers] = useState<MalpraxisAgreementAnswers>(
-    MALPRAXIS_AGREEMENTS_DEFAULTS
+    MALPRAXIS_AGREEMENTS_INITIAL
   );
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [showValidation, setShowValidation] = useState(false);
+
+  const missingIds = useMemo(() => new Set(getMalpraxisMissingIds(answers)), [answers]);
+  const blockerIds = useMemo(() => new Set(getMalpraxisOfferBlockers(answers)), [answers]);
+  const errorIds = useMemo(
+    () => new Set([...missingIds, ...blockerIds]),
+    [missingIds, blockerIds]
+  );
 
   const resetAnswers = () => {
-    setAnswers(MALPRAXIS_AGREEMENTS_DEFAULTS);
+    setAnswers(MALPRAXIS_AGREEMENTS_INITIAL);
     setSubmitError(null);
     setValidationError(null);
-  };
-
-  const isComplete = (): boolean => {
-    if (!answers.comm_1_1) return false;
-    return (
-      !!answers.general_stats &&
-      !!answers.broker_gdpr &&
-      !!answers.dnt_marketing &&
-      !!answers.dnt_minors &&
-      !!answers.dnt_offer
-    );
+    setShowValidation(false);
   };
 
   const handleSubmit = async () => {
-    if (!isComplete()) {
+    if (missingIds.size > 0) {
+      setShowValidation(true);
       setValidationError("Completați toate câmpurile obligatorii.");
+      return;
+    }
+    if (blockerIds.size > 0) {
+      setShowValidation(true);
+      setValidationError(MALPRAXIS_OFFER_CONSENT_BLOCKER_MESSAGE);
       return;
     }
     setValidationError(null);
@@ -79,6 +89,8 @@ export default function MalpraxisAgreementsForm({
     }
   };
 
+  const fieldHasError = (itemId: string) => showValidation && errorIds.has(itemId);
+
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <h3 className="text-xl font-bold text-gray-900">{MALPRAXIS_AGREEMENTS_TITLE}</h3>
@@ -90,7 +102,7 @@ export default function MalpraxisAgreementsForm({
             {section.items.map((item) => (
               <div
                 key={item.id}
-                className="rounded-md border border-gray-100 bg-gray-50/60 p-3"
+                className={agreementItemClass(fieldHasError(item.id))}
               >
                 <p className="mb-3 text-sm leading-relaxed text-gray-800">
                   {item.label}
@@ -102,9 +114,10 @@ export default function MalpraxisAgreementsForm({
                     <input
                       type="checkbox"
                       checked={answers.comm_1_1}
-                      onChange={(e) =>
-                        setAnswers((prev) => ({ ...prev, comm_1_1: e.target.checked }))
-                      }
+                      onChange={(e) => {
+                        setShowValidation(false);
+                        setAnswers((prev) => ({ ...prev, comm_1_1: e.target.checked }));
+                      }}
                       className={agreementCheckboxClass}
                     />
                     <span className="text-sm text-gray-700">{item.checkboxLabel}</span>
@@ -113,15 +126,16 @@ export default function MalpraxisAgreementsForm({
                   <AgreementChoiceGroup
                     value={answers[item.id as keyof MalpraxisAgreementAnswers] as string}
                     options={item.options}
-                    onChange={(value) =>
+                    onChange={(value) => {
+                      setShowValidation(false);
                       setAnswers(
                         (prev) =>
                           ({
                             ...prev,
                             [item.id]: value,
                           }) as MalpraxisAgreementAnswers
-                      )
-                    }
+                      );
+                    }}
                   />
                 )}
               </div>
