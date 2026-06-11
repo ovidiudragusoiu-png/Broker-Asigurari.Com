@@ -52,9 +52,9 @@ describe("padPropertyUtils", () => {
     expect(PAD_CONSTRUCTION_TYPE_FALLBACK.length).toBeGreaterThanOrEqual(2);
   });
 
-  it("defaults construction type for PAD tip B", () => {
+  it("defaults construction type per PAD tip", () => {
     expect(defaultConstructionTypeIdForPad("B")).toBe("3");
-    expect(defaultConstructionTypeIdForPad("A")).toBe("");
+    expect(defaultConstructionTypeIdForPad("A")).toBe("1");
   });
 
   it("resolves construction type label for order payload", () => {

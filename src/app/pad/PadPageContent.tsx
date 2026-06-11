@@ -22,7 +22,8 @@ import DateInput from "@/components/shared/DateInput";
 import RuralAddressHint from "@/components/shared/RuralAddressHint";
 import { isRuralEnvironment } from "@/lib/utils/ruralAddress";
 import {
-  constructionTypeNameForPad,
+  constructionTypeNameForPadOrder,
+  defaultBuildingStructureIdForPad,
   defaultConstructionTypeIdForPad,
   fetchBuildingStructureOptions,
   fetchPadConstructionTypeOptions,
@@ -32,7 +33,7 @@ import {
   postPadOffer,
   type LabeledIdOption,
 } from "@/lib/flows/padPropertyUtils";
-import { presentPadOfferError } from "@/lib/flows/padOfferMessages";
+import { presentPadOfferErrorWithContext } from "@/lib/flows/padOfferMessages";
 import { PAD_AGREEMENTS_INITIAL } from "@/lib/flows/padAgreementsCopy";
 import { useConsentWizardPersistence } from "@/lib/flows/useConsentWizardPersistence";
 
@@ -318,13 +319,13 @@ export default function PadPage() {
     };
   }, [padPropertyType, padProductIds]);
 
-  /* Tip B — PAD case: default construction type to Casa */
+  /* Sensible defaults per PAD tip (Bloc/apartament vs Casa) */
   useEffect(() => {
     if (!padPropertyType) return;
     const defaultCt = defaultConstructionTypeIdForPad(padPropertyType);
-    if (defaultCt) {
-      setConstructionTypeId(defaultCt);
-    }
+    const defaultStruct = defaultBuildingStructureIdForPad(padPropertyType);
+    if (defaultCt) setConstructionTypeId(defaultCt);
+    if (defaultStruct) setBuildingStructureTypeId(defaultStruct);
   }, [padPropertyType]);
 
   /* Toggle cesionar selection */
@@ -385,45 +386,41 @@ export default function PadPage() {
               : {}),
           };
 
-      // 1. Create order — POST /online/offers/order/v3
-      let currentOrderId = orderId;
-      let currentOrderHash = orderHash;
+      // 1. Create order — always fresh so padPropertyType/product stay in sync
+      const order = await api.post<{ id: number; productType: string; hash: string }>(
+        "/online/offers/order/v3",
+        {
+          vendorProductType: "PAD",
+          mainInsuredDetails: { ...insuredNorm, policyPartyType: "INSURED", quota: 100 },
+          contractorDetails: { ...contractorNorm, policyPartyType: "CONTRACTOR" },
+          clientDetails: insuredNorm,
+          goodDetails: {
+            goodType: "HOME",
+            padPropertyType,
+            environmentType,
+            buildingStructureTypeId: Number(buildingStructureTypeId),
+            padBuildingIdentificationMention: null,
+            constructionType: constructionTypeNameForPadOrder(
+              constructionTypeId,
+              constructionTypes,
+              padPropertyType
+            ),
+            constructionTypeId: Number(constructionTypeId),
+            constructionYear: Number(constructionYear),
+            area: Number(area),
+            noOfRooms: Number(noOfRooms),
+            noOfFloors: Number(noOfFloors),
+            usableArea: Number(area),
+            noOfConstructedBuildings: Number(noOfConstructedBuildings),
+            addressRequest: normalizeAddress(propertyAddress),
+          },
+        }
+      );
 
-      if (!currentOrderId) {
-        const order = await api.post<{ id: number; productType: string; hash: string }>(
-          "/online/offers/order/v3",
-          {
-            vendorProductType: "PAD",
-            mainInsuredDetails: { ...insuredNorm, policyPartyType: "INSURED", quota: 100 },
-            contractorDetails: { ...contractorNorm, policyPartyType: "CONTRACTOR" },
-            clientDetails: insuredNorm,
-            goodDetails: {
-              goodType: "HOME",
-              padPropertyType,
-              environmentType,
-              buildingStructureTypeId: Number(buildingStructureTypeId),
-              padBuildingIdentificationMention: null,
-              constructionType: constructionTypeNameForPad(
-                constructionTypeId,
-                constructionTypes
-              ),
-              constructionTypeId: Number(constructionTypeId),
-              constructionYear: Number(constructionYear),
-              area: Number(area),
-              noOfRooms: Number(noOfRooms),
-              noOfFloors: Number(noOfFloors),
-              usableArea: Number(area),
-              noOfConstructedBuildings: Number(noOfConstructedBuildings),
-              addressRequest: normalizeAddress(propertyAddress),
-            },
-          }
-        );
-
-        currentOrderId = order.id;
-        currentOrderHash = order.hash;
-        setOrderId(order.id);
-        setOrderHash(order.hash);
-      }
+      const currentOrderId = order.id;
+      const currentOrderHash = order.hash;
+      setOrderId(order.id);
+      setOrderHash(order.hash);
 
       if (!currentOrderId || !currentOrderHash) {
         setError("Nu am putut crea comanda PAD. Reîncercați.");
@@ -460,8 +457,13 @@ export default function PadPage() {
         },
       });
 
+      const offerErrorContext = {
+        padPropertyType,
+        productId: padProductId,
+      };
+
       if (offerRes.error) {
-        setError(presentPadOfferError(offerRes.message));
+        setError(presentPadOfferErrorWithContext(offerRes.message, offerErrorContext));
       } else {
         setOffer(offerRes);
       }
@@ -471,7 +473,12 @@ export default function PadPage() {
         apiErr.data?.detail ||
         apiErr.message ||
         "Eroare la generarea ofertei PAD";
-      setError(presentPadOfferError(raw));
+      setError(
+        presentPadOfferErrorWithContext(raw, {
+          padPropertyType,
+          productId: padProductIdForBuildingType(padPropertyType, padProductIds),
+        })
+      );
     } finally {
       setLoadingOffer(false);
     }

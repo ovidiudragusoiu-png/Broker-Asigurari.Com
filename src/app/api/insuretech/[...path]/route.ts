@@ -33,7 +33,7 @@ const ALLOWED_PATHS: RegExp[] = [
   /^online\/products\/rca($|\?)/,
   /^online\/products\/rca\/additionals($|\?)/,
   /^online\/products\/travel($|\?)/,
-  /^online\/products\/house\/facultative($|\?)/,
+  /^online\/products\/house(\/facultative)?($|\?)/,
   /^online\/products\/malpraxis($|\?)/,
   /^online\/offers\/rca\/order(\/v3($|\?)|\/v3\/\d+)/,
   /^online\/offers\/rca\/v3($|\?)/,

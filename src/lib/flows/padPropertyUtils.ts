@@ -68,9 +68,29 @@ export function constructionTypeNameForPad(
   return match?.name || match?.description || "";
 }
 
-/** Tip B (case) — default to Casa when user picks PAD type B. */
+/** Default construction type id when PAD tip changes. */
 export function defaultConstructionTypeIdForPad(padPropertyType: string): string {
-  return padPropertyType === "B" ? "3" : "";
+  if (padPropertyType === "B") return "3"; // Casa
+  if (padPropertyType === "A") return "1"; // Bloc
+  return "";
+}
+
+export function defaultBuildingStructureIdForPad(padPropertyType: string): string {
+  if (padPropertyType === "B") return "8"; // PaiantaChirpici — validated against PAID
+  if (padPropertyType === "A") return "1"; // BetonPrefabricate
+  return "";
+}
+
+export function constructionTypeNameForPadOrder(
+  constructionTypeId: string | number,
+  options: LabeledIdOption[],
+  padPropertyType: string
+): string {
+  const fromOptions = constructionTypeNameForPad(constructionTypeId, options);
+  if (fromOptions) return fromOptions;
+  if (padPropertyType === "B") return "Casa";
+  if (padPropertyType === "A") return "Bloc";
+  return "";
 }
 
 const STREET_TYPE_PREFIX =

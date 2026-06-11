@@ -19,13 +19,17 @@ export function presentPadOfferError(rawMessage: string | undefined): string {
     return paid;
   }
 
-  if (/^INS-9999\s*\|\s*Acest produs nu este disponibil$/i.test(detail)) {
-    return "Produsul PAD nu este disponibil pentru contul broker. Reîncărcați pagina (Ctrl+F5) și încercați din nou; dacă persistă, contactați-ne.";
-  }
-
-  if (/nu este disponibil/i.test(detail)) {
-    return detail.replace(/^INS-9999\s*\|\s*/i, "");
+  if (/acest produs nu este disponibil/i.test(detail)) {
+    return "Combinația tip PAD / produs nu este acceptată. Verificați Tip A (bloc) sau Tip B (casă) și încercați din nou.";
   }
 
   return detail.replace(/^INS-9999\s*\|\s*/i, "");
+}
+
+export function presentPadOfferErrorWithContext(
+  rawMessage: string | undefined,
+  context: { padPropertyType: string; productId: number }
+): string {
+  const base = presentPadOfferError(rawMessage);
+  return `${base} (Tip ${context.padPropertyType}, produs ${context.productId})`;
 }

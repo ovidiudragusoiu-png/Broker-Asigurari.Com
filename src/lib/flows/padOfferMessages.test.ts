@@ -20,7 +20,7 @@ describe("presentPadOfferError", () => {
 
   it("maps generic product unavailable", () => {
     expect(presentPadOfferError("INS-9999 | Acest produs nu este disponibil")).toMatch(
-      /disponibil/i
+      /tip pad/i
     );
   });
 });
