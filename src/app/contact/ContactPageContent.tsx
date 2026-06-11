@@ -254,13 +254,9 @@ export default function ContactPage() {
           }}
         />
         <div className="relative mx-auto max-w-6xl px-4 text-center sm:px-6 lg:px-8">
-          <p className="text-xs font-semibold uppercase tracking-widest text-[#F97316]">Contact</p>
-          <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-white sm:text-4xl lg:text-5xl">
+          <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl lg:text-5xl">
             Hai să vorbim
           </h1>
-          <p className="mx-auto mt-4 max-w-xl text-base text-slate-400 sm:text-lg">
-            Suntem aici să te ajutăm cu orice întrebare despre asigurări. Răspundem în aceeași zi lucrătoare.
-          </p>
 
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <a
