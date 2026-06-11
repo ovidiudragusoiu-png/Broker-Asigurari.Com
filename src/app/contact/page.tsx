@@ -4,7 +4,7 @@ import { createPageMetadata } from "@/lib/seo/metadata";
 export const metadata = createPageMetadata({
   title: "Contact | Sigur.Ai",
   description:
-    "Contactează-ne pentru orice întrebare despre asigurări. Telefon: 0720 38 55 51. Email: office@sigur.ai. Luni–Vineri 09:00–18:00.",
+    "Contactează Sigur.Ai pentru întrebări despre asigurări. Telefon, WhatsApp, email sau formular online. Răspundem în aceeași zi lucrătoare, Luni–Vineri 09:00–18:00.",
   path: "/contact",
 });
 
