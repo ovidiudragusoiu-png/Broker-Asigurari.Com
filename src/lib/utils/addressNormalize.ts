@@ -48,3 +48,24 @@ export function normalizeAddressForInsuretech<T extends AddressRequest>(address:
     streetTypeId: address.streetTypeId ?? INSURETECH_STREET_TYPE_STRADA,
   };
 }
+
+/**
+ * PAD goodDetails.addressRequest — PAID renders the dwelling line from streetName
+ * alone and drops a lone "-", so embed "Strada -" in streetName (no separate type).
+ */
+export function normalizePadPropertyAddressForInsuretech<T extends AddressRequest>(
+  address: T
+): T {
+  const normalized = normalizeAddressForInsuretech(address);
+  const bare = bareStreetName(normalized.streetName);
+
+  if (isNoStreetNamePlaceholder(bare) || isNoStreetNamePlaceholder(normalized.streetName)) {
+    return {
+      ...normalized,
+      streetName: "Strada -",
+      streetTypeId: null,
+    };
+  }
+
+  return normalized;
+}

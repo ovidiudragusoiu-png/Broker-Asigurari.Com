@@ -14,7 +14,10 @@ import {
 } from "@/lib/api/documentsClient";
 import type { PersonRequest, AddressRequest, PadCesionar } from "@/types/insuretech";
 import { formatPrice } from "@/lib/utils/formatters";
-import { normalizeAddressForInsuretech } from "@/lib/utils/addressNormalize";
+import {
+  normalizeAddressForInsuretech,
+  normalizePadPropertyAddressForInsuretech,
+} from "@/lib/utils/addressNormalize";
 import { isAddressValid, isPersonValid } from "@/lib/utils/formGuards";
 import { getArray } from "@/lib/utils/dto";
 import { btn } from "@/lib/ui/tokens";
@@ -410,7 +413,7 @@ export default function PadPage() {
             noOfFloors: Number(noOfFloors),
             usableArea: Number(area),
             noOfConstructedBuildings: Number(noOfConstructedBuildings),
-            addressRequest: normalizeAddress(propertyAddress),
+            addressRequest: normalizePadPropertyAddressForInsuretech(propertyAddress),
           },
         }
       );

@@ -3,6 +3,7 @@ import {
   bareStreetName,
   isNoStreetNamePlaceholder,
   normalizeAddressForInsuretech,
+  normalizePadPropertyAddressForInsuretech,
   INSURETECH_STREET_TYPE_STRADA,
 } from "./addressNormalize";
 import { emptyAddress } from "@/components/shared/AddressForm";
@@ -29,6 +30,17 @@ describe("addressNormalize", () => {
     });
     expect(normalized.streetName).toBe("-");
     expect(normalized.streetTypeId).toBe(INSURETECH_STREET_TYPE_STRADA);
+  });
+
+  it("embeds Strada - in PAD property address streetName", () => {
+    const normalized = normalizePadPropertyAddressForInsuretech({
+      ...emptyAddress(),
+      streetName: "-",
+      streetNumber: "33",
+      streetTypeId: null,
+    });
+    expect(normalized.streetName).toBe("Strada -");
+    expect(normalized.streetTypeId).toBeNull();
   });
 
   it("defaults missing street type to Strada (41)", () => {
