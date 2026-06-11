@@ -12,6 +12,8 @@ interface DntChoiceProps {
   directTitle?: string;
   directDescription?: string;
   directButtonLabel?: string;
+  waiverAccepted?: boolean;
+  onWaiverAcceptedChange?: (accepted: boolean) => void;
 }
 
 const CONSULTATION_EMAIL = "office@sigur.ai";
@@ -36,9 +38,18 @@ export default function DntChoice({
   directTitle,
   directDescription,
   directButtonLabel,
+  waiverAccepted: waiverAcceptedProp,
+  onWaiverAcceptedChange,
 }: DntChoiceProps) {
   const [showPopup, setShowPopup] = useState(false);
-  const [waiverAccepted, setWaiverAccepted] = useState(false);
+  const [internalWaiverAccepted, setInternalWaiverAccepted] = useState(false);
+  const waiverAccepted = waiverAcceptedProp ?? internalWaiverAccepted;
+  const setWaiverAccepted = (accepted: boolean) => {
+    onWaiverAcceptedChange?.(accepted);
+    if (waiverAcceptedProp === undefined) {
+      setInternalWaiverAccepted(accepted);
+    }
+  };
   const [showWaiverHint, setShowWaiverHint] = useState(false);
 
   const handleContinueDirect = () => {

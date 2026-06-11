@@ -45,6 +45,17 @@ const SAFE_STRING_KEYS = new Set([
   "duedate",
   "createdat",
   "updatedat",
+  "rawmessage",
+  "vendorname",
+  "productname",
+  "producttype",
+  "path",
+  "pathname",
+  "errorflag",
+  "buildingstructuretypeid",
+  "paidconstructiontype",
+  "environmenttype",
+  "nooffloors",
 ]);
 
 export const MALPRAXIS_TRACE_HEADER = "X-Debug-Trace-Id";

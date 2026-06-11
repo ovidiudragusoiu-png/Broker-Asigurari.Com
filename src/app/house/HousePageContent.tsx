@@ -16,6 +16,9 @@ import {
 import type { PersonRequest, AddressRequest, PadCesionar } from "@/types/insuretech";
 import { isAddressValid, isPersonValid, houseAddressRequiresFloor } from "@/lib/utils/formGuards";
 import { createOrderAndOffers } from "@/lib/flows/offerFlow";
+import { HOUSE_AGREEMENTS_INITIAL, type HouseAgreementAnswers } from "@/lib/flows/houseAgreementsCopy";
+import { adjustHouseComparatorBody } from "@/lib/flows/houseOfferBodyAdjustments";
+import { groupUnavailableHouseOffers } from "@/lib/flows/houseOfferMessages";
 import { buildOrderPayload } from "@/lib/flows/payloadBuilders";
 import DateInput from "@/components/shared/DateInput";
 import RuralAddressHint from "@/components/shared/RuralAddressHint";
@@ -182,6 +185,11 @@ export default function HousePage() {
   const [downloadingOfferId, setDownloadingOfferId] = useState<number | null>(null);
   const [downloadErrors, setDownloadErrors] = useState<Record<string, string>>({});
   const [showUnavailableOffers, setShowUnavailableOffers] = useState(false);
+  const [houseAgreementAnswers, setHouseAgreementAnswers] =
+    useState<HouseAgreementAnswers>(HOUSE_AGREEMENTS_INITIAL);
+  const [dntWaiverAccepted, setDntWaiverAccepted] = useState(false);
+  const [houseConsentCompleted, setHouseConsentCompleted] = useState(false);
+  const consentCifRef = useRef<string | null>(null);
 
   const { currentStep, substep, next, prev, goTo, setSubstep, clearSubstep } =
     useWizardUrlSync(4);
@@ -202,6 +210,17 @@ export default function HousePage() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStep]);
+
+  useEffect(() => {
+    const cif = String(contractor.cif || "").trim();
+    if (!cif) return;
+    if (consentCifRef.current && consentCifRef.current !== cif) {
+      setHouseConsentCompleted(false);
+      setHouseAgreementAnswers(HOUSE_AGREEMENTS_INITIAL);
+      setDntWaiverAccepted(false);
+    }
+  }, [contractor.cif]);
+
   const floorRequired = houseAddressRequiresFloor(
     constructionTypeCode,
     padConstructionTypeId,
@@ -288,6 +307,11 @@ export default function HousePage() {
   const handleContractorStepContinue = () => {
     if (isContractorValid) {
       setShowErrors(false);
+      const cif = String(contractor.cif || "").trim();
+      if (houseConsentCompleted && consentCifRef.current === cif) {
+        next();
+        return;
+      }
       setSubstep("dnt");
       return;
     }
@@ -295,6 +319,16 @@ export default function HousePage() {
     requestAnimationFrame(() => {
       step2FormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
+  };
+
+  const handleOffersBack = () => {
+    setOffers([]);
+    setSelectedOffer(null);
+    setPadOffer(null);
+    setOrderId(null);
+    setOrderHash(null);
+    setError(null);
+    prev();
   };
 
   // Load house comparator utils
@@ -561,9 +595,14 @@ export default function HousePage() {
           return facBodies;
         },
         fetchOffer: async (body, createdOrder) => {
+          const adjustedBody = adjustHouseComparatorBody(body, {
+            noOfFloors,
+            buildingSum,
+            contentSum,
+          });
           const raw = await api.post<Record<string, unknown>>(
             `/online/offers/house/comparator/v3?orderHash=${createdOrder.hash}`,
-            body
+            adjustedBody
           );
           const pd = raw.productDetails as { vendorDetails?: { name?: string; commercialName?: string }; productName?: string; productSubPackage?: string } | undefined;
           return {
@@ -584,15 +623,22 @@ export default function HousePage() {
             hasApiError: raw.error === true,
           } as HouseOffer;
         },
-        mapOfferError: (body, err) => ({
-          id: 0,
-          productId: String(body.productId || ""),
-          productName: String(body.productName || "Necunoscut"),
-          vendorName: "",
-          policyPremium: 0,
-          currency: "RON",
-          error: err instanceof Error ? err.message : "Eroare generare oferta",
-        }),
+        mapOfferError: (body, err) => {
+          const pd = body.productDetails as
+            | { vendorDetails?: { name?: string; commercialName?: string }; productName?: string }
+            | undefined;
+          return {
+            id: 0,
+            productId: String(body.productId || ""),
+            productName: String(pd?.productName || body.productName || "Necunoscut"),
+            vendorName: String(
+              pd?.vendorDetails?.commercialName || pd?.vendorDetails?.name || body.vendorName || ""
+            ),
+            policyPremium: 0,
+            currency: "RON",
+            error: err instanceof Error ? err.message : "Eroare generare oferta",
+          };
+        },
       });
 
       setOrderId(order.id);
@@ -724,6 +770,9 @@ export default function HousePage() {
                 min={0}
                 onChange={(e) => setNoOfFloors(Math.max(0, Number(e.target.value) || 0))}
               />
+              <p className="mt-1 text-xs text-gray-500">
+                Parter / casă cu un singur nivel: 0. P+1 înseamnă parter + 1 etaj (introduceți 1).
+              </p>
             </div>
           </div>
 
@@ -1128,7 +1177,11 @@ export default function HousePage() {
               ? { dateOfBirth: dateOfBirthFromCNP(String(contractor.cif)) }
               : {}),
           }}
+          answers={houseAgreementAnswers}
+          onAnswersChange={setHouseAgreementAnswers}
           onComplete={() => {
+            consentCifRef.current = String(contractor.cif || "").trim();
+            setHouseConsentCompleted(true);
             next();
           }}
           onError={(msg) => setError(msg)}
@@ -1170,6 +1223,8 @@ export default function HousePage() {
       ) : (
         <DntChoice
           productLabel="Locuință"
+          waiverAccepted={dntWaiverAccepted}
+          onWaiverAcceptedChange={setDntWaiverAccepted}
           onContinueDirect={() => {
             setSubstep("consent");
           }}
@@ -1221,6 +1276,10 @@ export default function HousePage() {
             // Show only selectable offers (valid positive premium and no API/network error)
             const mainOffers = offers.filter(hasSelectablePrice);
             const unavailableOffers = offers.filter(isUnavailableOffer);
+            const groupedUnavailableOffers = groupUnavailableHouseOffers(
+              unavailableOffers,
+              buildingStructureTypeId
+            );
 
             const SPECIFIC_LABELS: Record<string, string> = {
               PORTABLE_GOODS_INSURED_SUM: "Bunuri portabile",
@@ -1250,15 +1309,9 @@ export default function HousePage() {
 
             return (
               <div className="space-y-6">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <h3 className="text-base font-semibold text-gray-900 sm:text-lg">
-                    {mainOffers.filter(o => o.policyPremium > 0).length} oferte disponibile
-                  </h3>
-                  <button type="button" onClick={() => { setOffers([]); setSelectedOffer(null); setPadOffer(null); setOrderId(null); setOrderHash(null); setError(null); prev(); }} className="flex min-h-11 w-full items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 sm:w-auto sm:py-1.5 sm:text-xs">
-                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" /></svg>
-                    Inapoi
-                  </button>
-                </div>
+                <h3 className="text-base font-semibold text-gray-900 sm:text-lg">
+                  {mainOffers.filter(o => o.policyPremium > 0).length} oferte disponibile
+                </h3>
 
                 {sortedVendors.map((vendor) => { const vendorOffers = grouped[vendor]; return (
                   <div key={vendor}>
@@ -1492,17 +1545,18 @@ export default function HousePage() {
                   </div>
                 ); })}
 
-                {unavailableOffers.length > 0 && (
+                {groupedUnavailableOffers.length > 0 && (
                   <div className="rounded-xl border border-gray-200 bg-white">
                     <button
                       type="button"
                       onClick={() => setShowUnavailableOffers((prev) => !prev)}
                       className="flex min-h-11 w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-gray-50"
+                      aria-expanded={showUnavailableOffers}
                     >
                       <span className="flex items-center gap-2">
                         <span className="text-sm font-semibold text-gray-700">Oferte indisponibile</span>
                         <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-600">
-                          {unavailableOffers.length}
+                          {groupedUnavailableOffers.length}
                         </span>
                       </span>
                       <svg
@@ -1518,41 +1572,55 @@ export default function HousePage() {
                     {showUnavailableOffers && (
                       <div className="border-t border-gray-100 px-4 py-3">
                         <div className="grid gap-3 sm:grid-cols-2">
-                          {unavailableOffers.map((offer, offerIdx) => {
-                            const premium = Number(offer.policyPremium);
-                            const hasPositivePremium = Number.isFinite(premium) && premium > 0;
-                            const reason =
-                              offer.error ||
-                              offer.message?.split("|").pop()?.trim() ||
-                              (offer.hasApiError
-                                ? "Eroare API la generarea ofertei."
-                                : !hasPositivePremium
-                                  ? "Prima nu este disponibila pentru selectie."
-                                  : "Oferta indisponibila.");
-
-                            return (
+                          {groupedUnavailableOffers.map((group) => (
                               <div
-                                key={`unavailable-${offer.productId}-${offer.id ?? offerIdx}`}
+                                key={group.key}
                                 className="rounded-xl border border-gray-200 bg-gray-50 p-4"
                               >
                                 <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
                                   <div className="min-w-0">
-                                    <p className="text-base font-semibold text-gray-900 sm:text-sm">{offer.productName || "Oferta locuinta"}</p>
-                                    <p className="text-xs text-gray-500">{offer.vendorName || "Asigurator indisponibil"}</p>
+                                    <p className="text-base font-semibold text-gray-900 sm:text-sm">
+                                      {group.productNames.join(", ")}
+                                    </p>
+                                    <p className="text-xs text-gray-500">{group.vendorName}</p>
                                   </div>
                                   <span className="w-fit shrink-0 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700">
                                     Indisponibila
                                   </span>
                                 </div>
-                                <p className="text-xs leading-relaxed text-gray-600">{reason}</p>
+                                <p className="text-xs leading-relaxed text-gray-600">
+                                  {group.presentation.display}
+                                </p>
+                                {group.presentation.technical && (
+                                  <details className="mt-2">
+                                    <summary className="cursor-pointer text-[11px] font-medium text-gray-400 hover:text-gray-600">
+                                      Detalii tehnice
+                                    </summary>
+                                    <p className="mt-1 text-[11px] leading-relaxed text-gray-400">
+                                      {group.presentation.technical}
+                                    </p>
+                                  </details>
+                                )}
                               </div>
-                            );
-                          })}
+                            ))}
                         </div>
                       </div>
                     )}
                   </div>
                 )}
+
+                <div className="flex justify-center border-t border-gray-100 pt-6">
+                  <button
+                    type="button"
+                    onClick={handleOffersBack}
+                    className="flex min-h-11 w-full max-w-sm items-center justify-center gap-2 rounded-lg bg-blue-600 px-8 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:bg-blue-700 sm:w-auto"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+                    </svg>
+                    Inapoi
+                  </button>
+                </div>
 
               </div>
             );

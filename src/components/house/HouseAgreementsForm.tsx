@@ -23,6 +23,8 @@ import AgreementChoiceGroup, {
 
 interface HouseAgreementsFormProps {
   personData: PersonRequest;
+  answers: HouseAgreementAnswers;
+  onAnswersChange: (answers: HouseAgreementAnswers) => void;
   onComplete: () => void;
   onBack?: () => void;
   backLabel?: string;
@@ -31,12 +33,18 @@ interface HouseAgreementsFormProps {
 
 export default function HouseAgreementsForm({
   personData,
+  answers,
+  onAnswersChange,
   onComplete,
   onBack,
   backLabel = "Inapoi",
   onError,
 }: HouseAgreementsFormProps) {
-  const [answers, setAnswers] = useState<HouseAgreementAnswers>(HOUSE_AGREEMENTS_INITIAL);
+  const setAnswers = (
+    value: HouseAgreementAnswers | ((prev: HouseAgreementAnswers) => HouseAgreementAnswers)
+  ) => {
+    onAnswersChange(typeof value === "function" ? value(answers) : value);
+  };
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);

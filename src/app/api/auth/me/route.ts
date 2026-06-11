@@ -6,7 +6,8 @@ export async function GET() {
   const user = await getCurrentUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Neautorizat" }, { status: 401 });
+    // Guest visitors are expected — return 200 so the auth probe does not log console errors.
+    return NextResponse.json({ user: null });
   }
 
   return NextResponse.json({

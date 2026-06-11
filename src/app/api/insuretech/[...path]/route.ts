@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { appEnv, insureTechEnv } from "@/lib/config/env";
 import { logAudit, getClientInfo } from "@/lib/audit/logger";
 import {
+  buildOfferFailureAuditPayload,
+  isComparatorOfferPath,
+  OFFER_FAILURE_AUDIT_ACTION,
+} from "@/lib/audit/offerFailureLog";
+import {
   MALPRAXIS_TRACE_HEADER,
   isMalpraxisDebugEnabled,
   logMalpraxisTrace,
@@ -360,35 +365,67 @@ async function proxyRequest(req: NextRequest, method: string) {
         }
       }
 
-      if (response.ok && (method === "POST" || method === "PUT")) {
-        const auditAction = getAuditAction(pathSegments);
-        if (auditAction) {
-          const { ipAddress, userAgent } = getClientInfo(req);
-          let payload: Record<string, unknown> | undefined;
-          try {
-            payload = requestBody ? JSON.parse(requestBody) : undefined;
-          } catch {
-            // ignore non-JSON payloads
+      if (method === "POST" || method === "PUT") {
+        const { ipAddress, userAgent } = getClientInfo(req);
+        const orderHash = url.searchParams.get("orderHash") || undefined;
+
+        let reqData: Record<string, unknown> = {};
+        let respData: Record<string, unknown> = {};
+        try {
+          reqData = requestBody ? JSON.parse(requestBody) : {};
+        } catch {
+          // ignore non-JSON payloads
+        }
+        try {
+          respData =
+            typeof parsedResponseBody === "object" &&
+            parsedResponseBody !== null &&
+            !Array.isArray(parsedResponseBody)
+              ? (parsedResponseBody as Record<string, unknown>)
+              : {};
+        } catch {
+          // ignore non-JSON payloads
+        }
+
+        if (response.ok) {
+          const auditAction = getAuditAction(pathSegments);
+          if (auditAction) {
+            await logAudit({
+              action: auditAction,
+              orderHash,
+              orderId: (respData.id as number) || (respData.orderId as number) || undefined,
+              offerId:
+                (reqData.offerId as number) || (reqData.rcaOfferId as number) || undefined,
+              ipAddress,
+              userAgent,
+              payload: reqData,
+            });
           }
+        }
 
-          const orderHash = url.searchParams.get("orderHash") || undefined;
-
-          let respData: Record<string, unknown> = {};
-          try {
-            respData = JSON.parse(responseBody);
-          } catch {
-            // ignore non-JSON payloads
-          }
-
-          await logAudit({
-            action: auditAction,
-            orderHash,
-            orderId: (respData.id as number) || (respData.orderId as number) || undefined,
-            offerId: (payload?.offerId as number) || (payload?.rcaOfferId as number) || undefined,
-            ipAddress,
-            userAgent,
-            payload,
+        if (
+          method === "POST" &&
+          isComparatorOfferPath(pathSegments) &&
+          contentType.includes("json")
+        ) {
+          const failurePayload = buildOfferFailureAuditPayload({
+            path: pathSegments,
+            httpStatus: response.status,
+            requestBody: reqData,
+            responseBody: respData,
           });
+
+          if (failurePayload) {
+            await logAudit({
+              action: OFFER_FAILURE_AUDIT_ACTION,
+              productType: String(failurePayload.productType || ""),
+              orderHash,
+              orderId: (reqData.orderId as number) || (respData.orderId as number) || undefined,
+              ipAddress,
+              userAgent,
+              payload: failurePayload,
+            });
+          }
         }
       }
 
