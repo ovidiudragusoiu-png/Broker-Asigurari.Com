@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { api } from "@/lib/api/client";
+import { isAllowedPaymentUrl } from "@/lib/payments/allowedPaymentUrl";
 import { formatPrice } from "@/lib/utils/formatters";
 import TermsModal from "@/components/rca/TermsModal";
 import PaymentDeclarationBanner from "@/components/shared/PaymentDeclarationBanner";
@@ -89,11 +90,7 @@ export default function PaymentFlow({
         { Accept: "text/plain" }
       );
       setStatus("redirecting");
-      // Validate payment URL before redirect
-      try {
-        const parsed = new URL(paymentUrl as string);
-        if (parsed.protocol !== "https:") throw new Error("URL invalid");
-      } catch {
+      if (!isAllowedPaymentUrl(paymentUrl as string)) {
         setError("Link de plata invalid primit de la server.");
         setStatus("failed");
         return;
@@ -123,11 +120,7 @@ export default function PaymentFlow({
         { Accept: "text/plain" }
       );
       setStatus("redirecting");
-      // Validate loan URL before redirect
-      try {
-        const parsed = new URL(loanUrl as string);
-        if (parsed.protocol !== "https:") throw new Error("URL invalid");
-      } catch {
+      if (!isAllowedPaymentUrl(loanUrl as string)) {
         setError("Link de plata in rate invalid primit de la server.");
         setStatus("failed");
         return;

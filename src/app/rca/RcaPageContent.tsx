@@ -17,6 +17,7 @@ import PolicyDetailsForm from "@/components/rca/PolicyDetailsForm";
 import AdditionalDriverForm from "@/components/rca/AdditionalDriverForm";
 import ReviewSummary from "@/components/rca/ReviewSummary";
 import { api, ApiError } from "@/lib/api/client";
+import { assertAllowedPaymentUrl } from "@/lib/payments/allowedPaymentUrl";
 import {
   isPostOfferDetailsPFValid,
   isPostOfferDetailsPJValid,
@@ -503,21 +504,7 @@ function RcaPageInner() {
       { Accept: "text/plain" }
     );
 
-    // Security: validate payment URL origin before redirect
-    const ALLOWED_PAYMENT_ORIGINS = [
-      "https://pay.insuretech.ro",
-      "https://insuretech.staging.insuretech.ro",
-      "https://secure.euplatesc.ro",
-    ];
-    try {
-      const parsed = new URL(paymentUrl as string);
-      if (!ALLOWED_PAYMENT_ORIGINS.some((o) => parsed.origin === new URL(o).origin)) {
-        throw new Error("URL plata invalid");
-      }
-    } catch (e) {
-      if (e instanceof Error && e.message === "URL plata invalid") throw e;
-      throw new Error("URL plata invalid");
-    }
+    assertAllowedPaymentUrl(paymentUrl as string);
 
     // Clean wizard state but keep policy data for callback
     sessionStorage.removeItem("rcaWizardState");
