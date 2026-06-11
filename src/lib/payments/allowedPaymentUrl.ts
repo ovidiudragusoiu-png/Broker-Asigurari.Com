@@ -2,10 +2,12 @@
  * Validates payment redirect URLs returned by InsureTech.
  *
  * @see docs/insuretech-rca.txt §6 — production payment page varies by broker;
- * staging examples use `{apiHost}/online/broker/payments/pub/pay?token=...`
+ * staging: `{apiHost}/online/broker/payments/pub/pay?token=...`
+ * production (broker): e.g. `maxygo.insuretech.ro/api/v1/public/payments/link?token=...`
  */
 
 const KNOWN_PSP_HOSTS = new Set([
+  "maxygo.insuretech.ro",
   "pay.insuretech.ro",
   "secure.euplatesc.ro",
   "secure.mobilpay.ro",
@@ -28,8 +30,12 @@ function isInsuretechPaymentHost(hostname: string): boolean {
   return host === "insuretech.ro" || host.endsWith(".insuretech.ro");
 }
 
-function isInsuretechBrokerPaymentPath(pathname: string): boolean {
-  return pathname.includes("/broker/payments/");
+function isInsuretechPaymentPath(pathname: string): boolean {
+  return (
+    pathname.includes("/broker/payments/") ||
+    pathname.includes("/public/payments/") ||
+    pathname.includes("/payments/link")
+  );
 }
 
 export function isAllowedPaymentUrl(url: string): boolean {
@@ -43,8 +49,7 @@ export function isAllowedPaymentUrl(url: string): boolean {
     }
 
     if (isInsuretechPaymentHost(host)) {
-      // pay.insuretech.ro or documented broker payment paths on InsureTech API hosts
-      return host === "pay.insuretech.ro" || isInsuretechBrokerPaymentPath(parsed.pathname);
+      return host === "pay.insuretech.ro" || isInsuretechPaymentPath(parsed.pathname);
     }
 
     return false;

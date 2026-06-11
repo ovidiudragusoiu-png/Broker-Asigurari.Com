@@ -16,6 +16,11 @@ describe("isAllowedPaymentUrl", () => {
         "https://insuretech.prod.insuretech.ro/api/v1/online/broker/payments/pub/pay?token=abc"
       )
     ).toBe(true);
+    expect(
+      isAllowedPaymentUrl(
+        "https://maxygo.insuretech.ro/api/v1/public/payments/link?token=abc"
+      )
+    ).toBe(true);
   });
 
   it("allows pay.insuretech.ro", () => {
