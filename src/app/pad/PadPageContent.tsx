@@ -389,6 +389,11 @@ export default function PadPage() {
         setOrderHash(order.hash);
       }
 
+      if (!currentOrderId || !currentOrderHash) {
+        setError("Nu am putut crea comanda PAD. Reîncercați.");
+        return;
+      }
+
       // 2. Create offer — POST /online/offers/paid/pad/v3
       const totalCesionari = selectedCesionari.length;
       const padProductId = padProductIdForBuildingType(padPropertyType, padProductIds);
