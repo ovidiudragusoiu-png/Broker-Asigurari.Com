@@ -229,8 +229,10 @@ export default function CascoPage() {
   // Inline validation — track touched fields + attempted submit
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [step1Attempted, setStep1Attempted] = useState(false);
+  const [step2Attempted, setStep2Attempted] = useState(false);
   const touch = (field: string) => setTouched((t) => ({ ...t, [field]: true }));
   const shouldShowError = (field: string) => touched[field] || step1Attempted;
+  const shouldShowStep2Error = (field: string) => touched[field] || step2Attempted;
 
   // Nomenclatures
   const [counties, setCounties] = useState<SelectOption[]>([]);
@@ -461,6 +463,31 @@ export default function CascoPage() {
       ? form.files.length > 0
       : form.makeId !== "" && form.model.length > 0 && form.year !== "" && form.vin.length >= 5);
 
+  const step2FieldErrors = {
+    cityId: form.cityId === "",
+    hasLicense: form.hasLicense === "",
+    cnp: form.ownerType === "PF" && !validateCNP(form.cnp),
+    maritalStatus: form.ownerType === "PF" && form.maritalStatus === "",
+    files: form.inputMode === "upload" && form.files.length === 0,
+    makeId: form.inputMode === "form" && form.makeId === "",
+    model: form.inputMode === "form" && form.model.length === 0,
+    year: form.inputMode === "form" && form.year === "",
+    vin: form.inputMode === "form" && form.vin.length < 5,
+    currentInsurer: form.currentInsurer === "",
+    startDate: form.startDate === "",
+    paymentFrequency: form.paymentFrequency === "",
+    deductible: form.deductible === "",
+  };
+
+  const step2InputErr = (field: string) =>
+    shouldShowStep2Error(field) && step2FieldErrors[field as keyof typeof step2FieldErrors]
+      ? errBorder
+      : "";
+  const step2SelectErr = (field: string) =>
+    shouldShowStep2Error(field) && step2FieldErrors[field as keyof typeof step2FieldErrors]
+      ? errBorder
+      : "";
+
   const step3Valid = form.consent;
 
   // ── File upload handler ──
@@ -474,6 +501,7 @@ export default function CascoPage() {
     );
     const merged = [...form.files, ...allowed].slice(0, 2);
     set("files", merged);
+    if (merged.length > 0) touch("files");
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -825,9 +853,10 @@ export default function CascoPage() {
                 </label>
                 {isBucharest || isBucharestSentinel ? (
                   <select
-                    className={selectCls}
+                    className={`${selectCls} ${step2SelectErr("cityId")}`}
                     value={isBucharest ? form.countyId : ""}
                     onChange={(e) => {
+                      touch("cityId");
                       const sector = BUCHAREST_SECTORS.find((s) => String(s.countyId) === e.target.value);
                       if (sector) {
                         set("countyId", String(sector.countyId));
@@ -836,6 +865,7 @@ export default function CascoPage() {
                         set("cityName", sector.label);
                       }
                     }}
+                    onBlur={() => touch("cityId")}
                   >
                     <option value="">Selecteaza sectorul</option>
                     {BUCHAREST_SECTORS.map((s) => (
@@ -844,14 +874,16 @@ export default function CascoPage() {
                   </select>
                 ) : (
                   <select
-                    className={selectCls}
+                    className={`${selectCls} ${step2SelectErr("cityId")}`}
                     value={form.cityId}
                     disabled={!form.countyId}
                     onChange={(e) => {
+                      touch("cityId");
                       const city = cities.find((c) => String(c.id) === e.target.value);
                       set("cityId", e.target.value);
                       set("cityName", city?.name || "");
                     }}
+                    onBlur={() => touch("cityId")}
                   >
                     <option value="">Selecteaza localitatea</option>
                     {cities.map((c) => (
@@ -859,15 +891,28 @@ export default function CascoPage() {
                     ))}
                   </select>
                 )}
+                {shouldShowStep2Error("cityId") && step2FieldErrors.cityId && (
+                  <p className="mt-1 text-xs text-red-500">
+                    {isBucharest || isBucharestSentinel ? "Selectați sectorul" : "Selectați localitatea"}
+                  </p>
+                )}
               </div>
 
               <div>
                 <label className={labelCls}>Detii permis auto?</label>
-                <select className={selectCls} value={form.hasLicense} onChange={(e) => set("hasLicense", e.target.value as "da" | "nu" | "")}>
+                <select
+                  className={`${selectCls} ${step2SelectErr("hasLicense")}`}
+                  value={form.hasLicense}
+                  onChange={(e) => { touch("hasLicense"); set("hasLicense", e.target.value as "da" | "nu" | ""); }}
+                  onBlur={() => touch("hasLicense")}
+                >
                   <option value="">Selecteaza</option>
                   <option value="da">Da</option>
                   <option value="nu">Nu</option>
                 </select>
+                {shouldShowStep2Error("hasLicense") && step2FieldErrors.hasLicense && (
+                  <p className="mt-1 text-xs text-red-500">Selectați o opțiune</p>
+                )}
               </div>
 
               {form.hasLicense === "da" && (
@@ -882,24 +927,36 @@ export default function CascoPage() {
                   <div>
                     <label className={labelCls}>CNP</label>
                     <input
-                      className={inputCls}
+                      className={`${inputCls} ${step2InputErr("cnp")}`}
                       value={form.cnp}
                       onChange={(e) => set("cnp", e.target.value.replace(/\D/g, ""))}
+                      onBlur={() => touch("cnp")}
                       placeholder="13 cifre"
                       maxLength={13}
                       inputMode="numeric"
                     />
+                    {shouldShowStep2Error("cnp") && step2FieldErrors.cnp && form.cnp.length === 0 && (
+                      <p className="mt-1 text-xs text-red-500">CNP-ul este obligatoriu</p>
+                    )}
                     {form.cnp.length > 0 && !validateCNP(form.cnp) && (
                       <p className="mt-1 text-xs text-red-500">{form.cnp.length < 13 ? "CNP-ul trebuie să aibă 13 cifre" : "CNP invalid"}</p>
                     )}
                   </div>
                   <div>
                     <label className={labelCls}>Stare civila</label>
-                    <select className={selectCls} value={form.maritalStatus} onChange={(e) => set("maritalStatus", e.target.value)}>
+                    <select
+                      className={`${selectCls} ${step2SelectErr("maritalStatus")}`}
+                      value={form.maritalStatus}
+                      onChange={(e) => { touch("maritalStatus"); set("maritalStatus", e.target.value); }}
+                      onBlur={() => touch("maritalStatus")}
+                    >
                       <option value="">Selecteaza</option>
                       <option value="casatorit">Casatorit(a)</option>
                       <option value="necasatorit">Necasatorit(a)</option>
                     </select>
+                    {shouldShowStep2Error("maritalStatus") && step2FieldErrors.maritalStatus && (
+                      <p className="mt-1 text-xs text-red-500">Selectați starea civilă</p>
+                    )}
                   </div>
                 </>
               )}
@@ -935,9 +992,11 @@ export default function CascoPage() {
               onDrop={handleDrop}
               onClick={() => form.files.length < 2 && fileInputRef.current?.click()}
               className={`rounded-2xl border-2 border-dashed p-8 text-center cursor-pointer transition-colors ${
-                dragOver
-                  ? "border-[#2563EB] bg-blue-50/60"
-                  : "border-gray-300 bg-gray-50/30 hover:border-blue-300 hover:bg-blue-50/20"
+                shouldShowStep2Error("files") && step2FieldErrors.files
+                  ? "!border-red-400 bg-red-50/30"
+                  : dragOver
+                    ? "border-[#2563EB] bg-blue-50/60"
+                    : "border-gray-300 bg-gray-50/30 hover:border-blue-300 hover:bg-blue-50/20"
               }`}
             >
               <svg className={`mx-auto h-10 w-10 transition-colors ${dragOver ? "text-[#2563EB]" : "text-gray-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -970,6 +1029,9 @@ export default function CascoPage() {
                   ))}
                 </div>
               )}
+              {shouldShowStep2Error("files") && step2FieldErrors.files && (
+                <p className="mt-3 text-xs text-red-500">Atașați cel puțin un document</p>
+              )}
             </div>
           ) : (
             /* Manual form fields */
@@ -983,7 +1045,17 @@ export default function CascoPage() {
                 <div className="flex gap-2">
                   <div className="flex-1">
                     <label className={labelCls}>Serie sasiu (VIN)</label>
-                    <input className={inputCls} value={form.vin} onChange={(e) => { set("vin", e.target.value.toUpperCase()); setVinDone(false); setVinError(null); }} placeholder="17 caractere" maxLength={17} />
+                    <input
+                      className={`${inputCls} ${step2InputErr("vin")}`}
+                      value={form.vin}
+                      onChange={(e) => { set("vin", e.target.value.toUpperCase()); setVinDone(false); setVinError(null); }}
+                      onBlur={() => touch("vin")}
+                      placeholder="17 caractere"
+                      maxLength={17}
+                    />
+                    {shouldShowStep2Error("vin") && step2FieldErrors.vin && (
+                      <p className="mt-1 text-xs text-red-500">Seria șasiu este obligatorie</p>
+                    )}
                   </div>
                   <button
                     type="button"
@@ -1053,21 +1125,35 @@ export default function CascoPage() {
                   <div>
                     <label className={labelCls}>Marca</label>
                     <select
-                      className={selectCls}
+                      className={`${selectCls} ${step2SelectErr("makeId")}`}
                       value={form.makeId}
                       onChange={(e) => {
+                        touch("makeId");
                         const make = makes.find((m) => String(m.id) === e.target.value);
                         set("makeId", e.target.value);
                         set("makeName", make?.name || "");
                       }}
+                      onBlur={() => touch("makeId")}
                     >
                       <option value="">Selecteaza</option>
                       {makes.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
                     </select>
+                    {shouldShowStep2Error("makeId") && step2FieldErrors.makeId && (
+                      <p className="mt-1 text-xs text-red-500">Selectați marca</p>
+                    )}
                   </div>
                   <div>
                     <label className={labelCls}>Model</label>
-                    <input className={inputCls} value={form.model} onChange={(e) => set("model", e.target.value)} placeholder="ex: Golf" />
+                    <input
+                      className={`${inputCls} ${step2InputErr("model")}`}
+                      value={form.model}
+                      onChange={(e) => set("model", e.target.value)}
+                      onBlur={() => touch("model")}
+                      placeholder="ex: Golf"
+                    />
+                    {shouldShowStep2Error("model") && step2FieldErrors.model && (
+                      <p className="mt-1 text-xs text-red-500">Modelul este obligatoriu</p>
+                    )}
                   </div>
                 </div>
 
@@ -1079,10 +1165,18 @@ export default function CascoPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
                   <div>
                     <label className={labelCls}>An fabricatie</label>
-                    <select className={selectCls} value={form.year} onChange={(e) => set("year", e.target.value)}>
+                    <select
+                      className={`${selectCls} ${step2SelectErr("year")}`}
+                      value={form.year}
+                      onChange={(e) => { touch("year"); set("year", e.target.value); }}
+                      onBlur={() => touch("year")}
+                    >
                       <option value="">Selecteaza</option>
                       {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
                     </select>
+                    {shouldShowStep2Error("year") && step2FieldErrors.year && (
+                      <p className="mt-1 text-xs text-red-500">Selectați anul fabricației</p>
+                    )}
                   </div>
                   <div>
                     <label className={labelCls}>Data primei inmatriculari</label>
@@ -1174,36 +1268,68 @@ export default function CascoPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
               <div>
                 <label className={labelCls}>Asigurat CASCO la</label>
-                <select className={selectCls} value={form.currentInsurer} onChange={(e) => set("currentInsurer", e.target.value)}>
+                <select
+                  className={`${selectCls} ${step2SelectErr("currentInsurer")}`}
+                  value={form.currentInsurer}
+                  onChange={(e) => { touch("currentInsurer"); set("currentInsurer", e.target.value); }}
+                  onBlur={() => touch("currentInsurer")}
+                >
                   <option value="">Selecteaza</option>
                   {INSURERS.map((ins) => <option key={ins} value={ins}>{ins}</option>)}
                 </select>
+                {shouldShowStep2Error("currentInsurer") && step2FieldErrors.currentInsurer && (
+                  <p className="mt-1 text-xs text-red-500">Selectați asiguratorul</p>
+                )}
               </div>
               <div>
                 <label className={labelCls}>Data inceput asigurare</label>
-                <DateInput value={form.startDate} onChange={(v) => set("startDate", v)} min={tomorrowDate} />
+                <DateInput
+                  value={form.startDate}
+                  onChange={(v) => { touch("startDate"); set("startDate", v); }}
+                  min={tomorrowDate}
+                  className={`${inputCls} ${step2InputErr("startDate")}`}
+                />
+                {shouldShowStep2Error("startDate") && step2FieldErrors.startDate && (
+                  <p className="mt-1 text-xs text-red-500">Selectați data de început</p>
+                )}
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
               <div>
                 <label className={labelCls}>Frecventa plata</label>
-                <select className={selectCls} value={form.paymentFrequency} onChange={(e) => set("paymentFrequency", e.target.value)}>
+                <select
+                  className={`${selectCls} ${step2SelectErr("paymentFrequency")}`}
+                  value={form.paymentFrequency}
+                  onChange={(e) => { touch("paymentFrequency"); set("paymentFrequency", e.target.value); }}
+                  onBlur={() => touch("paymentFrequency")}
+                >
                   <option value="">Selecteaza</option>
                   <option value="integrala">Integrala</option>
                   <option value="semestriala">Semestriala</option>
                   <option value="trimestriala">Trimestriala</option>
                   <option value="lunara">Lunara</option>
                 </select>
+                {shouldShowStep2Error("paymentFrequency") && step2FieldErrors.paymentFrequency && (
+                  <p className="mt-1 text-xs text-red-500">Selectați frecvența de plată</p>
+                )}
               </div>
               <div>
                 <label className={labelCls}>Fransiza</label>
-                <select className={selectCls} value={form.deductible} onChange={(e) => set("deductible", e.target.value)}>
+                <select
+                  className={`${selectCls} ${step2SelectErr("deductible")}`}
+                  value={form.deductible}
+                  onChange={(e) => { touch("deductible"); set("deductible", e.target.value); }}
+                  onBlur={() => touch("deductible")}
+                >
                   <option value="">Selecteaza</option>
                   <option value="cu_fransiza">Cu fransiza</option>
                   <option value="fara_fransiza">Fara fransiza</option>
                   <option value="ambele">Ambele variante</option>
                 </select>
+                {shouldShowStep2Error("deductible") && step2FieldErrors.deductible && (
+                  <p className="mt-1 text-xs text-red-500">Selectați franșiza</p>
+                )}
               </div>
             </div>
 
@@ -1291,7 +1417,17 @@ export default function CascoPage() {
                 Inapoi
               </span>
             </button>
-            <button type="button" onClick={() => step2Valid && next()} disabled={!step2Valid} className={`${btn.primary} px-8`}>
+            <button
+              type="button"
+              onClick={() => {
+                if (step2Valid) {
+                  next();
+                } else {
+                  setStep2Attempted(true);
+                }
+              }}
+              className={`${btn.primary} px-8`}
+            >
               <span className="flex items-center gap-2">
                 Continua
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -1300,6 +1436,9 @@ export default function CascoPage() {
               </span>
             </button>
           </div>
+          {step2Attempted && !step2Valid && (
+            <p className="text-center text-xs text-red-500">Completați câmpurile marcate cu roșu</p>
+          )}
         </div>
       ),
     },
