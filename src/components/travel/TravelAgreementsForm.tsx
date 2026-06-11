@@ -23,6 +23,8 @@ import AgreementChoiceGroup, {
 
 interface TravelAgreementsFormProps {
   personData: PersonRequest;
+  answers: TravelAgreementAnswers;
+  onAnswersChange: (answers: TravelAgreementAnswers) => void;
   onComplete: () => void;
   onBack?: () => void;
   backLabel?: string;
@@ -31,12 +33,18 @@ interface TravelAgreementsFormProps {
 
 export default function TravelAgreementsForm({
   personData,
+  answers,
+  onAnswersChange,
   onComplete,
   onBack,
   backLabel = "Inapoi",
   onError,
 }: TravelAgreementsFormProps) {
-  const [answers, setAnswers] = useState<TravelAgreementAnswers>(TRAVEL_AGREEMENTS_INITIAL);
+  const setAnswers = (
+    value: TravelAgreementAnswers | ((prev: TravelAgreementAnswers) => TravelAgreementAnswers)
+  ) => {
+    onAnswersChange(typeof value === "function" ? value(answers) : value);
+  };
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);

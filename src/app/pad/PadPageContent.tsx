@@ -24,9 +24,13 @@ import { isRuralEnvironment } from "@/lib/utils/ruralAddress";
 import {
   fetchBuildingStructureOptions,
   fetchPadConstructionTypeOptions,
+  fetchPadProductIds,
   padProductIdForBuildingType,
+  postPadOffer,
   type LabeledIdOption,
 } from "@/lib/flows/padPropertyUtils";
+import { PAD_AGREEMENTS_INITIAL } from "@/lib/flows/padAgreementsCopy";
+import { useConsentWizardPersistence } from "@/lib/flows/useConsentWizardPersistence";
 
 interface PadOfferApi {
   id: number;
@@ -86,6 +90,7 @@ export default function PadPage() {
   /* ---- Utils from API ---- */
   const [buildingTypes, setBuildingTypes] = useState<string[]>([]);
   const [environmentTypes, setEnvironmentTypes] = useState<string[]>([]);
+  const [padProductIds, setPadProductIds] = useState<Map<string, number> | null>(null);
   const [buildingStructures, setBuildingStructures] = useState<LabeledIdOption[]>([]);
   const [constructionTypes, setConstructionTypes] = useState<LabeledIdOption[]>([]);
   const [cesionari, setCesionari] = useState<PadCesionar[]>([]);
@@ -125,6 +130,15 @@ export default function PadPage() {
   const [loadingOffer, setLoadingOffer] = useState(false);
   const [downloadingOffer, setDownloadingOffer] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const {
+    agreementAnswers: padAgreementAnswers,
+    setAgreementAnswers: setPadAgreementAnswers,
+    dntWaiverAccepted,
+    setDntWaiverAccepted,
+    syncPersonKey: syncPadConsentPersonKey,
+    shouldSkipConsentFlow: shouldSkipPadConsentFlow,
+    markConsentCompleted: markPadConsentCompleted,
+  } = useConsentWizardPersistence(PAD_AGREEMENTS_INITIAL);
 
   const { currentStep, substep, next, prev, goTo, setSubstep, clearSubstep } =
     useWizardUrlSync(4);
@@ -153,6 +167,10 @@ export default function PadPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStep]);
+
+  useEffect(() => {
+    syncPadConsentPersonKey(String(contractor.cif || "").trim());
+  }, [contractor.cif, syncPadConsentPersonKey]);
 
   /* ---- Validation ---- */
   const isPropertyStepValid =
@@ -237,6 +255,11 @@ export default function PadPage() {
   const handlePadStep2Continue = () => {
     if (isPeopleStepValid) {
       setShowErrors(false);
+      const personKey = String(contractor.cif || "").trim();
+      if (shouldSkipPadConsentFlow(personKey)) {
+        next();
+        return;
+      }
       setSubstep("dnt");
       return;
     }
@@ -259,6 +282,7 @@ export default function PadPage() {
       .get<{ cesionari: PadCesionar[] }>("/online/paid/pad/cesionari")
       .then((data) => setCesionari(data.cesionari || []))
       .catch(() => setError("Nu am putut incarca lista de cesionari"));
+    void fetchPadProductIds().then(setPadProductIds).catch(() => {});
   }, []);
 
   /* Fetch building structures & construction types when PAD type selected */
@@ -268,7 +292,7 @@ export default function PadPage() {
     setBuildingStructureTypeId("");
     setConstructionTypeId("");
 
-    const productId = padProductIdForBuildingType(padPropertyType);
+    const productId = padProductIdForBuildingType(padPropertyType, padProductIds);
     let cancelled = false;
 
     void (async () => {
@@ -284,7 +308,7 @@ export default function PadPage() {
     return () => {
       cancelled = true;
     };
-  }, [padPropertyType]);
+  }, [padPropertyType, padProductIds]);
 
   /* Toggle cesionar selection */
   const toggleCesionar = (c: PadCesionar) => {
@@ -367,36 +391,33 @@ export default function PadPage() {
 
       // 2. Create offer — POST /online/offers/paid/pad/v3
       const totalCesionari = selectedCesionari.length;
-      const padProductId = padProductIdForBuildingType(padPropertyType);
+      const padProductId = padProductIdForBuildingType(padPropertyType, padProductIds);
 
-      const offerRes = await api.post<PadOfferApi>(
-        `/online/offers/paid/pad/v3?orderHash=${currentOrderHash}`,
-        {
-          orderId: currentOrderId,
-          productId: padProductId,
-          policyStartDate: policyStartDate + "T00:00:00",
-          policyEndDate: endDate.toISOString().split("T")[0] + "T00:00:00",
-          offerDetails: {
-            previousPolicySeries: isRenewal && previousPolicySeries.trim()
-              ? previousPolicySeries.trim()
-              : null,
-            previousPolicyNumber: isRenewal && previousPolicyNumber.trim()
-              ? previousPolicyNumber.trim()
-              : null,
-            notesCesionari: notesCesionari.trim() || null,
-            cesionari: selectedCesionari.map((c, i) => ({
-              cif: c.cif,
-              name: c.name,
-              legalType: c.legalType,
-              quota: totalCesionari === 1
-                ? 100
-                : i < totalCesionari - 1
-                  ? Math.floor(100 / totalCesionari)
-                  : 100 - Math.floor(100 / totalCesionari) * (totalCesionari - 1),
-            })),
-          },
-        }
-      );
+      const offerRes = await postPadOffer<PadOfferApi>(currentOrderHash, {
+        orderId: currentOrderId,
+        productId: padProductId,
+        policyStartDate: policyStartDate + "T00:00:00",
+        policyEndDate: endDate.toISOString().split("T")[0] + "T00:00:00",
+        offerDetails: {
+          previousPolicySeries: isRenewal && previousPolicySeries.trim()
+            ? previousPolicySeries.trim()
+            : null,
+          previousPolicyNumber: isRenewal && previousPolicyNumber.trim()
+            ? previousPolicyNumber.trim()
+            : null,
+          notesCesionari: notesCesionari.trim() || null,
+          cesionari: selectedCesionari.map((c, i) => ({
+            cif: c.cif,
+            name: c.name,
+            legalType: c.legalType,
+            quota: totalCesionari === 1
+              ? 100
+              : i < totalCesionari - 1
+                ? Math.floor(100 / totalCesionari)
+                : 100 - Math.floor(100 / totalCesionari) * (totalCesionari - 1),
+          })),
+        },
+      });
 
       if (offerRes.error) {
         setError(offerRes.message || "Eroare la generarea ofertei PAD");
@@ -405,10 +426,12 @@ export default function PadPage() {
       }
     } catch (err) {
       const apiErr = err as { message?: string; data?: unknown };
+      const raw = apiErr.message || "Eroare la generarea ofertei PAD";
+      const friendly = /INS-9999.*nu este disponibil/i.test(raw)
+        ? "Produsul PAD selectat nu este disponibil momentan. Reîncercați sau contactați-ne."
+        : raw;
       const detail = apiErr.data ? JSON.stringify(apiErr.data) : "";
-      setError(
-        `${apiErr.message || "Eroare la generarea ofertei PAD"}${detail ? ` | ${detail}` : ""}`
-      );
+      setError(`${friendly}${detail ? ` | ${detail}` : ""}`);
     } finally {
       setLoadingOffer(false);
     }
@@ -871,7 +894,10 @@ export default function PadPage() {
               ? { dateOfBirth: dateOfBirthFromCNP(String(contractor.cif)) }
               : {}),
           }}
+          answers={padAgreementAnswers}
+          onAnswersChange={setPadAgreementAnswers}
           onComplete={() => {
+            markPadConsentCompleted(String(contractor.cif || "").trim());
             next();
           }}
           onError={(msg) => setError(msg)}
@@ -883,6 +909,8 @@ export default function PadPage() {
       ) : showDnt ? (
         <DntChoice
           productLabel="PAD"
+          waiverAccepted={dntWaiverAccepted}
+          onWaiverAcceptedChange={setDntWaiverAccepted}
           onContinueDirect={() => {
             setSubstep("consent");
           }}

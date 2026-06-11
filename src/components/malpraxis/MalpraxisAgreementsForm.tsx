@@ -23,6 +23,8 @@ import AgreementChoiceGroup, {
 
 interface MalpraxisAgreementsFormProps {
   personData: PersonRequest;
+  answers: MalpraxisAgreementAnswers;
+  onAnswersChange: (answers: MalpraxisAgreementAnswers) => void;
   onComplete: () => void;
   onBack?: () => void;
   backLabel?: string;
@@ -31,14 +33,20 @@ interface MalpraxisAgreementsFormProps {
 
 export default function MalpraxisAgreementsForm({
   personData,
+  answers,
+  onAnswersChange,
   onComplete,
   onBack,
   backLabel = "Inapoi",
   onError,
 }: MalpraxisAgreementsFormProps) {
-  const [answers, setAnswers] = useState<MalpraxisAgreementAnswers>(
-    MALPRAXIS_AGREEMENTS_INITIAL
-  );
+  const setAnswers = (
+    value:
+      | MalpraxisAgreementAnswers
+      | ((prev: MalpraxisAgreementAnswers) => MalpraxisAgreementAnswers)
+  ) => {
+    onAnswersChange(typeof value === "function" ? value(answers) : value);
+  };
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);

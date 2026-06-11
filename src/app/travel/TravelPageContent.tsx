@@ -20,6 +20,8 @@ import { getArray } from "@/lib/utils/dto";
 import DateInput from "@/components/shared/DateInput";
 import { birthDateFromCnp } from "@/lib/utils/formatters";
 import { btn } from "@/lib/ui/tokens";
+import { TRAVEL_AGREEMENTS_INITIAL } from "@/lib/flows/travelAgreementsCopy";
+import { useConsentWizardPersistence } from "@/lib/flows/useConsentWizardPersistence";
 
 interface TravelOfferRaw {
   id: number;
@@ -163,6 +165,16 @@ export default function TravelPage() {
     return countries.filter((c) => allowed.has(c.code));
   }, [travelZone, countries, zones]);
 
+  const {
+    agreementAnswers: travelAgreementAnswers,
+    setAgreementAnswers: setTravelAgreementAnswers,
+    dntWaiverAccepted,
+    setDntWaiverAccepted,
+    syncPersonKey: syncTravelConsentPersonKey,
+    shouldSkipConsentFlow: shouldSkipTravelConsentFlow,
+    markConsentCompleted: markTravelConsentCompleted,
+  } = useConsentWizardPersistence(TRAVEL_AGREEMENTS_INITIAL);
+
   const { currentStep, substep, next, prev, goTo, setSubstep, clearSubstep } =
     useWizardUrlSync(4);
   const [showErrors, setShowErrors] = useState(false);
@@ -239,6 +251,24 @@ export default function TravelPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStep]);
+
+  useEffect(() => {
+    syncTravelConsentPersonKey(String(travelers[0]?.cif || "").trim());
+  }, [travelers, syncTravelConsentPersonKey]);
+
+  const handleTravelersStepContinue = () => {
+    if (!isTravelersStepValid) {
+      setShowErrors(true);
+      return;
+    }
+    setShowErrors(false);
+    const personKey = String(travelers[0]?.cif || "").trim();
+    if (shouldSkipTravelConsentFlow(personKey)) {
+      next();
+      return;
+    }
+    setSubstep("dnt");
+  };
 
   const handleCreateOrderAndOffers = async () => {
     setError(null);
@@ -537,7 +567,10 @@ export default function TravelPage() {
                   ? { dateOfBirth: birthDateFromCnp(travelers[0].cif) ?? undefined }
                   : {}),
               }}
+              answers={travelAgreementAnswers}
+              onAnswersChange={setTravelAgreementAnswers}
               onComplete={() => {
+                markTravelConsentCompleted(String(travelers[0]?.cif || "").trim());
                 next();
               }}
               onError={(msg) => setError(msg)}
@@ -644,7 +677,7 @@ export default function TravelPage() {
                     Inapoi
                   </span>
                 </button>
-                <button type="button" onClick={() => { if (isTravelersStepValid) { setShowErrors(false); setSubstep("dnt"); } else { setShowErrors(true); } }} className={`${btn.primary} px-8`}>
+                <button type="button" onClick={handleTravelersStepContinue} className={`${btn.primary} px-8`}>
                   <span className="flex items-center gap-2">
                     Continua
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>
@@ -655,6 +688,8 @@ export default function TravelPage() {
           ) : (
             <DntChoice
               productLabel="Travel"
+              waiverAccepted={dntWaiverAccepted}
+              onWaiverAcceptedChange={setDntWaiverAccepted}
               onContinueDirect={() => {
                 setSubstep("consent");
               }}

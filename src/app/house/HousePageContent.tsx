@@ -16,7 +16,8 @@ import {
 import type { PersonRequest, AddressRequest, PadCesionar } from "@/types/insuretech";
 import { isAddressValid, isPersonValid, houseAddressRequiresFloor } from "@/lib/utils/formGuards";
 import { createOrderAndOffers } from "@/lib/flows/offerFlow";
-import { HOUSE_AGREEMENTS_INITIAL, type HouseAgreementAnswers } from "@/lib/flows/houseAgreementsCopy";
+import { HOUSE_AGREEMENTS_INITIAL } from "@/lib/flows/houseAgreementsCopy";
+import { useConsentWizardPersistence } from "@/lib/flows/useConsentWizardPersistence";
 import { adjustHouseComparatorBody } from "@/lib/flows/houseOfferBodyAdjustments";
 import { groupUnavailableHouseOffers } from "@/lib/flows/houseOfferMessages";
 import { buildOrderPayload } from "@/lib/flows/payloadBuilders";
@@ -187,11 +188,15 @@ export default function HousePage() {
   const [downloadingOfferId, setDownloadingOfferId] = useState<number | null>(null);
   const [downloadErrors, setDownloadErrors] = useState<Record<string, string>>({});
   const [showUnavailableOffers, setShowUnavailableOffers] = useState(false);
-  const [houseAgreementAnswers, setHouseAgreementAnswers] =
-    useState<HouseAgreementAnswers>(HOUSE_AGREEMENTS_INITIAL);
-  const [dntWaiverAccepted, setDntWaiverAccepted] = useState(false);
-  const [houseConsentCompleted, setHouseConsentCompleted] = useState(false);
-  const consentCifRef = useRef<string | null>(null);
+  const {
+    agreementAnswers: houseAgreementAnswers,
+    setAgreementAnswers: setHouseAgreementAnswers,
+    dntWaiverAccepted,
+    setDntWaiverAccepted,
+    syncPersonKey: syncHouseConsentPersonKey,
+    shouldSkipConsentFlow: shouldSkipHouseConsentFlow,
+    markConsentCompleted: markHouseConsentCompleted,
+  } = useConsentWizardPersistence(HOUSE_AGREEMENTS_INITIAL);
 
   const { currentStep, substep, next, prev, goTo, setSubstep, clearSubstep } =
     useWizardUrlSync(4);
@@ -214,14 +219,8 @@ export default function HousePage() {
   }, [currentStep]);
 
   useEffect(() => {
-    const cif = String(contractor.cif || "").trim();
-    if (!cif) return;
-    if (consentCifRef.current && consentCifRef.current !== cif) {
-      setHouseConsentCompleted(false);
-      setHouseAgreementAnswers(HOUSE_AGREEMENTS_INITIAL);
-      setDntWaiverAccepted(false);
-    }
-  }, [contractor.cif]);
+    syncHouseConsentPersonKey(String(contractor.cif || "").trim());
+  }, [contractor.cif, syncHouseConsentPersonKey]);
 
   const floorRequired = houseAddressRequiresFloor(
     constructionTypeCode,
@@ -310,7 +309,7 @@ export default function HousePage() {
     if (isContractorValid) {
       setShowErrors(false);
       const cif = String(contractor.cif || "").trim();
-      if (houseConsentCompleted && consentCifRef.current === cif) {
+      if (shouldSkipHouseConsentFlow(cif)) {
         next();
         return;
       }
@@ -1195,8 +1194,7 @@ export default function HousePage() {
           answers={houseAgreementAnswers}
           onAnswersChange={setHouseAgreementAnswers}
           onComplete={() => {
-            consentCifRef.current = String(contractor.cif || "").trim();
-            setHouseConsentCompleted(true);
+            markHouseConsentCompleted(String(contractor.cif || "").trim());
             next();
           }}
           onError={(msg) => setError(msg)}

@@ -23,6 +23,8 @@ import AgreementChoiceGroup, {
 
 interface PadAgreementsFormProps {
   personData: PersonRequest;
+  answers: PadAgreementAnswers;
+  onAnswersChange: (answers: PadAgreementAnswers) => void;
   onComplete: () => void;
   onBack?: () => void;
   backLabel?: string;
@@ -31,12 +33,18 @@ interface PadAgreementsFormProps {
 
 export default function PadAgreementsForm({
   personData,
+  answers,
+  onAnswersChange,
   onComplete,
   onBack,
   backLabel = "Inapoi",
   onError,
 }: PadAgreementsFormProps) {
-  const [answers, setAnswers] = useState<PadAgreementAnswers>(PAD_AGREEMENTS_INITIAL);
+  const setAnswers = (
+    value: PadAgreementAnswers | ((prev: PadAgreementAnswers) => PadAgreementAnswers)
+  ) => {
+    onAnswersChange(typeof value === "function" ? value(answers) : value);
+  };
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);

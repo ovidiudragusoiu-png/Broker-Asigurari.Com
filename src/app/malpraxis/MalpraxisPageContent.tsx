@@ -16,6 +16,8 @@ import type { PersonRequest } from "@/types/insuretech";
 import { calculatePolicyEndDate } from "@/lib/utils/formatters";
 import { isPersonValid } from "@/lib/utils/formGuards";
 import { dateOfBirthFromCNP } from "@/lib/utils/validation";
+import { MALPRAXIS_AGREEMENTS_INITIAL } from "@/lib/flows/malpraxisAgreementsCopy";
+import { useConsentWizardPersistence } from "@/lib/flows/useConsentWizardPersistence";
 import { createOrderAndOffers } from "@/lib/flows/offerFlow";
 import { buildMalpraxisOrderPayload } from "@/lib/flows/payloadBuilders";
 import {
@@ -225,6 +227,16 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
   const generatingRef = useRef(false);
   const activeRunIdRef = useRef(0);
 
+  const {
+    agreementAnswers: malpraxisAgreementAnswers,
+    setAgreementAnswers: setMalpraxisAgreementAnswers,
+    dntWaiverAccepted,
+    setDntWaiverAccepted,
+    syncPersonKey: syncMalpraxisConsentPersonKey,
+    shouldSkipConsentFlow: shouldSkipMalpraxisConsentFlow,
+    markConsentCompleted: markMalpraxisConsentCompleted,
+  } = useConsentWizardPersistence(MALPRAXIS_AGREEMENTS_INITIAL);
+
   const { currentStep, substep, next, prev, goTo, setSubstep, clearSubstep } =
     useWizardUrlSync(4);
   const [showErrors, setShowErrors] = useState(false);
@@ -287,6 +299,24 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
   });
   const isMalpraxisDetailsValid = malpraxisDetailsMissingLabels.length === 0;
   const isInsuredStepValid = isPersonValid(insured, { skipIdDocument: true });
+
+  useEffect(() => {
+    syncMalpraxisConsentPersonKey(String(insured.cif || "").trim());
+  }, [insured.cif, syncMalpraxisConsentPersonKey]);
+
+  const handleInsuredStepContinue = () => {
+    if (!isInsuredStepValid) {
+      setShowErrors(true);
+      return;
+    }
+    setShowErrors(false);
+    const personKey = String(insured.cif || "").trim();
+    if (shouldSkipMalpraxisConsentFlow(personKey)) {
+      next();
+      return;
+    }
+    setSubstep("dnt");
+  };
 
   const detailsFieldCls = (isMissing: boolean) =>
     isMissing && showDetailsErrors ? `${selectCls} ${detailsErrBorder}` : selectCls;
@@ -1264,7 +1294,10 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
                   ? { dateOfBirth: dateOfBirthFromCNP(String(insured.cif)) }
                   : {}),
               }}
+              answers={malpraxisAgreementAnswers}
+              onAnswersChange={setMalpraxisAgreementAnswers}
               onComplete={() => {
+                markMalpraxisConsentCompleted(String(insured.cif || "").trim());
                 next();
               }}
               onError={(msg) => setError(msg)}
@@ -1352,7 +1385,7 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
                 </button>
                 <button
                   type="button"
-                  onClick={() => { if (isInsuredStepValid) { setShowErrors(false); setSubstep("dnt"); } else { setShowErrors(true); } }}
+                  onClick={handleInsuredStepContinue}
                   disabled={false}
                   className={`${btn.primary} px-8`}
                 >
@@ -1368,6 +1401,8 @@ export default function MalpraxisPage({ debugEnabled = false }: MalpraxisPageCon
           ) : (
             <DntChoice
               productLabel="Malpraxis"
+              waiverAccepted={dntWaiverAccepted}
+              onWaiverAcceptedChange={setDntWaiverAccepted}
               onContinueDirect={() => {
                 setSubstep("consent");
               }}

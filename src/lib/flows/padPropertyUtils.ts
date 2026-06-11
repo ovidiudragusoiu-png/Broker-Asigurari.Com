@@ -1,4 +1,4 @@
-import { api } from "@/lib/api/client";
+import { api, ApiError } from "@/lib/api/client";
 import { getArray } from "@/lib/utils/dto";
 
 export interface LabeledIdOption {
@@ -7,13 +7,11 @@ export interface LabeledIdOption {
   description: string;
 }
 
-/** PAD-A product id (Insuretech docs / staging). */
+/** PAD-A product id fallback when /online/products/house is unavailable. */
 export const PAD_PRODUCT_ID_A = 1270;
 
-/**
- * PAD-B product id — not documented; keep in sync with Insuretech if offers fail for Tip B.
- */
-export const PAD_PRODUCT_ID_B = 1272;
+/** PAD-B product id fallback (production uses 1271, not 1272). */
+export const PAD_PRODUCT_ID_B = 1271;
 
 /** Staging PAD construction types; used when production returns 500 for constructionTypes/{padProductId}. */
 export const PAD_CONSTRUCTION_TYPE_FALLBACK: LabeledIdOption[] = [
@@ -21,8 +19,65 @@ export const PAD_CONSTRUCTION_TYPE_FALLBACK: LabeledIdOption[] = [
   { id: 3, name: "Casa", description: "Casa" },
 ];
 
-export function padProductIdForBuildingType(padPropertyType: string): number {
-  return padPropertyType === "B" ? PAD_PRODUCT_ID_B : PAD_PRODUCT_ID_A;
+const PAD_PRODUCT_FALLBACKS = new Map<string, number>([
+  ["A", PAD_PRODUCT_ID_A],
+  ["B", PAD_PRODUCT_ID_B],
+]);
+
+/** Parse PAD-A / PAD-B ids from GET /online/products/house. */
+export function parsePadProductIds(data: unknown): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const item of getArray<Record<string, unknown>>(data)) {
+    const id = Number(item.id);
+    if (!Number.isFinite(id) || id <= 0) continue;
+    const name = String(item.productName || "");
+    const match = name.match(/PAD-([AB])/i);
+    if (match) {
+      map.set(match[1].toUpperCase(), id);
+    }
+  }
+  return map;
+}
+
+export async function fetchPadProductIds(): Promise<Map<string, number>> {
+  try {
+    const data = await api.get<unknown>("/online/products/house");
+    const parsed = parsePadProductIds(data);
+    if (parsed.size > 0) return parsed;
+  } catch {
+    // use static fallbacks
+  }
+  return new Map(PAD_PRODUCT_FALLBACKS);
+}
+
+export function padProductIdForBuildingType(
+  padPropertyType: string,
+  catalog?: Map<string, number> | null
+): number {
+  const key = padPropertyType.trim().toUpperCase();
+  const fromCatalog = catalog?.get(key);
+  if (fromCatalog != null) return fromCatalog;
+  return PAD_PRODUCT_FALLBACKS.get(key) ?? PAD_PRODUCT_ID_A;
+}
+
+export interface PadOfferPayload {
+  orderId: number;
+  productId: number;
+  policyStartDate: string;
+  policyEndDate: string;
+  offerDetails: Record<string, unknown>;
+}
+
+export async function postPadOffer<T extends { error?: boolean; message?: string }>(
+  orderHash: string,
+  body: PadOfferPayload
+): Promise<T> {
+  try {
+    return await api.post<T>(`/online/offers/paid/pad/v3?orderHash=${orderHash}`, body);
+  } catch (err) {
+    if (!(err instanceof ApiError) || err.status !== 400) throw err;
+    return api.post<T>("/online/offers/paid/pad", body);
+  }
 }
 
 export function normalizeLabeledIdOptions(data: unknown): LabeledIdOption[] {
