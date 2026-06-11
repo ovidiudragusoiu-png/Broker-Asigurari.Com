@@ -5,6 +5,7 @@ import {
   normalizeLabeledIdOptions,
   padProductIdForBuildingType,
   parsePadProductIds,
+  streetNamesForPostalLookup,
   PAD_CONSTRUCTION_TYPE_FALLBACK,
 } from "./padPropertyUtils";
 
@@ -60,5 +61,15 @@ describe("padPropertyUtils", () => {
     expect(
       constructionTypeNameForPad(1, [{ id: 1, name: "Bloc", description: "Bloc" }])
     ).toBe("Bloc");
+  });
+
+  it("strips street type prefix for postal lookup", () => {
+    expect(streetNamesForPostalLookup("Cale Victoriei")).toEqual([
+      "Cale Victoriei",
+      "Victoriei",
+    ]);
+    expect(streetNamesForPostalLookup("Strada Mihail Kogalniceanu")).toContain(
+      "Mihail Kogalniceanu"
+    );
   });
 });

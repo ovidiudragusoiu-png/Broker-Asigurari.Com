@@ -73,25 +73,58 @@ export function defaultConstructionTypeIdForPad(padPropertyType: string): string
   return padPropertyType === "B" ? "3" : "";
 }
 
+const STREET_TYPE_PREFIX =
+  /^(strada|str\.?|st\.?|calea|cale|bulevardul|bulevard|bd\.?|soseaua|sos\.?|aleea|piata|piața|intrarea|drumul)\s+/i;
+
+/** Insuretech postal lookup expects the bare street name, not "Cale Victoriei". */
+export function streetNamesForPostalLookup(streetName: string): string[] {
+  const trimmed = streetName.trim();
+  if (!trimmed) return [];
+
+  const variants: string[] = [];
+  const seen = new Set<string>();
+  const add = (value: string) => {
+    const key = value.trim().toLowerCase();
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    variants.push(value.trim());
+  };
+
+  add(trimmed);
+  let bare = trimmed;
+  while (STREET_TYPE_PREFIX.test(bare)) {
+    bare = bare.replace(STREET_TYPE_PREFIX, "").trim();
+    add(bare);
+  }
+
+  return variants;
+}
+
 /** PAID rejects postal codes that are not in the Insuretech street directory. */
 export async function isPadPostalCodeRecognized(
   cityId: number,
   streetName: string,
-  postalCode: string
+  postalCode: string,
+  options?: { isRural?: boolean }
 ): Promise<boolean> {
-  const query = streetName.trim();
+  if (options?.isRural) return true;
+
   const postal = postalCode.trim();
-  if (!cityId || !query || !postal) return false;
+  if (!cityId || !postal) return false;
+
+  const lookupNames = streetNamesForPostalLookup(streetName);
+  if (lookupNames.length === 0) return false;
 
   try {
-    const results = await api.get<{ postalCode: string; streetName: string }[]>(
-      `/online/address/utils/postalCodes/find?cityId=${cityId}&streetName=${encodeURIComponent(query)}`
-    );
-    return results.some(
-      (row) =>
-        String(row.postalCode).trim() === postal &&
-        query.toLowerCase().includes(String(row.streetName || "").trim().toLowerCase())
-    );
+    for (const lookupName of lookupNames) {
+      const results = await api.get<{ postalCode: string }[]>(
+        `/online/address/utils/postalCodes/find?cityId=${cityId}&streetName=${encodeURIComponent(lookupName)}`
+      );
+      if (results.some((row) => String(row.postalCode).trim() === postal)) {
+        return true;
+      }
+    }
+    return false;
   } catch {
     return false;
   }

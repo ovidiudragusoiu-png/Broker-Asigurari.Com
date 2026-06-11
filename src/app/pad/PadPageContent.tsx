@@ -347,7 +347,8 @@ export default function PadPage() {
         !(await isPadPostalCodeRecognized(
           Number(propertyAddress.cityId),
           propertyAddress.streetName || "",
-          propertyAddress.postalCode || ""
+          propertyAddress.postalCode || "",
+          { isRural: isRuralEnvironment(environmentType) }
         ))
       ) {
         setError(
@@ -764,7 +765,7 @@ export default function PadPage() {
               </div>
               {isRuralEnvironment(environmentType) && <RuralAddressHint />}
               <p className="mb-2 text-xs text-gray-500">
-                Pentru oferta PAD, selectați strada din sugestii (min. 3 caractere) — codul poștal trebuie să fie cel returnat de sistem.
+                Selectați strada din sugestii (min. 3 caractere) pentru cod poștal valid la ofertare PAD.
               </p>
               <AddressForm value={propertyAddress} onChange={setPropertyAddress} showErrors={showErrors} />
               <FieldError
