@@ -19,6 +19,7 @@ export function organizationJsonLd() {
     sameAs: [
       "https://www.facebook.com/brokerasigurariAi",
       "https://www.instagram.com/sigur.ai/",
+      "https://ro.pinterest.com/wwwSigurAI/",
     ],
   };
 }
