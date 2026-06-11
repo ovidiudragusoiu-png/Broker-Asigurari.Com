@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  constructionTypeNameForPad,
+  defaultConstructionTypeIdForPad,
   normalizeLabeledIdOptions,
   padProductIdForBuildingType,
   parsePadProductIds,
@@ -47,5 +49,16 @@ describe("padPropertyUtils", () => {
 
   it("exposes PAD construction fallback options", () => {
     expect(PAD_CONSTRUCTION_TYPE_FALLBACK.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("defaults construction type for PAD tip B", () => {
+    expect(defaultConstructionTypeIdForPad("B")).toBe("3");
+    expect(defaultConstructionTypeIdForPad("A")).toBe("");
+  });
+
+  it("resolves construction type label for order payload", () => {
+    expect(
+      constructionTypeNameForPad(1, [{ id: 1, name: "Bloc", description: "Bloc" }])
+    ).toBe("Bloc");
   });
 });

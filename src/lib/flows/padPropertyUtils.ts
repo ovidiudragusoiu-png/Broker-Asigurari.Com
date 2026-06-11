@@ -60,6 +60,43 @@ export function padProductIdForBuildingType(
   return PAD_PRODUCT_FALLBACKS.get(key) ?? PAD_PRODUCT_ID_A;
 }
 
+export function constructionTypeNameForPad(
+  constructionTypeId: string | number,
+  options: LabeledIdOption[]
+): string {
+  const match = options.find((item) => item.id === Number(constructionTypeId));
+  return match?.name || match?.description || "";
+}
+
+/** Tip B (case) — default to Casa when user picks PAD type B. */
+export function defaultConstructionTypeIdForPad(padPropertyType: string): string {
+  return padPropertyType === "B" ? "3" : "";
+}
+
+/** PAID rejects postal codes that are not in the Insuretech street directory. */
+export async function isPadPostalCodeRecognized(
+  cityId: number,
+  streetName: string,
+  postalCode: string
+): Promise<boolean> {
+  const query = streetName.trim();
+  const postal = postalCode.trim();
+  if (!cityId || !query || !postal) return false;
+
+  try {
+    const results = await api.get<{ postalCode: string; streetName: string }[]>(
+      `/online/address/utils/postalCodes/find?cityId=${cityId}&streetName=${encodeURIComponent(query)}`
+    );
+    return results.some(
+      (row) =>
+        String(row.postalCode).trim() === postal &&
+        query.toLowerCase().includes(String(row.streetName || "").trim().toLowerCase())
+    );
+  } catch {
+    return false;
+  }
+}
+
 export interface PadOfferPayload {
   orderId: number;
   productId: number;

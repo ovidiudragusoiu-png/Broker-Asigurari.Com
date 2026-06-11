@@ -22,13 +22,17 @@ import DateInput from "@/components/shared/DateInput";
 import RuralAddressHint from "@/components/shared/RuralAddressHint";
 import { isRuralEnvironment } from "@/lib/utils/ruralAddress";
 import {
+  constructionTypeNameForPad,
+  defaultConstructionTypeIdForPad,
   fetchBuildingStructureOptions,
   fetchPadConstructionTypeOptions,
   fetchPadProductIds,
+  isPadPostalCodeRecognized,
   padProductIdForBuildingType,
   postPadOffer,
   type LabeledIdOption,
 } from "@/lib/flows/padPropertyUtils";
+import { presentPadOfferError } from "@/lib/flows/padOfferMessages";
 import { PAD_AGREEMENTS_INITIAL } from "@/lib/flows/padAgreementsCopy";
 import { useConsentWizardPersistence } from "@/lib/flows/useConsentWizardPersistence";
 
@@ -91,6 +95,7 @@ export default function PadPage() {
   const [buildingTypes, setBuildingTypes] = useState<string[]>([]);
   const [environmentTypes, setEnvironmentTypes] = useState<string[]>([]);
   const [padProductIds, setPadProductIds] = useState<Map<string, number> | null>(null);
+  const [padProductIdsReady, setPadProductIdsReady] = useState(false);
   const [buildingStructures, setBuildingStructures] = useState<LabeledIdOption[]>([]);
   const [constructionTypes, setConstructionTypes] = useState<LabeledIdOption[]>([]);
   const [cesionari, setCesionari] = useState<PadCesionar[]>([]);
@@ -162,11 +167,11 @@ export default function PadPage() {
 
   /* ---- Auto-generate offer when reaching step 3 (index 2) ---- */
   useEffect(() => {
-    if (currentStep === 2 && !offer && !loadingOffer) {
+    if (currentStep === 2 && padProductIdsReady && !offer && !loadingOffer) {
       handleCreateOrderAndOffer();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentStep]);
+  }, [currentStep, padProductIdsReady]);
 
   useEffect(() => {
     syncPadConsentPersonKey(String(contractor.cif || "").trim());
@@ -282,7 +287,10 @@ export default function PadPage() {
       .get<{ cesionari: PadCesionar[] }>("/online/paid/pad/cesionari")
       .then((data) => setCesionari(data.cesionari || []))
       .catch(() => setError("Nu am putut incarca lista de cesionari"));
-    void fetchPadProductIds().then(setPadProductIds).catch(() => {});
+    void fetchPadProductIds()
+      .then(setPadProductIds)
+      .catch(() => {})
+      .finally(() => setPadProductIdsReady(true));
   }, []);
 
   /* Fetch building structures & construction types when PAD type selected */
@@ -310,6 +318,15 @@ export default function PadPage() {
     };
   }, [padPropertyType, padProductIds]);
 
+  /* Tip B — PAD case: default construction type to Casa */
+  useEffect(() => {
+    if (!padPropertyType) return;
+    const defaultCt = defaultConstructionTypeIdForPad(padPropertyType);
+    if (defaultCt) {
+      setConstructionTypeId(defaultCt);
+    }
+  }, [padPropertyType]);
+
   /* Toggle cesionar selection */
   const toggleCesionar = (c: PadCesionar) => {
     setSelectedCesionari((prev) =>
@@ -325,6 +342,20 @@ export default function PadPage() {
     setLoadingOffer(true);
 
     try {
+      if (
+        propertyAddress.cityId &&
+        !(await isPadPostalCodeRecognized(
+          Number(propertyAddress.cityId),
+          propertyAddress.streetName || "",
+          propertyAddress.postalCode || ""
+        ))
+      ) {
+        setError(
+          "Codul poștal nu este recunoscut de PAID. Selectați strada din lista de sugestii după ce tastați minim 3 caractere."
+        );
+        return;
+      }
+
       const startDate = new Date(policyStartDate);
       const endDate = new Date(startDate);
       endDate.setFullYear(endDate.getFullYear() + 1);
@@ -371,6 +402,10 @@ export default function PadPage() {
               environmentType,
               buildingStructureTypeId: Number(buildingStructureTypeId),
               padBuildingIdentificationMention: null,
+              constructionType: constructionTypeNameForPad(
+                constructionTypeId,
+                constructionTypes
+              ),
               constructionTypeId: Number(constructionTypeId),
               constructionYear: Number(constructionYear),
               area: Number(area),
@@ -425,18 +460,17 @@ export default function PadPage() {
       });
 
       if (offerRes.error) {
-        setError(offerRes.message || "Eroare la generarea ofertei PAD");
+        setError(presentPadOfferError(offerRes.message));
       } else {
         setOffer(offerRes);
       }
     } catch (err) {
-      const apiErr = err as { message?: string; data?: unknown };
-      const raw = apiErr.message || "Eroare la generarea ofertei PAD";
-      const friendly = /INS-9999.*nu este disponibil/i.test(raw)
-        ? "Produsul PAD selectat nu este disponibil momentan. Reîncercați sau contactați-ne."
-        : raw;
-      const detail = apiErr.data ? JSON.stringify(apiErr.data) : "";
-      setError(`${friendly}${detail ? ` | ${detail}` : ""}`);
+      const apiErr = err as { message?: string; data?: { detail?: string } };
+      const raw =
+        apiErr.data?.detail ||
+        apiErr.message ||
+        "Eroare la generarea ofertei PAD";
+      setError(presentPadOfferError(raw));
     } finally {
       setLoadingOffer(false);
     }
@@ -729,6 +763,9 @@ export default function PadPage() {
                 </span>
               </div>
               {isRuralEnvironment(environmentType) && <RuralAddressHint />}
+              <p className="mb-2 text-xs text-gray-500">
+                Pentru oferta PAD, selectați strada din sugestii (min. 3 caractere) — codul poștal trebuie să fie cel returnat de sistem.
+              </p>
               <AddressForm value={propertyAddress} onChange={setPropertyAddress} showErrors={showErrors} />
               <FieldError
                 show={showStep1FieldError("address")}
