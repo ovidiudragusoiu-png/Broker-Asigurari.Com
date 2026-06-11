@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, type ReactNode } from "react";
+import { useState, useEffect, useRef, useCallback, type ReactNode } from "react";
 import WizardStepper, { useWizardUrlSync } from "@/components/shared/WizardStepper";
 import PersonForm, { emptyPersonPF } from "@/components/shared/PersonForm";
 import AddressForm, { emptyAddress } from "@/components/shared/AddressForm";
@@ -160,23 +160,43 @@ export default function PadPage() {
   const isOffersStep = currentStep === offersStepIndex;
   const hideMarketingSidebar = isOffersStep || showDnt || showConsent;
 
-  /* ---- Clear stale offer/order when navigating back to earlier steps ---- */
-  useEffect(() => {
-    if (currentStep < 2) {
-      setOffer(null);
-      setOrderId(null);
-      setOrderHash(null);
-      setError(null);
-    }
-  }, [currentStep]);
+  const step1FieldRefs = useRef<Record<string, HTMLElement | null>>({});
+  const step2FormRef = useRef<HTMLDivElement>(null);
+  const offerGenRef = useRef(0);
+  const prevStepRef = useRef(-1);
 
-  /* ---- Auto-generate offer when reaching step 3 (index 2) ---- */
+  const resetOfferState = useCallback(() => {
+    offerGenRef.current += 1;
+    setOffer(null);
+    setOrderId(null);
+    setOrderHash(null);
+    setError(null);
+    setLoadingOffer(false);
+  }, []);
+
+  /* ---- Drop stale offer when editing earlier steps; ignore in-flight API ---- */
   useEffect(() => {
-    if (currentStep === 2 && padProductIdsReady && !offer && !loadingOffer) {
-      handleCreateOrderAndOffer();
+    if (currentStep < offersStepIndex) {
+      resetOfferState();
+    }
+  }, [currentStep, offersStepIndex, resetOfferState]);
+
+  /* ---- Fresh offer every time the user returns to the offers step ---- */
+  useEffect(() => {
+    const prev = prevStepRef.current;
+    prevStepRef.current = currentStep;
+    const enteredOffersStep =
+      prev < offersStepIndex && currentStep === offersStepIndex && padProductIdsReady;
+    if (enteredOffersStep) {
+      void handleCreateOrderAndOffer();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentStep, padProductIdsReady]);
+  }, [currentStep, padProductIdsReady, offersStepIndex]);
+
+  const handleOffersBack = () => {
+    resetOfferState();
+    prev();
+  };
 
   useEffect(() => {
     syncPadConsentPersonKey(String(contractor.cif || "").trim());
@@ -199,9 +219,6 @@ export default function PadPage() {
 
   const isPeopleStepValid =
     isPersonValid(contractor, { skipIdDocument: true }) && (sameAsContractor || isPersonValid(insured, { skipIdDocument: true }));
-
-  const step1FieldRefs = useRef<Record<string, HTMLElement | null>>({});
-  const step2FormRef = useRef<HTMLDivElement>(null);
 
   const padStep1Errors = {
     padPropertyType: !padPropertyType,
@@ -343,8 +360,14 @@ export default function PadPage() {
 
   /* ---- Create order + offer (non-v3 endpoints) ---- */
   const handleCreateOrderAndOffer = async () => {
+    const generation = ++offerGenRef.current;
     setError(null);
+    setOffer(null);
+    setOrderId(null);
+    setOrderHash(null);
     setLoadingOffer(true);
+
+    const isStale = () => generation !== offerGenRef.current;
 
     try {
       if (
@@ -356,9 +379,11 @@ export default function PadPage() {
           { isRural: isRuralEnvironment(environmentType) }
         ))
       ) {
-        setError(
-          "Codul poștal nu este recunoscut de PAID. Selectați strada din lista de sugestii după ce tastați minim 3 caractere."
-        );
+        if (!isStale()) {
+          setError(
+            "Codul poștal nu este recunoscut de PAID. Selectați strada din lista de sugestii după ce tastați minim 3 caractere."
+          );
+        }
         return;
       }
 
@@ -418,13 +443,13 @@ export default function PadPage() {
         }
       );
 
+      if (isStale()) return;
+
       const currentOrderId = order.id;
       const currentOrderHash = order.hash;
-      setOrderId(order.id);
-      setOrderHash(order.hash);
 
       if (!currentOrderId || !currentOrderHash) {
-        setError("Nu am putut crea comanda PAD. Reîncercați.");
+        if (!isStale()) setError("Nu am putut crea comanda PAD. Reîncercați.");
         return;
       }
 
@@ -463,12 +488,17 @@ export default function PadPage() {
         productId: padProductId,
       };
 
+      if (isStale()) return;
+
       if (offerRes.error) {
         setError(presentPadOfferErrorWithContext(offerRes.message, offerErrorContext));
       } else {
+        setOrderId(currentOrderId);
+        setOrderHash(currentOrderHash);
         setOffer(offerRes);
       }
     } catch (err) {
+      if (isStale()) return;
       const apiErr = err as { message?: string; data?: { detail?: string } };
       const raw =
         apiErr.data?.detail ||
@@ -481,7 +511,9 @@ export default function PadPage() {
         })
       );
     } finally {
-      setLoadingOffer(false);
+      if (generation === offerGenRef.current) {
+        setLoadingOffer(false);
+      }
     }
   };
 
@@ -1112,7 +1144,7 @@ export default function PadPage() {
               </div>
 
               <div className="flex justify-center gap-3">
-                <button type="button" onClick={prev} className={`${btn.secondary} px-6`}>
+                <button type="button" onClick={handleOffersBack} className={`${btn.secondary} px-6`}>
                   <span className="flex items-center gap-2">
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
@@ -1141,7 +1173,7 @@ export default function PadPage() {
                 {offer.message || "Eroare la generarea ofertei"}
               </div>
               <div className="text-center">
-                <button type="button" onClick={prev} className={`${btn.secondary} px-6`}>
+                <button type="button" onClick={handleOffersBack} className={`${btn.secondary} px-6`}>
                   <span className="flex items-center gap-2">
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
@@ -1155,7 +1187,7 @@ export default function PadPage() {
 
           {!loadingOffer && !offer && error && (
             <div className="text-center">
-              <button type="button" onClick={prev} className={`${btn.secondary} px-6`}>
+              <button type="button" onClick={handleOffersBack} className={`${btn.secondary} px-6`}>
                 <span className="flex items-center gap-2">
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
