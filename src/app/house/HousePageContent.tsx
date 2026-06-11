@@ -134,6 +134,8 @@ export default function HousePage() {
   const [buildingStructureTypeId, setBuildingStructureTypeId] = useState("");
   const [padConstructionTypeId, setPadConstructionTypeId] = useState("");
   const [noOfFloors, setNoOfFloors] = useState<number>(0);
+  const [showFloorsHint, setShowFloorsHint] = useState(false);
+  const [floorsHintDismissed, setFloorsHintDismissed] = useState(false);
   const [occupationType, setOccupationType] = useState("Permanent");
 
   // Policy start date (default: tomorrow)
@@ -768,11 +770,24 @@ export default function HousePage() {
                 className={houseFieldClass(false)}
                 value={noOfFloors}
                 min={0}
-                onChange={(e) => setNoOfFloors(Math.max(0, Number(e.target.value) || 0))}
+                onFocus={() => {
+                  if (!floorsHintDismissed) setShowFloorsHint(true);
+                }}
+                onBlur={() => {
+                  setShowFloorsHint(false);
+                  setFloorsHintDismissed(true);
+                }}
+                onChange={(e) => {
+                  setNoOfFloors(Math.max(0, Number(e.target.value) || 0));
+                  setShowFloorsHint(false);
+                  setFloorsHintDismissed(true);
+                }}
               />
-              <p className="mt-1 text-xs text-gray-500">
-                Parter / casă cu un singur nivel: 0. P+1 înseamnă parter + 1 etaj (introduceți 1).
-              </p>
+              {showFloorsHint && (
+                <p className="mt-1 text-xs text-gray-500">
+                  Parter / casă cu un singur nivel: 0. P+1 înseamnă parter + 1 etaj (introduceți 1).
+                </p>
+              )}
             </div>
           </div>
 
