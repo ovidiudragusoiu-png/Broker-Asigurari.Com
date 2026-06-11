@@ -585,7 +585,7 @@ export function pickOfferByVariant(
 // Person/driver builders
 // ============================================================
 
-const DEFAULT_STREET_TYPE_ID = 1;
+const DEFAULT_STREET_TYPE_ID = 41; // Strada — id 1 is "Alee"
 
 export function normalizePersonForRca(person: PersonRequest): PersonRequest {
   const streetTypeId = person.address.streetTypeId ?? DEFAULT_STREET_TYPE_ID;
@@ -673,8 +673,8 @@ export function buildMinimalPersonForOrder(
     ...emptyAddress(),
     countyId: countyId ?? 1,
     cityId: cityId ?? 1,
-    streetTypeId: 1,
-    streetName: "Strada",
+    streetTypeId: 41,
+    streetName: "Test",
     streetNumber: "1",
     postalCode: postalCode || "",
   };

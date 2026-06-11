@@ -3,6 +3,10 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { AddressRequest } from "@/types/insuretech";
 import { api } from "@/lib/api/client";
+import {
+  INSURETECH_STREET_TYPE_STRADA,
+  isNoStreetNamePlaceholder,
+} from "@/lib/utils/addressNormalize";
 import { ROMANIA_COUNTRY_ID } from "@/lib/utils/formatters";
 
 const inputCls =
@@ -190,7 +194,13 @@ export default function AddressForm({
 
   const handleStreetInputChange = (query: string) => {
     setStreetQuery(query);
-    update({ streetName: query, postalCode: "" });
+    update({
+      streetName: query,
+      postalCode: "",
+      ...(isNoStreetNamePlaceholder(query)
+        ? { streetTypeId: INSURETECH_STREET_TYPE_STRADA }
+        : {}),
+    });
     searchStreet(query);
   };
 
@@ -200,7 +210,7 @@ export default function AddressForm({
       : result.streetName;
     setStreetQuery(fullName);
     update({
-      streetName: fullName,
+      streetName: result.streetName,
       streetTypeId: result.streetTypeId,
       postalCode: result.postalCode,
     });
@@ -395,12 +405,17 @@ export default function AddressForm({
             type="text"
             autoComplete="address-line1"
             className={`${inputCls} ${showErrors && !value.streetName?.trim() ? errBorder : ""}`}
-            placeholder={value.cityId ? "Min. 3 litere..." : "Selecteaza localitate"}
+            placeholder={value.cityId ? "Min. 3 litere sau -" : "Selecteaza localitate"}
             value={streetQuery}
             disabled={isRomania && !value.cityId}
             onChange={(e) => handleStreetInputChange(e.target.value)}
             onFocus={() => streetResults.length > 0 && setShowStreetDropdown(true)}
           />
+          {isNoStreetNamePlaceholder(value.streetName) && (
+            <p className="mt-1 text-xs text-gray-500">
+              Localitate fără stradă — pe poliță va apărea Strada -.
+            </p>
+          )}
           {showStreetDropdown && streetResults.length > 0 && (
             <div className="absolute z-20 mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg">
               {streetResults.map((r) => (

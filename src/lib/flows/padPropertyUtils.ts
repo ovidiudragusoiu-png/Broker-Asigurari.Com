@@ -1,4 +1,5 @@
 import { api, ApiError } from "@/lib/api/client";
+import { bareStreetName, isNoStreetNamePlaceholder } from "@/lib/utils/addressNormalize";
 import { getArray } from "@/lib/utils/dto";
 
 export interface LabeledIdOption {
@@ -93,13 +94,10 @@ export function constructionTypeNameForPadOrder(
   return "";
 }
 
-const STREET_TYPE_PREFIX =
-  /^(strada|str\.?|st\.?|calea|cale|bulevardul|bulevard|bd\.?|soseaua|sos\.?|aleea|piata|piața|intrarea|drumul)\s+/i;
-
 /** Insuretech postal lookup expects the bare street name, not "Cale Victoriei". */
 export function streetNamesForPostalLookup(streetName: string): string[] {
   const trimmed = streetName.trim();
-  if (!trimmed) return [];
+  if (!trimmed || isNoStreetNamePlaceholder(trimmed)) return [];
 
   const variants: string[] = [];
   const seen = new Set<string>();
@@ -111,11 +109,8 @@ export function streetNamesForPostalLookup(streetName: string): string[] {
   };
 
   add(trimmed);
-  let bare = trimmed;
-  while (STREET_TYPE_PREFIX.test(bare)) {
-    bare = bare.replace(STREET_TYPE_PREFIX, "").trim();
-    add(bare);
-  }
+  const bare = bareStreetName(trimmed);
+  if (bare !== trimmed) add(bare);
 
   return variants;
 }
@@ -127,7 +122,7 @@ export async function isPadPostalCodeRecognized(
   postalCode: string,
   options?: { isRural?: boolean }
 ): Promise<boolean> {
-  if (options?.isRural) return true;
+  if (options?.isRural || isNoStreetNamePlaceholder(streetName)) return true;
 
   const postal = postalCode.trim();
   if (!cityId || !postal) return false;

@@ -14,6 +14,7 @@ import {
 } from "@/lib/api/documentsClient";
 import type { PersonRequest, AddressRequest, PadCesionar } from "@/types/insuretech";
 import { formatPrice } from "@/lib/utils/formatters";
+import { normalizeAddressForInsuretech } from "@/lib/utils/addressNormalize";
 import { isAddressValid, isPersonValid } from "@/lib/utils/formGuards";
 import { getArray } from "@/lib/utils/dto";
 import { btn } from "@/lib/ui/tokens";
@@ -363,11 +364,8 @@ export default function PadPage() {
       endDate.setFullYear(endDate.getFullYear() + 1);
       endDate.setDate(endDate.getDate() - 1); // T+1year-1day per PAD docs
 
-      // Normalize persons: add dateOfBirth (PF) + streetTypeId
-      const normalizeAddress = (addr: typeof propertyAddress) => ({
-        ...addr,
-        streetTypeId: addr.streetTypeId ?? 1,
-      });
+      const normalizeAddress = (addr: typeof propertyAddress) =>
+        normalizeAddressForInsuretech(addr);
 
       const contractorNorm = {
         ...contractor,
@@ -939,7 +937,7 @@ export default function PadPage() {
         <PadAgreementsForm
           personData={{
             ...contractor,
-            address: { ...contractor.address, streetTypeId: contractor.address.streetTypeId ?? 1 },
+            address: normalizeAddressForInsuretech(contractor.address),
             ...(contractor.legalType === "PF" && contractor.cif
               ? { dateOfBirth: dateOfBirthFromCNP(String(contractor.cif)) }
               : {}),
