@@ -21,19 +21,12 @@ import { dateOfBirthFromCNP } from "@/lib/utils/validation";
 import DateInput from "@/components/shared/DateInput";
 import RuralAddressHint from "@/components/shared/RuralAddressHint";
 import { isRuralEnvironment } from "@/lib/utils/ruralAddress";
-
-/* Local types for API responses not in shared types */
-interface BuildingStructureOption {
-  id: number;
-  name: string;
-  description: string;
-}
-
-interface ConstructionTypeOption {
-  id: number;
-  name: string;
-  description: string;
-}
+import {
+  fetchBuildingStructureOptions,
+  fetchPadConstructionTypeOptions,
+  padProductIdForBuildingType,
+  type LabeledIdOption,
+} from "@/lib/flows/padPropertyUtils";
 
 interface PadOfferApi {
   id: number;
@@ -45,7 +38,6 @@ interface PadOfferApi {
   message?: string;
 }
 
-const PAD_PRODUCT_ID = 1270;
 const TRUST_BADGES = [
   "Autorizare ASF: RAJ506943",
   "Date securizate (SSL)",
@@ -94,8 +86,8 @@ export default function PadPage() {
   /* ---- Utils from API ---- */
   const [buildingTypes, setBuildingTypes] = useState<string[]>([]);
   const [environmentTypes, setEnvironmentTypes] = useState<string[]>([]);
-  const [buildingStructures, setBuildingStructures] = useState<BuildingStructureOption[]>([]);
-  const [constructionTypes, setConstructionTypes] = useState<ConstructionTypeOption[]>([]);
+  const [buildingStructures, setBuildingStructures] = useState<LabeledIdOption[]>([]);
+  const [constructionTypes, setConstructionTypes] = useState<LabeledIdOption[]>([]);
   const [cesionari, setCesionari] = useState<PadCesionar[]>([]);
 
   /* ---- Step 1: Property details ---- */
@@ -272,18 +264,26 @@ export default function PadPage() {
   /* Fetch building structures & construction types when PAD type selected */
   useEffect(() => {
     if (!padPropertyType) return;
-    setBuildingStructures([]);
-    setConstructionTypes([]);
+
     setBuildingStructureTypeId("");
     setConstructionTypeId("");
-    api
-      .get<BuildingStructureOption[]>(`/online/utils/buildingStructures/${PAD_PRODUCT_ID}`)
-      .then(setBuildingStructures)
-      .catch(() => {});
-    api
-      .get<ConstructionTypeOption[]>(`/online/utils/constructionTypes/${PAD_PRODUCT_ID}`)
-      .then(setConstructionTypes)
-      .catch(() => {});
+
+    const productId = padProductIdForBuildingType(padPropertyType);
+    let cancelled = false;
+
+    void (async () => {
+      const [structures, constructions] = await Promise.all([
+        fetchBuildingStructureOptions(productId),
+        fetchPadConstructionTypeOptions(productId),
+      ]);
+      if (cancelled) return;
+      setBuildingStructures(structures);
+      setConstructionTypes(constructions);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [padPropertyType]);
 
   /* Toggle cesionar selection */
@@ -367,11 +367,13 @@ export default function PadPage() {
 
       // 2. Create offer — POST /online/offers/paid/pad/v3
       const totalCesionari = selectedCesionari.length;
+      const padProductId = padProductIdForBuildingType(padPropertyType);
+
       const offerRes = await api.post<PadOfferApi>(
         `/online/offers/paid/pad/v3?orderHash=${currentOrderHash}`,
         {
           orderId: currentOrderId,
-          productId: PAD_PRODUCT_ID,
+          productId: padProductId,
           policyStartDate: policyStartDate + "T00:00:00",
           policyEndDate: endDate.toISOString().split("T")[0] + "T00:00:00",
           offerDetails: {
