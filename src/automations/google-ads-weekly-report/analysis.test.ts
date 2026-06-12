@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import { analyzePerformance } from "./analysis";
 import { getWeeklyReportDateRanges } from "./dates";
 import type { GoogleAdsPerformanceSnapshot, GoogleAdsReportConfig, PerformanceMetrics } from "./types";
