@@ -1,0 +1,20 @@
+{
+  "googleAdsCustomerId": "1234567890",
+  "loginCustomerId": "",
+  "campaignIds": [],
+  "emailRecipient": "marketing@example.com",
+  "senderEmail": "reports@example.com",
+  "reportDay": "Monday",
+  "reportTime": "08:00",
+  "timezone": "Europe/Bucharest",
+  "targetCpaRon": 120,
+  "minimumConversionThreshold": 2,
+  "maximumAllowedSpendWithoutConversionRon": 250,
+  "automaticChangesAllowed": false,
+  "landingPageUrl": "https://www.sigur.ai/casco",
+  "currencyCode": "RON",
+  "ai": {
+    "enabled": true,
+    "model": "claude-sonnet-4-5"
+  }
+}
