@@ -6,6 +6,7 @@ import { api } from "@/lib/api/client";
 import Link from "next/link";
 import { btn } from "@/lib/ui/tokens";
 import { CheckCircle2, ShieldCheck, Building2, Calendar, Download, AlertTriangle, ArrowRight, Mail } from "lucide-react";
+import { verifyPaymentBeforePolicyCreation } from "@/lib/flows/paymentVerification";
 
 function isValidPositiveInt(value: string | null): value is string {
   return !!value && /^\d+$/.test(value) && Number(value) > 0;
@@ -108,24 +109,36 @@ function PaymentCallbackContent() {
     setCreating(true);
     setError(null);
     try {
-      // V3 docs: "Only create the policy after you validate that the payment was successfully processed."
-      // Verify payment via InsureTech API before proceeding to policy creation
+      let customerEmail = "";
+      let resolvedPadOfferId = urlPadOfferId;
+
+      // Retrieve saved email (set by PaymentFlow before redirect)
       try {
-        const padOid = urlPadOfferId && isValidPositiveInt(urlPadOfferId) ? [Number(urlPadOfferId)] : [];
-        const payCheck = await api.post<{ offerId: number; success: boolean; message: string }>(
-          `/online/offers/payment/check/v3?orderHash=${orderHash}`,
-          { offerIds: [Number(offerId), ...padOid] },
-          { Accept: "text/plain" }
-        );
-        if (!payCheck.success) {
-          setError(payCheck.message || "Plata nu a fost confirmata de procesatorul de plati.");
-          setCreating(false);
-          return;
-        }
-      } catch (checkErr) {
-        console.warn("[PaymentCallback] payment check failed, proceeding anyway:", checkErr);
-        // Don't block policy creation if payment check itself errors — the redirect status is APPROVED
+        customerEmail = sessionStorage.getItem("customerEmail") || "";
+      } catch {
+        // sessionStorage unavailable
       }
+
+      if (!resolvedPadOfferId || !isValidPositiveInt(resolvedPadOfferId)) {
+        try {
+          const saved = sessionStorage.getItem("housePolicyData");
+          if (saved) {
+            const data = JSON.parse(saved);
+            if (data.padOfferId) resolvedPadOfferId = String(data.padOfferId);
+          }
+        } catch { /* */ }
+      }
+
+      // V3 docs: "Only create the policy after you validate that the payment was successfully processed."
+      const paymentOfferIds = [Number(offerId)];
+      if (resolvedPadOfferId && isValidPositiveInt(resolvedPadOfferId)) {
+        paymentOfferIds.push(Number(resolvedPadOfferId));
+      }
+      await verifyPaymentBeforePolicyCreation({
+        post: api.post,
+        orderHash,
+        offerIds: paymentOfferIds,
+      });
 
       // Per V3 docs: RCA uses /policies/rca/v3, all others use /policies/v3
       // HOUSE still uses non-v3 per its own docs
@@ -137,14 +150,6 @@ function PaymentCallbackContent() {
             : `/online/policies/v3?orderHash=${orderHash}`;
 
       let payload: Record<string, unknown>;
-      let customerEmail = "";
-
-      // Retrieve saved email (set by PaymentFlow before redirect)
-      try {
-        customerEmail = sessionStorage.getItem("customerEmail") || "";
-      } catch {
-        // sessionStorage unavailable
-      }
 
       if (productType === "RCA") {
         let savedData: Record<string, unknown> = {};
@@ -166,27 +171,13 @@ function PaymentCallbackContent() {
           paymentMethodType: "CardOnline",
           ...savedData,
         };
-        sessionStorage.removeItem("rcaPolicyData");
       } else {
         payload = { offerId: Number(offerId), paymentMethodType: "CardOnline" };
         // For HOUSE with PAD: include padOfferId from URL param or sessionStorage
-        let resolvedPadOfferId = urlPadOfferId;
-        if (!resolvedPadOfferId || !isValidPositiveInt(resolvedPadOfferId)) {
-          try {
-            const saved = sessionStorage.getItem("housePolicyData");
-            if (saved) {
-              const data = JSON.parse(saved);
-              if (data.padOfferId) resolvedPadOfferId = String(data.padOfferId);
-            }
-          } catch { /* */ }
-        }
         if (resolvedPadOfferId && isValidPositiveInt(resolvedPadOfferId)) {
           payload.padOfferId = Number(resolvedPadOfferId);
         }
       }
-
-      // Clean up
-      try { sessionStorage.removeItem("customerEmail"); } catch { /* */ }
 
       const result = await api.post<PolicyCreateResponse>(
         endpoint,
@@ -206,6 +197,12 @@ function PaymentCallbackContent() {
         );
       } else {
         setPolicyCreated(true);
+        try {
+          sessionStorage.removeItem("customerEmail");
+          if (productType === "RCA") {
+            sessionStorage.removeItem("rcaPolicyData");
+          }
+        } catch { /* */ }
 
         // Save policy to portal database
         const policyNumber = info.series && info.number
